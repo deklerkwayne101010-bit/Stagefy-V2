@@ -147,6 +147,8 @@ export const CREDIT_COSTS = {
   template_generation: 3,
 } as const
 
+export type CreditOperation = keyof typeof CREDIT_COSTS
+
 // Subscription plans
 export interface SubscriptionPlan {
   id: string
