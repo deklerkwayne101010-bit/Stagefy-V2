@@ -58,6 +58,15 @@ Stagefy is a comprehensive real estate media creation platform built with Next.j
 | Image to Video (10s) | 15 credits |
 | Template Generation | 3 credits |
 
+## Credit Packages
+
+| Package | Price | Credits |
+|---------|-------|---------|
+| 50 Credits | $15 | 50 |
+| 100 Credits | $25 | 100 |
+| 250 Credits | $55 | 250 |
+| 500 Credits | $99 | 500 |
+
 ## Subscription Plans
 
 | Plan | Price/Month | Credits |
@@ -67,6 +76,16 @@ Stagefy is a comprehensive real estate media creation platform built with Next.j
 | Pro | $79 | 500/month |
 | Enterprise | $199 | 1,500/month |
 
+## PayFast Integration
+
+| Feature | Status |
+|---------|--------|
+| Payment processing | ✅ Complete |
+| Subscription plans | ✅ Complete |
+| Credit packages | ✅ Complete |
+| Webhook handler | ✅ Complete |
+| Failed payment handling | ✅ Complete |
+
 ## Environment Variables Required
 
 ```
@@ -74,15 +93,19 @@ NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 REPLICATE_API_TOKEN=your-replicate-token
+PAYFAST_MERCHANT_ID=your-merchant-id
+PAYFAST_MERCHANT_KEY=your-merchant-key
+PAYFAST_PASSPHRASE=your-passphrase
+PAYFAST_ENVIRONMENT=sandbox # or 'live'
 ```
 
 ## Next Steps
 
-1. **Connect Supabase database tables** - Run schema from `supabase-schema.md`
-2. Configure PayFast integration for payments
-3. Deploy to production
-4. Add email notifications
-5. Implement real-time webhooks for AI services
+1. [ ] **Connect Supabase database tables** - Run schema from `supabase-schema.md`
+2. [ ] Configure PayFast sandbox for testing
+3. [ ] Deploy to production
+4. [ ] Add email notifications
+5. [ ] Implement real-time webhooks for AI services
 
 | Date | Changes |
 |------|---------|
@@ -90,4 +113,5 @@ REPLICATE_API_TOKEN=your-replicate-token
 | Today | Built complete Stagefy SaaS platform |
 | 2026-02-03 | Fixed TypeScript errors, added Badge className prop, installed @supabase/supabase-js, fixed unescaped entities, fixed auth-context hook |
 | 2026-02-03 | Lazy load Supabase client for demo mode without env vars |
-| 2026-02-03 | Added `supabase-schema.md` with complete database schema (11 tables, enums, RLS policies)
+| 2026-02-03 | Added `supabase-schema.md` with complete database schema (11 tables, enums, RLS policies) |
+| 2026-02-03 | Added PayFast payment integration (subscriptions, credit packages, webhook handler)
