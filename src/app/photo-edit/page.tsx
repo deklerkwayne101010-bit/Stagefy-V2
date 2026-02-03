@@ -10,6 +10,7 @@ import { Input, Textarea } from '@/components/ui/Input'
 import { CreditBadge, FreeTierBadge } from '@/components/ui/Badge'
 import { Badge } from '@/components/ui/Badge'
 import { FREE_TIER_LIMIT, checkFreeUsage, canPerformAction } from '@/lib/credits'
+import { uploadImage, getUploadHistory } from '@/lib/supabase'
 
 const presets = [
   { id: 'virtual-staging', name: 'Virtual Staging', icon: '🪑', prompt: 'Add modern furniture to make this room look staged and inviting. Include a sofa, coffee table, and decorative items.' },
@@ -32,6 +33,8 @@ export default function PhotoEditPage() {
   const [error, setError] = useState<string | null>(null)
   const [freeUsage, setFreeUsage] = useState<{ used: number; remaining: number; total: number } | null>(null)
   const [isWatermarked, setIsWatermarked] = useState(false)
+  const [uploadHistory, setUploadHistory] = useState<Array<{ id: string; url: string; created_at: string }>>([])
+  const [uploading, setUploading] = useState(false)
 
   // Check free tier usage on mount
   useEffect(() => {
@@ -48,16 +51,54 @@ export default function PhotoEditPage() {
     checkFreeTier()
   }, [user?.id])
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Fetch upload history on mount
+  useEffect(() => {
+    const fetchUploadHistory = async () => {
+      if (user?.id) {
+        const { data } = await getUploadHistory(user.id, 5)
+        if (data) {
+          setUploadHistory(data)
+        }
+      }
+    }
+    fetchUploadHistory()
+  }, [user?.id])
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string)
-        setProcessedImage(null)
+      setUploading(true)
+      try {
+        // Upload to Supabase if user is logged in
+        if (user?.id) {
+          const { data, error } = await uploadImage(file, user.id)
+          if (error) {
+            console.warn('Supabase upload failed, using local preview:', error)
+          } else if (data) {
+            // Add to upload history
+            setUploadHistory(prev => [
+              { id: data.id, url: data.url, created_at: new Date().toISOString() },
+              ...prev.slice(0, 4)
+            ])
+          }
+        }
+
+        // Show local preview
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          setSelectedImage(event.target?.result as string)
+          setProcessedImage(null)
+        }
+        reader.readAsDataURL(file)
+      } finally {
+        setUploading(false)
       }
-      reader.readAsDataURL(file)
     }
+  }
+
+  const handleSelectFromHistory = (url: string) => {
+    setSelectedImage(url)
+    setProcessedImage(null)
   }
 
   const handlePresetClick = (preset: typeof presets[0]) => {
@@ -244,6 +285,29 @@ export default function PhotoEditPage() {
                 </div>
               )}
             </Card>
+
+            {/* Upload History */}
+            {uploadHistory.length > 0 && (
+              <Card>
+                <CardHeader title="Upload History" subtitle="Recent uploaded images" />
+                <div className="grid grid-cols-5 gap-3">
+                  {uploadHistory.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleSelectFromHistory(item.url)}
+                      className="relative group aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all"
+                    >
+                      <img
+                        src={item.url}
+                        alt="Uploaded"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             {/* Before/After Preview */}
             {processedImage && (

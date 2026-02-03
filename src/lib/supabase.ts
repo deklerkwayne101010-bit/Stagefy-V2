@@ -82,26 +82,28 @@ export const supabase = {
       return {
         select: () => ({
           eq: () => ({
-            single: () => ({ data: null, ...mockResponse }),
+            order: () => ({
+              limit: () => ({ data: null, ...mockResponse }),
+              single: () => ({ data: null, ...mockResponse }),
+            }),
           }),
         }),
-        insert: () => ({
+        insert: (values: any) => ({
           select: () => ({
             single: () => ({ data: null, ...mockResponse }),
           }),
         }),
-        update: () => ({
+        update: (values: any) => ({
           eq: () => ({
             select: () => ({
               single: () => ({ data: null, ...mockResponse }),
             }),
-            ...mockResponse,
           }),
         }),
         delete: () => ({
           eq: () => ({ ...mockResponse }),
         }),
-      }
+      } as any
     }
     return client.from(table)
   },
@@ -110,6 +112,125 @@ export const supabase = {
 // Export admin client getter
 export function getAdminClient() {
   return getSupabaseAdminClient()
+}
+
+// Storage bucket name
+const UPLOADS_BUCKET = 'uploads'
+
+/**
+ * Upload an image to Supabase Storage and save record to database
+ */
+export async function uploadImage(
+  file: File,
+  userId: string
+): Promise<{ data: { id: string; url: string } | null; error: Error | null }> {
+  const client = getSupabaseClient()
+  if (!client) {
+    return { data: null, error: new Error('Supabase not configured') }
+  }
+
+  try {
+    // Generate unique filename
+    const timestamp = Date.now()
+    const randomStr = Math.random().toString(36).substring(2, 8)
+    const fileName = `${userId}/${timestamp}-${randomStr}-${file.name}`
+
+    // Upload to storage
+    const { data: uploadData, error: uploadError } = await client.storage
+      .from(UPLOADS_BUCKET)
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      throw uploadError
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = client.storage
+      .from(UPLOADS_BUCKET)
+      .getPublicUrl(fileName)
+
+    // Save to media_items table
+    const { data: mediaData, error: dbError } = await (client
+      .from('media_items') as any)
+      .insert({
+        user_id: userId,
+        type: 'image',
+        url: publicUrl,
+        title: file.name,
+      })
+      .select('id, url')
+      .single()
+
+    if (dbError) {
+      throw dbError
+    }
+
+    return { data: mediaData, error: null }
+  } catch (err: any) {
+    return { data: null, error: new Error(err.message || 'Failed to upload image') }
+  }
+}
+
+/**
+ * Get upload history for a user (last N images)
+ */
+export async function getUploadHistory(
+  userId: string,
+  limit: number = 5
+): Promise<{ data: Array<{ id: string; url: string; created_at: string }> | null; error: Error | null }> {
+  const client = getSupabaseClient()
+  if (!client) {
+    return { data: null, error: new Error('Supabase not configured') }
+  }
+
+  try {
+    const { data, error } = await client
+      .from('media_items')
+      .select('id, url, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'image')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (err: any) {
+    return { data: null, error: new Error(err.message || 'Failed to fetch upload history') }
+  }
+}
+
+/**
+ * Select an image from upload history
+ */
+export async function getMediaById(
+  mediaId: string
+): Promise<{ data: { id: string; url: string } | null; error: Error | null }> {
+  const client = getSupabaseClient()
+  if (!client) {
+    return { data: null, error: new Error('Supabase not configured') }
+  }
+
+  try {
+    const { data, error } = await client
+      .from('media_items')
+      .select('id, url')
+      .eq('id', mediaId)
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return { data, error: null }
+  } catch (err: any) {
+    return { data: null, error: new Error(err.message || 'Failed to fetch media') }
+  }
 }
 
 // Helper function to check if user is authenticated
