@@ -138,6 +138,7 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-03 | Lazy load Supabase client for demo mode without env vars |
 | 2026-02-03 | Added `supabase-schema.md` with complete database schema (11 tables, enums, RLS policies) |
 | 2026-02-03 | Added PayFast payment integration (subscriptions, credit packages, webhook handler) |
-| 2026-02-03 | Implemented free usage tier (3 free AI actions, watermark on outputs, visual indicators)
-| 2026-02-03 | Created premium marketing landing page with hero, before/after slider, features, and pricing
-| 2026-02-03 | Redesigned login and signup pages with clean, minimal design
+| 2026-02-03 | Implemented free usage tier (3 free AI actions, watermark on outputs, visual indicators) |
+| 2026-02-03 | Created premium marketing landing page with hero, before/after slider, features, and pricing |
+| 2026-02-03 | Redesigned login and signup pages with clean, minimal design |
+| 2026-02-03 | Fixed landing page routing - removed conflicting page.tsx so landing page displays at / |
