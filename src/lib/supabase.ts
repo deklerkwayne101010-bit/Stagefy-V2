@@ -123,8 +123,9 @@ export async function getCurrentUser(): Promise<User | null> {
       id: user.id || 'demo-user',
       email: user.email || 'demo@example.com',
       full_name: 'Demo User',
-      credits: 50,
+      credits: 0, // Demo user has 0 credits to test free tier
       subscription_tier: 'free',
+      free_usage_used: 0,
       role: 'agent',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

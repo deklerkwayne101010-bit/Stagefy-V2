@@ -28,6 +28,9 @@ Stagefy is a comprehensive real estate media creation platform built with Next.j
 - [x] Sidebar navigation with credit balance
 - [x] Header with notifications dropdown
 - [x] API routes for AI services (photo-edit, image-to-video, template)
+- [x] Free usage tier system with 3 free AI actions
+- [x] Watermark system for free tier outputs
+- [x] Visual indicators for free tier usage limits
 
 ## Current Structure
 
@@ -48,7 +51,16 @@ Stagefy is a comprehensive real estate media creation platform built with Next.j
 | `src/components/ui/` | UI components | ✅ Complete |
 | `src/components/layout/` | Layout components | ✅ Complete |
 
-## Credit System
+## Free Usage Tier
+
+| Feature | Description |
+|---------|-------------|
+| Free Actions | 3 AI actions per new account |
+| Watermark | Applied to all free tier outputs |
+| Visual Indicator | Progress bar showing remaining free actions |
+| Limit Warning | Alert when free limit is reached |
+
+Users on the free tier (subscription_tier='free' with 0 credits) get 3 free AI actions. After that, they must upgrade or purchase credits.
 
 | Operation | Credit Cost |
 |-----------|-------------|
@@ -114,4 +126,5 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-03 | Fixed TypeScript errors, added Badge className prop, installed @supabase/supabase-js, fixed unescaped entities, fixed auth-context hook |
 | 2026-02-03 | Lazy load Supabase client for demo mode without env vars |
 | 2026-02-03 | Added `supabase-schema.md` with complete database schema (11 tables, enums, RLS policies) |
-| 2026-02-03 | Added PayFast payment integration (subscriptions, credit packages, webhook handler)
+| 2026-02-03 | Added PayFast payment integration (subscriptions, credit packages, webhook handler) |
+| 2026-02-03 | Implemented free usage tier (3 free AI actions, watermark on outputs, visual indicators)

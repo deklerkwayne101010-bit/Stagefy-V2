@@ -1,10 +1,40 @@
 // Credit management service for Stagefy
 import { supabase, getAdminClient } from './supabase'
-import { CREDIT_COSTS, type CreditOperation, type User } from './types'
+import { CREDIT_COSTS, type CreditOperation, type User, FREE_TIER_LIMIT } from './types'
 
 // Credit costs per operation (matches database schema)
-export { CREDIT_COSTS }
+export { CREDIT_COSTS, FREE_TIER_LIMIT }
 export type { CreditOperation }
+
+// Check if user is on free tier and has free usage remaining
+export async function checkFreeUsage(userId: string): Promise<{
+  isEligible: boolean
+  used: number
+  remaining: number
+  total: number
+}> {
+  const { data: user, error } = await (supabase.from as any)('users')
+    .select('free_usage_used, subscription_tier, credits')
+    .eq('id', userId)
+    .single()
+
+  if (error || !user) {
+    return { isEligible: false, used: 0, remaining: 0, total: FREE_TIER_LIMIT }
+  }
+
+  // Only free tier users with no credits get free usage
+  const isFreeTier = user.subscription_tier === 'free'
+  const hasCredits = (user.credits || 0) > 0
+  const used = user.free_usage_used || 0
+  const remaining = Math.max(0, FREE_TIER_LIMIT - used)
+
+  return {
+    isEligible: isFreeTier && !hasCredits && remaining > 0,
+    used,
+    remaining,
+    total: FREE_TIER_LIMIT,
+  }
+}
 
 // Check user's available credits
 export async function checkUserCredits(userId: string): Promise<number> {
@@ -19,6 +49,77 @@ export async function checkUserCredits(userId: string): Promise<number> {
   }
 
   return (user as User).credits || 0
+}
+
+// Check if user can perform an AI action (either credits or free tier)
+export async function canPerformAction(userId: string): Promise<{
+  canPerform: boolean
+  reason: 'credits' | 'free_tier' | 'none'
+  remaining?: number
+  error?: string
+}> {
+  // First check free tier eligibility
+  const freeUsage = await checkFreeUsage(userId)
+  
+  if (freeUsage.isEligible) {
+    return {
+      canPerform: true,
+      reason: 'free_tier',
+      remaining: freeUsage.remaining,
+    }
+  }
+
+  // Check regular credits
+  const credits = await checkUserCredits(userId)
+  
+  if (credits > 0) {
+    return {
+      canPerform: true,
+      reason: 'credits',
+      remaining: credits,
+    }
+  }
+
+  // No free usage or credits available
+  return {
+    canPerform: false,
+    reason: 'none',
+    error: freeUsage.remaining === 0 
+      ? 'Free usage limit reached. Please upgrade to continue.'
+      : 'No credits available. Please purchase credits.',
+  }
+}
+
+// Record free tier usage
+export async function recordFreeUsage(
+  userId: string,
+  operation: CreditOperation
+): Promise<{ success: boolean; error?: string }> {
+  const { data: user, error: fetchError } = await (supabase.from as any)('users')
+    .select('free_usage_used')
+    .eq('id', userId)
+    .single()
+
+  if (fetchError || !user) {
+    return { success: false, error: 'User not found' }
+  }
+
+  const currentUsed = user.free_usage_used || 0
+  
+  // Check if within limits
+  if (currentUsed >= FREE_TIER_LIMIT) {
+    return { success: false, error: 'Free usage limit reached' }
+  }
+
+  const { error: updateError } = await (supabase.from as any)('users')
+    .update({ free_usage_used: currentUsed + 1 })
+    .eq('id', userId)
+
+  if (updateError) {
+    return { success: false, error: 'Failed to record free usage' }
+  }
+
+  return { success: true }
 }
 
 // Reserve credits for an operation (checks and holds credits)

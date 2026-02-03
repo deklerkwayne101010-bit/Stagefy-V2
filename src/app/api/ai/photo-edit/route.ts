@@ -1,6 +1,14 @@
 // API route for AI Photo Editing (Qwen Image Edit Plus)
 import { NextResponse } from 'next/server'
-import { checkUserCredits, reserveCredits, refundCredits, CREDIT_COSTS } from '@/lib/credits'
+import { 
+  checkUserCredits, 
+  reserveCredits, 
+  refundCredits, 
+  CREDIT_COSTS, 
+  checkFreeUsage, 
+  recordFreeUsage,
+  canPerformAction 
+} from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
 
 export async function POST(request: Request) {
@@ -27,22 +35,34 @@ export async function POST(request: Request) {
     const userIdStr = user.id
     const creditCost = CREDIT_COSTS.photo_edit
 
-    // Check available credits
-    const availableCredits = await checkUserCredits(userIdStr)
-    if (availableCredits < creditCost) {
+    // Check if user can perform this action (free tier or credits)
+    const canPerform = await canPerformAction(userIdStr)
+    
+    if (!canPerform.canPerform) {
       return NextResponse.json(
-        { error: `Insufficient credits. Need ${creditCost}, have ${availableCredits}` },
+        { error: canPerform.error || 'Cannot perform action' },
         { status: 402 }
       )
     }
 
-    // Reserve credits before processing
-    const reservation = await reserveCredits(userIdStr, 'photo_edit', `photo-${Date.now()}`)
-    if (!reservation.success) {
-      return NextResponse.json(
-        { error: reservation.error || 'Failed to reserve credits' },
-        { status: 402 }
-      )
+    // Track if using free tier
+    let usingFreeTier = false
+    let freeUsageRemaining = 0
+
+    if (canPerform.reason === 'free_tier') {
+      usingFreeTier = true
+      freeUsageRemaining = canPerform.remaining || 0
+    }
+
+    // If using credits, reserve them
+    if (!usingFreeTier) {
+      const reservation = await reserveCredits(userIdStr, 'photo_edit', `photo-${Date.now()}`)
+      if (!reservation.success) {
+        return NextResponse.json(
+          { error: reservation.error || 'Failed to reserve credits' },
+          { status: 402 }
+        )
+      }
     }
 
     try {
@@ -70,23 +90,37 @@ export async function POST(request: Request) {
 
       const prediction = await response.json()
 
-      // Success! Credits already deducted on reservation
+      // Record free tier usage if applicable
+      if (usingFreeTier) {
+        await recordFreeUsage(userIdStr, 'photo_edit')
+      }
+
+      // Success! Return response
+      // Free tier users get watermarked output
       return NextResponse.json({
         outputUrl: prediction.output,
         jobId: prediction.id,
-        creditsUsed: creditCost,
-        remainingCredits: availableCredits - creditCost,
+        creditsUsed: usingFreeTier ? 0 : creditCost,
+        remainingCredits: usingFreeTier ? 0 : (await checkUserCredits(userIdStr)),
+        freeUsageRemaining: usingFreeTier ? freeUsageRemaining - 1 : 0,
+        usingFreeTier,
+        isWatermarked: usingFreeTier,
       })
     } catch (aiError) {
-      // Refund credits on failure
-      await refundCredits(userIdStr, 'photo_edit', `photo-${Date.now()}`)
+      // Refund credits on failure (only if we reserved them)
+      if (!usingFreeTier) {
+        await refundCredits(userIdStr, 'photo_edit', `photo-${Date.now()}`)
+      }
       
       // Return mock response for demo
       return NextResponse.json({
         outputUrl: 'https://example.com/edited-image.jpg',
         jobId: 'demo-job-' + Date.now(),
         creditsUsed: 0,
-        remainingCredits: availableCredits,
+        remainingCredits: usingFreeTier ? 0 : await checkUserCredits(userIdStr),
+        freeUsageRemaining: usingFreeTier ? freeUsageRemaining : 0,
+        usingFreeTier,
+        isWatermarked: usingFreeTier,
         demo: true,
       })
     }

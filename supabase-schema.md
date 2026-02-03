@@ -71,6 +71,7 @@ Main user table extending Supabase Auth.
 | role | user_role | DEFAULT 'agent' | User role |
 | credits | integer | DEFAULT 50 | Available credit balance |
 | subscription_tier | subscription_tier | DEFAULT 'free' | Current subscription plan |
+| free_usage_used | integer | DEFAULT 0 | Number of free AI actions used |
 | avatar_url | text | | URL to user avatar |
 | phone | text | | Contact phone number |
 | created_at | timestamptz | DEFAULT NOW() | Account creation timestamp |

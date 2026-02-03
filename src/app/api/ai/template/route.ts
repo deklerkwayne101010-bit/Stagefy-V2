@@ -1,6 +1,13 @@
 // API route for AI Template Builder (Google Nano Banana Pro)
 import { NextResponse } from 'next/server'
-import { checkUserCredits, reserveCredits, refundCredits, CREDIT_COSTS } from '@/lib/credits'
+import { 
+  checkUserCredits, 
+  reserveCredits, 
+  refundCredits, 
+  CREDIT_COSTS, 
+  canPerformAction, 
+  recordFreeUsage 
+} from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
 
 export async function POST(request: Request) {
@@ -27,22 +34,34 @@ export async function POST(request: Request) {
     const userIdStr = user.id
     const creditCost = CREDIT_COSTS.template_generation
 
-    // Check available credits
-    const availableCredits = await checkUserCredits(userIdStr)
-    if (availableCredits < creditCost) {
+    // Check if user can perform this action (free tier or credits)
+    const canPerform = await canPerformAction(userIdStr)
+    
+    if (!canPerform.canPerform) {
       return NextResponse.json(
-        { error: `Insufficient credits. Need ${creditCost}, have ${availableCredits}` },
+        { error: canPerform.error || 'Cannot perform action' },
         { status: 402 }
       )
     }
 
-    // Reserve credits before processing
-    const reservation = await reserveCredits(userIdStr, 'template_generation', `template-${Date.now()}`)
-    if (!reservation.success) {
-      return NextResponse.json(
-        { error: reservation.error || 'Failed to reserve credits' },
-        { status: 402 }
-      )
+    // Track if using free tier
+    let usingFreeTier = false
+    let freeUsageRemaining = 0
+
+    if (canPerform.reason === 'free_tier') {
+      usingFreeTier = true
+      freeUsageRemaining = canPerform.remaining || 0
+    }
+
+    // If using credits, reserve them
+    if (!usingFreeTier) {
+      const reservation = await reserveCredits(userIdStr, 'template_generation', `template-${Date.now()}`)
+      if (!reservation.success) {
+        return NextResponse.json(
+          { error: reservation.error || 'Failed to reserve credits' },
+          { status: 402 }
+        )
+      }
     }
 
     try {
@@ -70,23 +89,36 @@ export async function POST(request: Request) {
 
       const prediction = await response.json()
 
-      // Success! Credits already deducted on reservation
+      // Record free tier usage if applicable
+      if (usingFreeTier) {
+        await recordFreeUsage(userIdStr, 'template_generation')
+      }
+
+      // Success! Return response
       return NextResponse.json({
         outputUrl: prediction.output,
         jobId: prediction.id,
-        creditsUsed: creditCost,
-        remainingCredits: availableCredits - creditCost,
+        creditsUsed: usingFreeTier ? 0 : creditCost,
+        remainingCredits: usingFreeTier ? 0 : (await checkUserCredits(userIdStr)),
+        freeUsageRemaining: usingFreeTier ? freeUsageRemaining - 1 : 0,
+        usingFreeTier,
+        isWatermarked: usingFreeTier,
       })
     } catch (aiError) {
-      // Refund credits on failure
-      await refundCredits(userIdStr, 'template_generation', `template-${Date.now()}`)
+      // Refund credits on failure (only if we reserved them)
+      if (!usingFreeTier) {
+        await refundCredits(userIdStr, 'template_generation', `template-${Date.now()}`)
+      }
       
       // Return mock response for demo
       return NextResponse.json({
         outputUrl: 'https://example.com/template.jpg',
         jobId: 'demo-job-' + Date.now(),
         creditsUsed: 0,
-        remainingCredits: availableCredits,
+        remainingCredits: usingFreeTier ? 0 : await checkUserCredits(userIdStr),
+        freeUsageRemaining: usingFreeTier ? freeUsageRemaining : 0,
+        usingFreeTier,
+        isWatermarked: usingFreeTier,
         demo: true,
       })
     }
