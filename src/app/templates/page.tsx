@@ -12,17 +12,18 @@ import { Badge } from '@/components/ui/Badge'
 import { checkFreeUsage, canPerformAction } from '@/lib/credits'
 
 const templateTypes = [
-  { value: 'listing_promo', label: 'Listing Promo', icon: '🏠', description: 'Professional listing video' },
-  { value: 'instagram_reel', label: 'Instagram Reel', icon: '📱', description: 'Social media ready' },
-  { value: 'open_house', label: 'Open House', icon: '🚪', description: 'Event promotion' },
+  { value: 'professional', label: 'Professional Template', icon: '🏢', description: 'Clean and professional design' },
+  { value: 'wacky', label: 'Wacky Template', icon: '🎨', description: 'Creative and fun style' },
+  { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visual content' },
+  { value: 'marketing', label: 'Marketing Material', icon: '📢', description: 'Promotional content' },
   { value: 'custom', label: 'Custom', icon: '✨', description: 'Create your own' },
 ]
 
 const sampleTemplates = [
-  { id: 1, name: 'Modern Luxury', type: 'listing_promo', thumbnail: 'https://example.com/thumb1.jpg' },
-  { id: 2, name: 'Cozy Home', type: 'listing_promo', thumbnail: 'https://example.com/thumb2.jpg' },
-  { id: 3, name: 'Urban Loft', type: 'instagram_reel', thumbnail: 'https://example.com/thumb3.jpg' },
-  { id: 4, name: 'Open House Flyer', type: 'open_house', thumbnail: 'https://example.com/thumb4.jpg' },
+  { id: 1, name: 'Corporate Pitch', type: 'professional', thumbnail: 'https://example.com/thumb1.jpg' },
+  { id: 2, name: 'Brand Story', type: 'professional', thumbnail: 'https://example.com/thumb2.jpg' },
+  { id: 3, name: 'Neon Dreams', type: 'wacky', thumbnail: 'https://example.com/thumb3.jpg' },
+  { id: 4, name: 'Market Stats', type: 'infographic', thumbnail: 'https://example.com/thumb4.jpg' },
 ]
 
 const CREDIT_COST = 3
@@ -32,7 +33,7 @@ export default function TemplatesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'create' | 'library'>('create')
   const [selectedImages, setSelectedImages] = useState<string[]>([])
-  const [templateType, setTemplateType] = useState('listing_promo')
+  const [templateType, setTemplateType] = useState('professional')
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
