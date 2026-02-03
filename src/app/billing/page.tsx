@@ -145,7 +145,7 @@ export default function BillingPage() {
               <div className="flex items-center justify-between p-5 bg-blue-50 rounded-2xl">
                 <div>
                   <p className="text-3xl font-bold text-slate-900">{plan.name} Plan</p>
-                  <p className="text-slate-600">${plan.price}/month</p>
+                  <p className="text-slate-600">R{plan.price}/month</p>
                 </div>
                 <Button variant="outline" onClick={() => setActiveTab('plans')}>
                   Change Plan
@@ -188,7 +188,7 @@ export default function BillingPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-slate-900">{pack.credits} credits</p>
-                        <p className="text-sm text-slate-400">${pack.price}</p>
+                        <p className="text-sm text-slate-400">R{pack.price}</p>
                       </div>
                       {pack.id === '250_credits' && <Badge variant="info" size="sm">Popular</Badge>}
                     </div>
@@ -250,7 +250,7 @@ export default function BillingPage() {
                   <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
                   <p className="text-slate-400 text-sm mt-1">{plan.description}</p>
                   <div className="mt-4">
-                    <span className="text-5xl font-bold text-slate-900">${plan.price}</span>
+                    <span className="text-5xl font-bold text-slate-900">R{plan.price}</span>
                     <span className="text-slate-400">/month</span>
                   </div>
                   <div className="mt-3">

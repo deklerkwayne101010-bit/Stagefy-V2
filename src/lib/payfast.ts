@@ -22,12 +22,12 @@ const PAYFAST_REPORT_URLS = {
   live: 'https://www.payfast.co.za/eng/query/paymentreport',
 }
 
-// Subscription plans configuration
+// Subscription plans configuration (prices in ZAR)
 export const SUBSCRIPTION_PLANS = {
   basic: {
     id: 'basic',
     name: 'Basic',
-    price: 29,
+    price: 520,
     monthlyCredits: 200,
     description: 'Perfect for individual agents',
     features: [
@@ -41,7 +41,7 @@ export const SUBSCRIPTION_PLANS = {
   pro: {
     id: 'pro',
     name: 'Pro',
-    price: 79,
+    price: 1420,
     monthlyCredits: 500,
     description: 'For growing teams',
     features: [
@@ -56,7 +56,7 @@ export const SUBSCRIPTION_PLANS = {
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    price: 199,
+    price: 3580,
     monthlyCredits: 1500,
     description: 'For large brokerages',
     features: [
@@ -71,12 +71,12 @@ export const SUBSCRIPTION_PLANS = {
   },
 }
 
-// Credit packages for one-time purchases
+// Credit packages for one-time purchases (prices in ZAR)
 export const CREDIT_PACKAGES = [
-  { id: '50_credits', name: '50 Credits', price: 15, credits: 50 },
-  { id: '100_credits', name: '100 Credits', price: 25, credits: 100 },
-  { id: '250_credits', name: '250 Credits', price: 55, credits: 250 },
-  { id: '500_credits', name: '500 Credits', price: 99, credits: 500 },
+  { id: '50_credits', name: '50 Credits', price: 270, credits: 50 },
+  { id: '100_credits', name: '100 Credits', price: 450, credits: 100 },
+  { id: '250_credits', name: '250 Credits', price: 990, credits: 250 },
+  { id: '500_credits', name: '500 Credits', price: 1780, credits: 500 },
 ]
 
 export type SubscriptionPlanId = keyof typeof SUBSCRIPTION_PLANS

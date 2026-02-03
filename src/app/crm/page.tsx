@@ -12,7 +12,7 @@ const stats = [
   { label: 'Total Contacts', value: '48', change: '+3 this week' },
   { label: 'Active Listings', value: '12', change: '2 pending' },
   { label: 'Media Files', value: '156', change: '+23 this month' },
-  { label: 'Deals Closed', value: '8', change: '$2.4M total' },
+  { label: 'Deals Closed', value: '8', change: 'R43M total' },
 ]
 
 const recentContacts = [
@@ -22,9 +22,9 @@ const recentContacts = [
 ]
 
 const recentListings = [
-  { id: 1, address: '123 Main St, Los Angeles, CA', price: '$850,000', status: 'active', bedrooms: 3, bathrooms: 2 },
-  { id: 2, address: '456 Oak Ave, Beverly Hills, CA', price: '$2,400,000', status: 'pending', bedrooms: 5, bathrooms: 4 },
-  { id: 3, address: '789 Pine Rd, Santa Monica, CA', price: '$1,200,000', status: 'active', bedrooms: 4, bathrooms: 3 },
+  { id: 1, address: '123 Main St, Los Angeles, CA', price: 'R15.3M', status: 'active', bedrooms: 3, bathrooms: 2 },
+  { id: 2, address: '456 Oak Ave, Beverly Hills, CA', price: 'R43.2M', status: 'pending', bedrooms: 5, bathrooms: 4 },
+  { id: 3, address: '789 Pine Rd, Santa Monica, CA', price: 'R21.6M', status: 'active', bedrooms: 4, bathrooms: 3 },
 ]
 
 export default function CRMPage() {

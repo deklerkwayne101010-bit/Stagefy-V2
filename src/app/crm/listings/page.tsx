@@ -9,11 +9,11 @@ import { Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 
 const mockListings = [
-  { id: 1, address: '123 Main St, Los Angeles, CA', price: 850000, bedrooms: 3, bathrooms: 2, sqft: 1800, status: 'active', city: 'Los Angeles' },
-  { id: 2, address: '456 Oak Ave, Beverly Hills, CA', price: 2400000, bedrooms: 5, bathrooms: 4, sqft: 4200, status: 'pending', city: 'Beverly Hills' },
-  { id: 3, address: '789 Pine Rd, Santa Monica, CA', price: 1200000, bedrooms: 4, bathrooms: 3, sqft: 2400, status: 'active', city: 'Santa Monica' },
-  { id: 4, address: '321 Elm Dr, Malibu, CA', price: 4500000, bedrooms: 6, bathrooms: 5, sqft: 5500, status: 'active', city: 'Malibu' },
-  { id: 5, address: '654 Maple Ln, Pasadena, CA', price: 980000, bedrooms: 3, bathrooms: 2, sqft: 2000, status: 'sold', city: 'Pasadena' },
+  { id: 1, address: '123 Main St, Los Angeles, CA', price: 15300000, bedrooms: 3, bathrooms: 2, sqft: 1800, status: 'active', city: 'Los Angeles' },
+  { id: 2, address: '456 Oak Ave, Beverly Hills, CA', price: 43200000, bedrooms: 5, bathrooms: 4, sqft: 4200, status: 'pending', city: 'Beverly Hills' },
+  { id: 3, address: '789 Pine Rd, Santa Monica, CA', price: 21600000, bedrooms: 4, bathrooms: 3, sqft: 2400, status: 'active', city: 'Santa Monica' },
+  { id: 4, address: '321 Elm Dr, Malibu, CA', price: 81000000, bedrooms: 6, bathrooms: 5, sqft: 5500, status: 'active', city: 'Malibu' },
+  { id: 5, address: '654 Maple Ln, Pasadena, CA', price: 17640000, bedrooms: 3, bathrooms: 2, sqft: 2000, status: 'sold', city: 'Pasadena' },
 ]
 
 export default function ListingsPage() {
@@ -28,9 +28,9 @@ export default function ListingsPage() {
   })
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'ZAR',
       maximumFractionDigits: 0,
     }).format(price)
   }
