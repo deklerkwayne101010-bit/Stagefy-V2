@@ -363,7 +363,7 @@ export default function BillingPage() {
                     <p className="font-medium text-slate-900">Photo Editing</p>
                     <p className="text-sm text-slate-400">Enhance and edit your listing photos</p>
                   </div>
-                  <span className="text-lg font-bold text-blue-600">2 credits</span>
+                  <span className="text-lg font-bold text-blue-600">1 credit</span>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                   <div>

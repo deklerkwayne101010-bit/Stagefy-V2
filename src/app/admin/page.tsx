@@ -384,9 +384,9 @@ export default function AdminPage() {
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-600 font-medium">Photo Edits</p>
                   <p className="text-2xl font-bold text-blue-900 mt-1">
-                    {userUsage.reduce((sum, u) => sum + Math.floor(u.creditsSpentThisMonth / 2), 0)}
+                    {userUsage.reduce((sum, u) => sum + u.creditsSpentThisMonth, 0)}
                   </p>
-                  <p className="text-xs text-blue-500 mt-1">jobs (@ 2 credits each)</p>
+                  <p className="text-xs text-blue-500 mt-1">jobs (@ 1 credit each)</p>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg">
                   <p className="text-sm text-purple-600 font-medium">Video Generations</p>

@@ -65,7 +65,7 @@ Users on the free tier (subscription_tier='free' with 0 credits) get 3 free AI a
 
 | Operation | Credit Cost |
 |-----------|-------------|
-| Photo Edit | 2 credits |
+| Photo Edit | 1 credit |
 | Image to Video (3s) | 5 credits |
 | Image to Video (5s) | 8 credits |
 | Image to Video (10s) | 15 credits |
