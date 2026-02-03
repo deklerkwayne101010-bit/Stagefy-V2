@@ -37,7 +37,7 @@ export default function MediaPage() {
           <div className="flex items-center gap-2">
             <Select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterType(e.target.value)}
               options={[
                 { value: 'all', label: 'All Media' },
                 { value: 'image', label: 'Photos Only' },

@@ -39,12 +39,12 @@ export default function ContactsPage() {
             <Input
               placeholder="Search contacts..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             />
           </div>
           <Select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterType(e.target.value)}
             options={[
               { value: 'all', label: 'All Types' },
               { value: 'buyer', label: 'Buyers' },

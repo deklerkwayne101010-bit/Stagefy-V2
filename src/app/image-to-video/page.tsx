@@ -211,7 +211,7 @@ export default function ImageToVideoPage() {
                 <Select
                   label="Video Duration"
                   value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDuration(e.target.value)}
                   options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${d.credits} credits` }))}
                 />
                 

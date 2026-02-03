@@ -46,12 +46,12 @@ export default function ListingsPage() {
             <Input
               placeholder="Search listings..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             />
           </div>
           <Select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
             options={[
               { value: 'all', label: 'All Status' },
               { value: 'active', label: 'Active' },
