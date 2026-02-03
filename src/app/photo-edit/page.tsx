@@ -19,7 +19,7 @@ const presets = [
   { id: 'enhance-lighting', name: 'Enhance Lighting', icon: '💡', prompt: 'Improve the lighting in this photo. Brighten the room, enhance natural light, and make the space look warm and welcoming.' },
 ]
 
-const CREDIT_COST = 2
+const CREDIT_COST = 1
 
 export default function PhotoEditPage() {
   const { user } = useAuth()
