@@ -1,87 +1,93 @@
-# Active Context: Next.js Starter Template
+# Active Context: Stagefy SaaS Platform
 
 ## Current State
 
-**Template Status**: ✅ Ready for development
+**Project Status**: 🚀 Stagefy MVP Complete
 
-The template is a clean Next.js 16 starter with TypeScript and Tailwind CSS 4. It's ready for AI-assisted expansion to build any type of application.
+Stagefy is a comprehensive real estate media creation platform built with Next.js 16, Supabase, and React. The platform helps real estate agents edit listing photos, create videos, generate templates, and manage their CRM - all powered by AI.
 
 ## Recently Completed
 
-- [x] Base Next.js 16 setup with App Router
-- [x] TypeScript configuration with strict mode
-- [x] Tailwind CSS 4 integration
-- [x] ESLint configuration
-- [x] Memory bank documentation
-- [x] Recipe system for common features
+### Core Features
+- [x] Authentication system (Supabase Auth) with login/signup
+- [x] Onboarding flow with brokerage and market selection
+- [x] Main dashboard with credit balance and quick actions
+- [x] AI Photo Editing page (Qwen Image Edit Plus)
+- [x] Image to Video page (Replicate)
+- [x] AI Template Builder page (Google Nano Banana Pro)
+- [x] CRM with Contacts, Listings, and Media management
+- [x] Billing & Credits page with subscription plans
+- [x] Admin Dashboard for user and usage monitoring
+- [x] Settings page with profile, notifications, security
+
+### Technical Foundation
+- [x] Supabase client configuration
+- [x] Database types and interfaces
+- [x] Auth context provider
+- [x] Reusable UI components (Button, Card, Input, Badge)
+- [x] Sidebar navigation with credit balance
+- [x] Header with notifications dropdown
+- [x] API routes for AI services (photo-edit, image-to-video, template)
 
 ## Current Structure
 
 | File/Directory | Purpose | Status |
 |----------------|---------|--------|
-| `src/app/page.tsx` | Home page | ✅ Ready |
-| `src/app/layout.tsx` | Root layout | ✅ Ready |
-| `src/app/globals.css` | Global styles | ✅ Ready |
-| `.kilocode/` | AI context & recipes | ✅ Ready |
+| `src/app/login/` | Login page | ✅ Complete |
+| `src/app/signup/` | Signup page | ✅ Complete |
+| `src/app/onboarding/` | Onboarding flow | ✅ Complete |
+| `src/app/dashboard/` | Main dashboard | ✅ Complete |
+| `src/app/photo-edit/` | AI photo editing | ✅ Complete |
+| `src/app/image-to-video/` | Image to video | ✅ Complete |
+| `src/app/templates/` | Template builder | ✅ Complete |
+| `src/app/crm/` | CRM (contacts, listings, media) | ✅ Complete |
+| `src/app/billing/` | Billing & credits | ✅ Complete |
+| `src/app/admin/` | Admin dashboard | ✅ Complete |
+| `src/app/settings/` | Account settings | ✅ Complete |
+| `src/lib/` | Utilities & types | ✅ Complete |
+| `src/components/ui/` | UI components | ✅ Complete |
+| `src/components/layout/` | Layout components | ✅ Complete |
 
-## Current Focus
+## Credit System
 
-The template is ready. Next steps depend on user requirements:
+| Operation | Credit Cost |
+|-----------|-------------|
+| Photo Edit | 2 credits |
+| Image to Video (3s) | 5 credits |
+| Image to Video (5s) | 8 credits |
+| Image to Video (10s) | 15 credits |
+| Template Generation | 3 credits |
 
-1. What type of application to build
-2. What features are needed
-3. Design/branding preferences
+## Subscription Plans
 
-## Quick Start Guide
+| Plan | Price/Month | Credits |
+|------|-------------|---------|
+| Free | $0 | 50 one-time |
+| Basic | $29 | 200/month |
+| Pro | $79 | 500/month |
+| Enterprise | $199 | 1,500/month |
 
-### To add a new page:
+## Environment Variables Required
 
-Create a file at `src/app/[route]/page.tsx`:
-```tsx
-export default function NewPage() {
-  return <div>New page content</div>;
-}
+```
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+REPLICATE_API_TOKEN=your-replicate-token
 ```
 
-### To add components:
+## Next Steps
 
-Create `src/components/` directory and add components:
-```tsx
-// src/components/ui/Button.tsx
-export function Button({ children }: { children: React.ReactNode }) {
-  return <button className="px-4 py-2 bg-blue-600 text-white rounded">{children}</button>;
-}
-```
-
-### To add a database:
-
-Follow `.kilocode/recipes/add-database.md`
-
-### To add API routes:
-
-Create `src/app/api/[route]/route.ts`:
-```tsx
-import { NextResponse } from "next/server";
-
-export async function GET() {
-  return NextResponse.json({ message: "Hello" });
-}
-```
-
-## Available Recipes
-
-| Recipe | File | Use Case |
-|--------|------|----------|
-| Add Database | `.kilocode/recipes/add-database.md` | Data persistence with Drizzle + SQLite |
-
-## Pending Improvements
-
-- [ ] Add more recipes (auth, email, etc.)
-- [ ] Add example components
-- [ ] Add testing setup recipe
+1. Connect Supabase database tables
+2. Configure PayFast integration for payments
+3. Deploy to production
+4. Add email notifications
+5. Implement real-time webhooks for AI services
 
 ## Session History
 
 | Date | Changes |
 |------|---------|
-| Initial | Template created with base setup |
+| Initial | Base Next.js template created |
+| Today | Built complete Stagefy SaaS platform |
+| 2026-02-03 | Fixed TypeScript errors in image-to-video/page.tsx and Header.tsx, added className prop to Badge component, installed @supabase/supabase-js, fixed unescaped entities in UI text, fixed auth-context effect hook
