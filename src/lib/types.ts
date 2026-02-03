@@ -143,7 +143,7 @@ export interface AIJob {
 
 // Credit costs for different operations
 export const CREDIT_COSTS = {
-  photo_edit: 2,
+  photo_edit: 1,
   image_to_video_3sec: 5,
   image_to_video_5sec: 8,
   image_to_video_10sec: 15,
