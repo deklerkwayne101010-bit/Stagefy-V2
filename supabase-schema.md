@@ -22,7 +22,7 @@ CREATE TYPE credit_transaction_type AS ENUM ('purchase', 'usage', 'refund', 'sub
 CREATE TYPE subscription_status AS ENUM ('active', 'cancelled', 'paused', 'past_due');
 
 -- Project/Job status
-CREATE TYPE job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+CREATE TYPE job_status AS ENUM ('pending', 'queued', 'processing', 'completed', 'failed');
 
 -- Project types
 CREATE TYPE project_type AS ENUM ('photo_edit', 'video', 'template');
@@ -423,7 +423,7 @@ CREATE TYPE user_role AS ENUM ('agent', 'admin');
 CREATE TYPE subscription_tier AS ENUM ('free', 'basic', 'pro', 'enterprise');
 CREATE TYPE credit_transaction_type AS ENUM ('purchase', 'usage', 'refund', 'subscription');
 CREATE TYPE subscription_status AS ENUM ('active', 'cancelled', 'paused', 'past_due');
-CREATE TYPE job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+CREATE TYPE job_status AS ENUM ('pending', 'queued', 'processing', 'completed', 'failed');
 CREATE TYPE project_type AS ENUM ('photo_edit', 'video', 'template');
 CREATE TYPE ai_service AS ENUM ('replicate', 'qwen', 'nano_banana');
 CREATE TYPE contact_type AS ENUM ('buyer', 'seller', 'investor', 'other');
@@ -434,8 +434,160 @@ CREATE TYPE template_type AS ENUM ('listing_promo', 'instagram_reel', 'open_hous
 CREATE TYPE notification_type AS ENUM ('credit_low', 'job_completed', 'payment_success', 'payment_failed', 'subscription_renewal', 'system');
 CREATE TYPE use_case AS ENUM ('photos', 'video', 'templates', 'all');
 
--- Tables (include all CREATE TABLE statements from above)
--- ... (run all table definitions)
+-- Tables
+CREATE TABLE users (
+  id uuid PRIMARY KEY REFERENCES auth.users(id),
+  email text UNIQUE NOT NULL,
+  full_name text NOT NULL,
+  brokerage text,
+  market text,
+  use_case use_case DEFAULT 'all',
+  role user_role DEFAULT 'agent',
+  credits integer DEFAULT 50,
+  subscription_tier subscription_tier DEFAULT 'free',
+  free_usage_used integer DEFAULT 0,
+  avatar_url text,
+  phone text,
+  created_at timestamptz DEFAULT NOW(),
+  updated_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  plan_id text NOT NULL,
+  status subscription_status NOT NULL,
+  payfast_subscription_id text UNIQUE,
+  payfast_customer_id text,
+  current_period_start timestamptz,
+  current_period_end timestamptz,
+  credits_remaining integer,
+  monthly_credits integer NOT NULL,
+  price_paid numeric(10,2),
+  created_at timestamptz DEFAULT NOW(),
+  updated_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE credit_transactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  amount integer NOT NULL,
+  type credit_transaction_type NOT NULL,
+  description text,
+  subscription_id uuid REFERENCES subscriptions(id),
+  reference_id text,
+  created_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE projects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  type project_type NOT NULL,
+  status job_status DEFAULT 'pending',
+  credit_cost integer DEFAULT 0,
+  input_data jsonb DEFAULT '{}',
+  output_data jsonb DEFAULT '{}',
+  error_message text,
+  created_at timestamptz DEFAULT NOW(),
+  completed_at timestamptz
+);
+
+CREATE TABLE ai_jobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  project_id uuid REFERENCES projects(id) ON DELETE SET NULL,
+  service ai_service NOT NULL,
+  model text NOT NULL,
+  input jsonb DEFAULT '{}',
+  status job_status DEFAULT 'queued',
+  output_url text,
+  error_message text,
+  credit_cost integer DEFAULT 0,
+  api_cost numeric(10,4),
+  latency_ms integer,
+  created_at timestamptz DEFAULT NOW(),
+  completed_at timestamptz
+);
+
+CREATE TABLE crm_contacts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  email text,
+  phone text,
+  type contact_type DEFAULT 'other',
+  status contact_status DEFAULT 'lead',
+  notes text,
+  tags text[] DEFAULT '{}',
+  last_contacted_at timestamptz,
+  created_at timestamptz DEFAULT NOW(),
+  updated_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE crm_listings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  contact_id uuid REFERENCES crm_contacts(id),
+  address text NOT NULL,
+  city text,
+  state text,
+  zip_code text,
+  price numeric(12,2),
+  bedrooms integer,
+  bathrooms decimal(3,1),
+  sqft integer,
+  status listing_status DEFAULT 'active',
+  notes text,
+  created_at timestamptz DEFAULT NOW(),
+  updated_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE media_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  listing_id uuid REFERENCES crm_listings(id),
+  contact_id uuid REFERENCES crm_contacts(id),
+  project_id uuid REFERENCES projects(id),
+  type media_type NOT NULL,
+  title text,
+  description text,
+  url text NOT NULL,
+  thumbnail_url text,
+  file_size integer,
+  credits_used integer DEFAULT 0,
+  tags text[] DEFAULT '{}',
+  is_favorite boolean DEFAULT false,
+  created_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE templates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  type template_type NOT NULL,
+  description text,
+  thumbnail_url text,
+  output_url text,
+  prompt_template text,
+  settings jsonb DEFAULT '{}',
+  credits_used integer DEFAULT 0,
+  usage_count integer DEFAULT 0,
+  is_public boolean DEFAULT false,
+  created_at timestamptz DEFAULT NOW(),
+  updated_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  type notification_type NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  read boolean DEFAULT false,
+  action_url text,
+  created_at timestamptz DEFAULT NOW()
+); (run all table definitions)
 
 -- Indexes
 CREATE INDEX idx_users_email ON users(email);
