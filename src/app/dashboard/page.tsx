@@ -77,6 +77,12 @@ const stats = [
   )},
 ]
 
+const crmStats = [
+  { label: 'Contacts', value: '24', change: 'Active' },
+  { label: 'Listings', value: '12', change: '3 pending' },
+  { label: 'Media Files', value: '156', change: 'This month' },
+]
+
 export default function DashboardPage() {
   const { user } = useAuth()
 
@@ -86,7 +92,7 @@ export default function DashboardPage() {
       
       <div className="p-8">
         {/* Credit Balance Card */}
-        <Card className="mb-8 bg-gradient-to-r from-[var(--color-primary)] to-blue-700 text-white border-0 shadow-lg">
+        <Card className="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0 shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">Available Credits</p>
@@ -112,13 +118,13 @@ export default function DashboardPage() {
           {stats.map((stat) => (
             <Card key={stat.label} className="flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)]">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
                   {stat.icon}
                 </div>
               </div>
-              <p className="text-sm text-[var(--color-text-muted)]">{stat.label}</p>
-              <p className="text-3xl font-bold text-[var(--color-text-primary)] mt-1">{stat.value}</p>
-              <p className="text-sm text-[var(--color-success)] mt-1 font-medium">{stat.change}</p>
+              <p className="text-sm text-slate-500">{stat.label}</p>
+              <p className="text-3xl font-bold text-slate-900 mt-1">{stat.value}</p>
+              <p className="text-sm text-emerald-600 mt-1 font-medium">{stat.change}</p>
             </Card>
           ))}
         </div>
@@ -132,11 +138,11 @@ export default function DashboardPage() {
                 {quickActions.map((action) => (
                   <Link key={action.href} href={action.href}>
                     <Card hover className="h-full p-6">
-                      <div className={`w-14 h-14 rounded-2xl bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary)] mb-4`}>
+                      <div className={`w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-4`}>
                         {action.icon}
                       </div>
-                      <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{action.title}</h3>
-                      <p className="text-sm text-[var(--color-text-muted)] mt-1">{action.description}</p>
+                      <h3 className="text-lg font-semibold text-slate-900">{action.title}</h3>
+                      <p className="text-sm text-slate-500 mt-1">{action.description}</p>
                     </Card>
                   </Link>
                 ))}
@@ -150,16 +156,16 @@ export default function DashboardPage() {
               <CardHeader 
                 title="Recent Projects" 
                 action={
-                  <Link href="/crm/media" className="text-sm text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-medium">
+                  <Link href="/crm/media" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                     View all
                   </Link>
                 }
               />
               <div className="space-y-3">
                 {recentProjects.map((project) => (
-                  <div key={project.id} className="flex items-center gap-3 p-4 bg-[var(--color-surface-tertiary)] rounded-xl">
+                  <div key={project.id} className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${
-                      project.type === 'photo_edit' ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]' : 'bg-purple-100 text-purple-600'
+                      project.type === 'photo_edit' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
                     }`}>
                       {project.type === 'photo_edit' ? (
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,8 +178,8 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{project.name}</p>
-                      <p className="text-xs text-[var(--color-text-muted)]">{formatRelativeTime(project.created_at)}</p>
+                      <p className="text-sm font-medium text-slate-900 truncate">{project.name}</p>
+                      <p className="text-xs text-slate-400">{formatRelativeTime(project.created_at)}</p>
                     </div>
                     <Badge 
                       variant={
@@ -197,51 +203,19 @@ export default function DashboardPage() {
             title="CRM Activity" 
             subtitle="Recent updates from your contacts and listings"
             action={
-              <Link href="/crm" className="text-sm text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-medium">
-                Open CRM
+              <Link href="/crm" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                View all
               </Link>
             }
           />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-5 bg-[var(--color-surface-tertiary)] rounded-xl">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)]">New Contact</p>
-                  <p className="font-semibold text-[var(--color-text-primary)]">Sarah Johnson</p>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {crmStats.map((stat) => (
+              <div key={stat.label} className="p-4 bg-slate-50 rounded-xl">
+                <p className="text-sm text-slate-500">{stat.label}</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</p>
+                <p className="text-sm text-slate-400 mt-1">{stat.change}</p>
               </div>
-            </div>
-            <div className="p-5 bg-[var(--color-surface-tertiary)] rounded-xl">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)]">New Listing</p>
-                  <p className="font-semibold text-[var(--color-text-primary)]">456 Oak Ave</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-5 bg-[var(--color-surface-tertiary)] rounded-xl">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm text-[var(--color-text-muted)]">Listing Sold</p>
-                  <p className="font-semibold text-[var(--color-text-primary)]">789 Pine Rd</p>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </Card>
       </div>

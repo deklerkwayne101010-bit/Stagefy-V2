@@ -24,15 +24,15 @@ export function Card({
   }
   
   const hoverClass = hover 
-    ? 'hover:shadow-lg hover:border-[var(--color-primary-light)] cursor-pointer transition-all duration-300' 
+    ? 'hover:shadow-lg hover:border-blue-100 cursor-pointer transition-all duration-300 ease-out' 
     : ''
   
   return (
     <div
       className={`
-        bg-[var(--color-surface)] 
+        bg-white 
         rounded-2xl 
-        border border-[var(--color-border-light)]
+        border border-slate-100
         shadow-sm
         ${paddingClasses[padding]} 
         ${hoverClass} 
@@ -53,10 +53,10 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, subtitle, action }: CardHeaderProps) {
   return (
-    <div className="flex items-start justify-between mb-6">
+    <div className="flex items-start justify-between mb-4">
       <div>
-        <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{title}</h3>
-        {subtitle && <p className="text-base text-[var(--color-text-muted)] mt-1">{subtitle}</p>}
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+        {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
       </div>
       {action && <div>{action}</div>}
     </div>
