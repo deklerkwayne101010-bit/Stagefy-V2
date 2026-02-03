@@ -208,3 +208,48 @@ export async function getTotalCreditsUsed(userId: string): Promise<number> {
   // Sum up all negative amounts (usage)
   return Math.abs(data.reduce((sum: number, tx: { amount: number }) => sum + (tx.amount || 0), 0))
 }
+
+// Grant monthly subscription credits (called by cron job or webhook)
+export async function grantMonthlyCredits(
+  userId: string,
+  credits: number,
+  planName: string
+): Promise<{ success: boolean; error?: string }> {
+  const currentCredits = await checkUserCredits(userId)
+  const newBalance = currentCredits + credits
+
+  // Log the credit addition
+  const { error: logError } = await (supabase.from as any)('credit_transactions')
+    .insert({
+      user_id: userId,
+      amount: credits,
+      type: 'subscription',
+      description: `Monthly credits for ${planName} plan`,
+    })
+
+  if (logError) {
+    console.error('Error logging monthly credits:', logError)
+    return { success: false, error: 'Failed to log transaction' }
+  }
+
+  // Update user balance
+  const { error: updateError } = await (supabase.from as any)('users')
+    .update({ credits: newBalance })
+    .eq('id', userId)
+
+  if (updateError) {
+    console.error('Error updating credits:', updateError)
+    return { success: false, error: 'Failed to update balance' }
+  }
+
+  // Create notification
+  await (supabase.from as any)('notifications')
+    .insert({
+      user_id: userId,
+      type: 'subscription_renewal',
+      title: 'Monthly Credits Added',
+      message: `${credits} credits have been added to your account for your subscription renewal.`,
+    })
+
+  return { success: true }
+}

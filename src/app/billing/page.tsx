@@ -1,40 +1,119 @@
 // Billing & Credits page
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CreditBadge } from '@/components/ui/Badge'
 import { Badge } from '@/components/ui/Badge'
+import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/payfast'
 
-const plans = [
-  { id: 'free', name: 'Free', price: 0, credits: 50, description: 'Try it out', features: ['50 credits', 'Basic editing', 'Standard support'] },
-  { id: 'basic', name: 'Basic', price: 29, credits: 200, description: 'For growing agents', features: ['200 credits/month', 'All AI features', 'Priority support', 'CRM access'] },
-  { id: 'pro', name: 'Pro', price: 79, credits: 500, description: 'For busy professionals', features: ['500 credits/month', 'All AI features', 'Priority support', 'CRM + Analytics', 'Team sharing'] },
-  { id: 'enterprise', name: 'Enterprise', price: 199, credits: 1500, description: 'For teams', features: ['1,500 credits/month', 'All AI features', 'Dedicated support', 'CRM + Analytics', 'Team sharing', 'API access'] },
-]
-
-const creditPacks = [
-  { credits: 50, price: 9.99, popular: false },
-  { credits: 100, price: 17.99, popular: false },
-  { credits: 250, price: 39.99, popular: true },
-  { credits: 500, price: 69.99, popular: false },
-]
-
-const transactions = [
-  { id: 1, date: '2024-01-15', description: 'Pro Plan - Monthly', amount: -79, type: 'subscription' },
-  { id: 2, date: '2024-01-14', description: 'Photo Edit - 123 Main St', amount: -2, type: 'usage' },
-  { id: 3, date: '2024-01-13', description: 'Video Create - Listing Promo', amount: -8, type: 'usage' },
-  { id: 4, date: '2024-01-12', description: 'Credit Pack - 250 credits', amount: +250, type: 'purchase' },
-  { id: 5, date: '2024-01-10', description: 'Pro Plan - Monthly', amount: -79, type: 'subscription' },
-]
+interface Transaction {
+  id: string
+  date: string
+  description: string
+  amount: number
+  type: 'purchase' | 'subscription' | 'usage' | 'refund'
+}
 
 export default function BillingPage() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'history'>('overview')
-  const [currentPlan, setCurrentPlan] = useState('pro')
+  const [loading, setLoading] = useState(false)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [currentPlan, setCurrentPlan] = useState<string>(user?.subscription_tier || 'free')
+
+  // Fetch transactions on mount
+  useEffect(() => {
+    if (user?.id) {
+      fetchTransactions()
+    }
+  }, [user])
+
+  const fetchTransactions = async () => {
+    try {
+      const { getCreditHistory } = await import('@/lib/credits')
+      const { data } = await getCreditHistory(user?.id || '')
+      
+      // Transform transactions for display
+      const formatted: Transaction[] = (data || []).map((tx: any) => ({
+        id: tx.id,
+        date: new Date(tx.created_at).toLocaleDateString(),
+        description: tx.description,
+        amount: tx.amount,
+        type: tx.type,
+      }))
+      
+      setTransactions(formatted)
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error)
+    }
+  }
+
+  const handleBuyCredits = async (packageId: string) => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'credits', packageId }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.paymentUrl) {
+        // Redirect to PayFast
+        window.location.href = data.paymentUrl
+      } else {
+        alert(data.error || 'Failed to initiate payment')
+      }
+    } catch (error) {
+      console.error('Payment error:', error)
+      alert('Payment failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelectPlan = async (planId: string) => {
+    if (planId === currentPlan) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'subscription', planId }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl
+      } else {
+        alert(data.error || 'Failed to initiate subscription')
+      }
+    } catch (error) {
+      console.error('Subscription error:', error)
+      alert('Failed to start subscription. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const plan = SUBSCRIPTION_PLANS[currentPlan as keyof typeof SUBSCRIPTION_PLANS] || {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    monthlyCredits: 50,
+    features: ['50 one-time credits', 'Basic editing', 'Standard support'],
+    description: 'Try it out',
+  } as typeof SUBSCRIPTION_PLANS.basic
+  const monthlyCredits = plan.monthlyCredits
+  const creditsUsed = 156 // This would come from the API
+  const creditsRemaining = user?.credits || 0
 
   return (
     <div>
@@ -65,24 +144,26 @@ export default function BillingPage() {
               <CardHeader title="Current Plan" subtitle="Your active subscription" />
               <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">Pro Plan</p>
-                  <p className="text-gray-600">$79/month • Renews Feb 15, 2024</p>
+                  <p className="text-2xl font-bold text-gray-900">{plan.name} Plan</p>
+                  <p className="text-gray-600">${plan.price}/month</p>
                 </div>
-                <Button variant="outline">Change Plan</Button>
+                <Button variant="outline" onClick={() => setActiveTab('plans')}>
+                  Change Plan
+                </Button>
               </div>
               <div className="mt-4">
                 <p className="text-sm text-gray-500 mb-2">This month&apos;s usage</p>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">156</p>
+                    <p className="text-2xl font-bold text-gray-900">{creditsUsed}</p>
                     <p className="text-sm text-gray-500">Credits used</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">344</p>
+                    <p className="text-2xl font-bold text-gray-900">{creditsRemaining}</p>
                     <p className="text-sm text-gray-500">Credits remaining</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">500</p>
+                    <p className="text-2xl font-bold text-gray-900">{monthlyCredits}</p>
                     <p className="text-sm text-gray-500">Monthly allocation</p>
                   </div>
                 </div>
@@ -93,11 +174,13 @@ export default function BillingPage() {
             <Card>
               <CardHeader title="Quick Buy Credits" subtitle="Top up anytime" />
               <div className="space-y-3">
-                {creditPacks.map((pack) => (
+                {CREDIT_PACKAGES.map((pack) => (
                   <button
-                    key={pack.credits}
+                    key={pack.id}
+                    onClick={() => handleBuyCredits(pack.id)}
+                    disabled={loading}
                     className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                      pack.popular
+                      pack.id === '250_credits'
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
@@ -107,37 +190,54 @@ export default function BillingPage() {
                         <p className="font-semibold text-gray-900">{pack.credits} credits</p>
                         <p className="text-sm text-gray-500">${pack.price}</p>
                       </div>
-                      {pack.popular && <Badge variant="info" size="sm">Popular</Badge>}
+                      {pack.id === '250_credits' && <Badge variant="info" size="sm">Popular</Badge>}
                     </div>
                   </button>
                 ))}
-                <Button fullWidth>Buy Credits</Button>
+                <Button 
+                  fullWidth 
+                  onClick={() => handleBuyCredits(CREDIT_PACKAGES[0].id)}
+                  loading={loading}
+                >
+                  Buy Credits
+                </Button>
               </div>
             </Card>
 
             {/* Recent Transactions */}
             <Card className="lg:col-span-3">
-              <CardHeader title="Recent Transactions" action={<Button size="sm" variant="ghost">View All</Button>} />
-              <div className="divide-y divide-gray-200">
-                {transactions.slice(0, 5).map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between py-3">
-                    <div>
-                      <p className="font-medium text-gray-900">{tx.description}</p>
-                      <p className="text-sm text-gray-500">{tx.date}</p>
+              <CardHeader title="Recent Transactions" action={
+                <Button size="sm" variant="ghost" onClick={() => setActiveTab('history')}>
+                  View All
+                </Button>
+              } />
+              {transactions.length === 0 ? (
+                <div className="py-8 text-center text-gray-500">
+                  <p>No transactions yet</p>
+                  <p className="text-sm mt-1">Your credit purchases and usage will appear here</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {transactions.slice(0, 5).map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="font-medium text-gray-900">{tx.description}</p>
+                        <p className="text-sm text-gray-500">{tx.date}</p>
+                      </div>
+                      <p className={`font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        {tx.amount > 0 ? '+' : ''}{tx.amount} credits
+                      </p>
                     </div>
-                    <p className={`font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount} credits
-                    </p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
         )}
 
         {activeTab === 'plans' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {plans.map((plan) => (
+            {Object.values(SUBSCRIPTION_PLANS).map((plan) => (
               <Card 
                 key={plan.id} 
                 className={`relative ${currentPlan === plan.id ? 'ring-2 ring-blue-500' : ''}`}
@@ -153,7 +253,7 @@ export default function BillingPage() {
                     <span className="text-gray-500">/month</span>
                   </div>
                   <div className="mt-2">
-                    <CreditBadge credits={plan.credits} />
+                    <CreditBadge credits={plan.monthlyCredits} />
                   </div>
                 </div>
                 <ul className="mt-6 space-y-3">
@@ -170,7 +270,9 @@ export default function BillingPage() {
                   fullWidth 
                   className="mt-6"
                   variant={currentPlan === plan.id ? 'secondary' : 'primary'}
-                  onClick={() => setCurrentPlan(plan.id)}
+                  onClick={() => handleSelectPlan(plan.id)}
+                  loading={loading}
+                  disabled={currentPlan === plan.id}
                 >
                   {currentPlan === plan.id ? 'Current Plan' : 'Select Plan'}
                 </Button>
@@ -182,37 +284,43 @@ export default function BillingPage() {
         {activeTab === 'history' && (
           <Card>
             <CardHeader title="Payment History" subtitle="All your transactions" />
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {transactions.map((tx) => (
-                    <tr key={tx.id}>
-                      <td className="px-6 py-4 text-sm text-gray-900">{tx.date}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{tx.description}</td>
-                      <td className="px-6 py-4">
-                        <Badge 
-                          variant={tx.type === 'purchase' ? 'success' : tx.type === 'subscription' ? 'info' : 'warning'}
-                          size="sm"
-                        >
-                          {tx.type}
-                        </Badge>
-                      </td>
-                      <td className={`px-6 py-4 text-sm font-semibold text-right ${tx.amount > 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                        {tx.amount > 0 ? '+' : ''}{tx.amount} credits
-                      </td>
+            {transactions.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">
+                <p>No transactions yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Description</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
+                      <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {transactions.map((tx) => (
+                      <tr key={tx.id}>
+                        <td className="px-6 py-4 text-sm text-gray-900">{tx.date}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{tx.description}</td>
+                        <td className="px-6 py-4">
+                          <Badge 
+                            variant={tx.type === 'purchase' ? 'success' : tx.type === 'subscription' ? 'info' : tx.type === 'refund' ? 'warning' : 'default'}
+                            size="sm"
+                          >
+                            {tx.type}
+                          </Badge>
+                        </td>
+                        <td className={`px-6 py-4 text-sm font-semibold text-right ${tx.amount > 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                          {tx.amount > 0 ? '+' : ''}{tx.amount} credits
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         )}
       </div>
