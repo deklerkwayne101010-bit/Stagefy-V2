@@ -54,9 +54,9 @@ export default function OnboardingPage() {
       return
     }
 
-    const { error } = await supabase
+    const { error } = await (supabase
       .from('users')
-      .update({
+      .update as any)({
         full_name: formData.fullName,
         brokerage: formData.brokerage,
         market: formData.market,

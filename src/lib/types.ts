@@ -7,9 +7,9 @@ export interface User {
   id: string
   email: string
   full_name: string
-  brokerage: string
-  market: string
-  use_case: 'photos' | 'video' | 'templates' | 'all'
+  brokerage?: string
+  market?: string
+  use_case?: 'photos' | 'video' | 'templates' | 'all'
   role: UserRole
   credits: number
   subscription_tier: 'free' | 'basic' | 'pro' | 'enterprise'

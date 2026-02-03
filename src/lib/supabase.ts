@@ -10,27 +10,126 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
-// Client for browser-side operations
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-})
+// Lazy initialization to avoid errors when env vars are missing
+let supabaseClient: ReturnType<typeof createClient> | null = null
+let supabaseAdminClient: ReturnType<typeof createClient> | null = null
 
-// Admin client for server-side operations (has elevated permissions)
-export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+function getSupabaseClient() {
+  if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    })
+  }
+  return supabaseClient
+}
+
+function getSupabaseAdminClient() {
+  if (!supabaseAdminClient && supabaseUrl && serviceRoleKey) {
+    supabaseAdminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  }
+  return supabaseAdminClient
+}
+
+// Export for browser-side operations
+export const supabase = {
   auth: {
-    autoRefreshToken: false,
-    persistSession: false,
+    getUser: async () => {
+      const client = getSupabaseClient()
+      if (!client) return { data: { user: null }, error: new Error('Supabase not configured') }
+      return client.auth.getUser()
+    },
+    getSession: async () => {
+      const client = getSupabaseClient()
+      if (!client) return { data: { session: null }, error: new Error('Supabase not configured') }
+      return client.auth.getSession()
+    },
+    signInWithPassword: async (credentials: { email: string; password: string }) => {
+      const client = getSupabaseClient()
+      if (!client) return { data: null, error: new Error('Supabase not configured') }
+      return client.auth.signInWithPassword(credentials)
+    },
+    signUp: async (credentials: { email: string; password: string; options?: { data?: Record<string, unknown> } }) => {
+      const client = getSupabaseClient()
+      if (!client) return { data: null, error: new Error('Supabase not configured') }
+      return client.auth.signUp(credentials)
+    },
+    signOut: async () => {
+      const client = getSupabaseClient()
+      if (!client) return { error: new Error('Supabase not configured') }
+      return client.auth.signOut()
+    },
+    onAuthStateChange: (callback: (event: string, session: unknown) => void) => {
+      const client = getSupabaseClient()
+      if (!client) {
+        return { data: { subscription: { unsubscribe: () => {} } } }
+      }
+      return client.auth.onAuthStateChange(callback)
+    },
   },
-})
+  from: (table: string) => {
+    const client = getSupabaseClient()
+    if (!client) {
+      const mockResponse = { error: new Error('Supabase not configured') }
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () => ({ data: null, ...mockResponse }),
+          }),
+        }),
+        insert: () => ({
+          select: () => ({
+            single: () => ({ data: null, ...mockResponse }),
+          }),
+        }),
+        update: () => ({
+          eq: () => ({
+            select: () => ({
+              single: () => ({ data: null, ...mockResponse }),
+            }),
+            ...mockResponse,
+          }),
+        }),
+        delete: () => ({
+          eq: () => ({ ...mockResponse }),
+        }),
+      }
+    }
+    return client.from(table)
+  },
+}
+
+// Export admin client getter
+export function getAdminClient() {
+  return getSupabaseAdminClient()
+}
 
 // Helper function to check if user is authenticated
 export async function getCurrentUser(): Promise<User | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+  
+  // For demo purposes, return a mock user if Supabase is not configured
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return {
+      id: user.id || 'demo-user',
+      email: user.email || 'demo@example.com',
+      full_name: 'Demo User',
+      credits: 50,
+      subscription_tier: 'free',
+      role: 'agent',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  }
   
   const { data } = await supabase
     .from('users')
