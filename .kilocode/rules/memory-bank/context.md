@@ -99,6 +99,16 @@ Users on the free tier (subscription_tier='free' with 0 credits) get 3 free AI a
 | Webhook handler | ✅ Complete |
 | Failed payment handling | ✅ Complete |
 
+## Template Builder Types
+
+| Template Type | Description |
+|---------------|-------------|
+| Professional Template | Clean and professional design |
+| Wacky Template | Creative and fun style |
+| Infographic | Data-driven visual content |
+| Marketing Material | Promotional content |
+| Custom | Create your own |
+
 ## Environment Variables Required
 
 ```
