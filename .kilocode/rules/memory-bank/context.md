@@ -78,16 +78,16 @@ REPLICATE_API_TOKEN=your-replicate-token
 
 ## Next Steps
 
-1. Connect Supabase database tables
+1. **Connect Supabase database tables** - Run schema from `supabase-schema.md`
 2. Configure PayFast integration for payments
 3. Deploy to production
 4. Add email notifications
 5. Implement real-time webhooks for AI services
 
-## Session History
-
 | Date | Changes |
 |------|---------|
 | Initial | Base Next.js template created |
 | Today | Built complete Stagefy SaaS platform |
-| 2026-02-03 | Fixed TypeScript errors in image-to-video/page.tsx and Header.tsx, added className prop to Badge component, installed @supabase/supabase-js, fixed unescaped entities in UI text, fixed auth-context effect hook
+| 2026-02-03 | Fixed TypeScript errors, added Badge className prop, installed @supabase/supabase-js, fixed unescaped entities, fixed auth-context hook |
+| 2026-02-03 | Lazy load Supabase client for demo mode without env vars |
+| 2026-02-03 | Added `supabase-schema.md` with complete database schema (11 tables, enums, RLS policies)
