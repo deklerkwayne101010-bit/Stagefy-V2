@@ -1,4 +1,4 @@
-// Main Navigation Sidebar
+// Premium Navigation Sidebar
 'use client'
 
 import React, { useState } from 'react'
@@ -90,24 +90,24 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col">
+    <aside className="fixed left-0 top-0 h-full w-64 bg-[var(--color-surface)] border-r border-[var(--color-border-light)] flex flex-col">
       {/* Logo */}
-      <div className="p-5 border-b border-gray-200">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+      <div className="p-6 border-b border-[var(--color-border-light)]">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-[var(--color-primary)] rounded-xl flex items-center justify-center shadow-md">
+            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
             </svg>
           </div>
-          <span className="text-xl font-bold text-gray-900">Stagefy</span>
+          <span className="text-xl font-bold text-[var(--color-text-primary)]">Stagefy</span>
         </Link>
       </div>
 
       {/* Credit Balance */}
       {user && (
-        <div className="px-4 py-3 border-b border-gray-200">
-          <div className="bg-blue-50 rounded-lg px-3 py-2 flex items-center justify-between">
-            <span className="text-sm text-blue-600 font-medium">Credits</span>
+        <div className="px-4 py-4 border-b border-[var(--color-border-light)]">
+          <div className="bg-[var(--color-primary-light)] rounded-xl px-4 py-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-[var(--color-primary)]">Credits</span>
             <CreditBadge credits={user.credits} size="sm" />
           </div>
         </div>
@@ -128,10 +128,10 @@ export function Sidebar() {
                     <button
                       onClick={() => toggleExpand(item.name)}
                       className={cn(
-                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                        'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                         isActive || isExpanded
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
+                          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]'
                       )}
                     >
                       {item.icon}
@@ -146,16 +146,16 @@ export function Sidebar() {
                       </svg>
                     </button>
                     {isExpanded && (
-                      <ul className="ml-9 mt-1 space-y-1">
+                      <ul className="ml-11 mt-1 space-y-1">
                         {item.children.map((child) => (
                           <li key={child.name}>
                             <Link
                               href={child.href}
                               className={cn(
-                                'block px-3 py-2 rounded-lg text-sm transition-all duration-200',
+                                'block px-4 py-2 rounded-lg text-sm transition-all duration-200',
                                 pathname === child.href
-                                  ? 'text-blue-700 font-medium'
-                                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                  ? 'text-[var(--color-primary)] font-medium'
+                                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)]'
                               )}
                             >
                               {child.name}
@@ -169,10 +169,10 @@ export function Sidebar() {
                   <Link
                     href={item.href}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                      'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                       isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]'
                     )}
                   >
                     {item.icon}
@@ -187,14 +187,14 @@ export function Sidebar() {
 
       {/* Admin Link */}
       {user?.role === 'admin' && (
-        <div className="px-3 py-2 border-t border-gray-200">
+        <div className="px-3 py-2 border-t border-[var(--color-border-light)]">
           <Link
             href="/admin"
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+              'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
               pathname === '/admin'
-                ? 'bg-purple-50 text-purple-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
+                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]'
             )}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,22 +206,22 @@ export function Sidebar() {
       )}
 
       {/* User Menu */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-[var(--color-border-light)]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gray-200 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-gray-600">
+          <div className="w-10 h-10 bg-[var(--color-surface-tertiary)] rounded-full flex items-center justify-center">
+            <span className="text-sm font-semibold text-[var(--color-text-secondary)]">
               {user?.full_name?.charAt(0).toUpperCase() || 'U'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
               {user?.full_name || 'User'}
             </p>
-            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            <p className="text-xs text-[var(--color-text-muted)] truncate">{user?.email}</p>
           </div>
           <button
             onClick={() => signOut()}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-tertiary)] rounded-lg transition-colors"
             title="Sign out"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,4 +1,4 @@
-// Input and form components
+// Premium Input and form components
 import React from 'react'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -17,18 +17,27 @@ export function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
           {label}
         </label>
       )}
       <input
-        className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-          error ? 'border-red-500' : 'border-gray-300'
-        } ${className}`}
+        className={`
+          w-full px-4 py-3 
+          bg-[var(--color-surface)] 
+          border border-[var(--color-border)]
+          rounded-xl
+          text-[var(--color-text-primary)] 
+          placeholder-[var(--color-text-muted)]
+          focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent
+          transition-all duration-200
+          ${error ? 'border-[var(--color-error)]' : ''}
+          ${className}
+        `}
         {...props}
       />
-      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
-      {helper && !error && <p className="mt-1.5 text-sm text-gray-500">{helper}</p>}
+      {error && <p className="mt-1.5 text-sm text-[var(--color-error)]">{error}</p>}
+      {helper && !error && <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">{helper}</p>}
     </div>
   )
 }
@@ -49,18 +58,27 @@ export function Textarea({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
           {label}
         </label>
       )}
       <textarea
-        className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
-          error ? 'border-red-500' : 'border-gray-300'
-        } ${className}`}
+        className={`
+          w-full px-4 py-3 
+          bg-[var(--color-surface)] 
+          border border-[var(--color-border)]
+          rounded-xl
+          text-[var(--color-text-primary)] 
+          placeholder-[var(--color-text-muted)]
+          focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent
+          transition-all duration-200 resize-none
+          ${error ? 'border-[var(--color-error)]' : ''}
+          ${className}
+        `}
         {...props}
       />
-      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
-      {helper && !error && <p className="mt-1.5 text-sm text-gray-500">{helper}</p>}
+      {error && <p className="mt-1.5 text-sm text-[var(--color-error)]">{error}</p>}
+      {helper && !error && <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">{helper}</p>}
     </div>
   )
 }
@@ -81,14 +99,22 @@ export function Select({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">
           {label}
         </label>
       )}
       <select
-        className={`w-full px-4 py-2.5 border rounded-lg text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-          error ? 'border-red-500' : 'border-gray-300'
-        } ${className}`}
+        className={`
+          w-full px-4 py-3 
+          bg-[var(--color-surface)] 
+          border border-[var(--color-border)]
+          rounded-xl
+          text-[var(--color-text-primary)] 
+          focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent
+          transition-all duration-200
+          ${error ? 'border-[var(--color-error)]' : ''}
+          ${className}
+        `}
         {...props}
       >
         {options.map(option => (
@@ -97,7 +123,7 @@ export function Select({
           </option>
         ))}
       </select>
-      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-1.5 text-sm text-[var(--color-error)]">{error}</p>}
     </div>
   )
 }
@@ -108,13 +134,20 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
 
 export function Checkbox({ label, className = '', ...props }: CheckboxProps) {
   return (
-    <label className={`flex items-center gap-2 cursor-pointer ${className}`}>
+    <label className={`flex items-center gap-3 cursor-pointer ${className}`}>
       <input
         type="checkbox"
-        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        className="
+          w-5 h-5 
+          text-[var(--color-primary)] 
+          border-[var(--color-border)] 
+          rounded-lg
+          focus:ring-[var(--color-primary)]
+          focus:ring-offset-2
+        "
         {...props}
       />
-      <span className="text-sm text-gray-700">{label}</span>
+      <span className="text-sm text-[var(--color-text-secondary)]">{label}</span>
     </label>
   )
 }

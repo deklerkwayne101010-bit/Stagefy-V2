@@ -1,4 +1,4 @@
-// Button component
+// Premium Button component
 import React from 'react'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -21,19 +21,45 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+  const baseStyles = `
+    inline-flex items-center justify-center font-medium
+    rounded-xl transition-all duration-200
+    focus:outline-none focus:ring-2 focus:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed
+    shadow-sm hover:shadow-md active:shadow-sm
+  `
   
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-    secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500',
-    outline: 'border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500',
-    ghost: 'text-gray-600 hover:bg-gray-100 focus:ring-gray-500',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    primary: `
+      bg-[var(--color-primary)] text-white
+      hover:bg-[var(--color-primary-hover)]
+      focus:ring-[var(--color-primary)]
+    `,
+    secondary: `
+      bg-[var(--color-surface-tertiary)] text-[var(--color-text-primary)]
+      hover:bg-[var(--color-border)]
+      focus:ring-[var(--color-text-muted)]
+    `,
+    outline: `
+      border-2 border-[var(--color-border)] text-[var(--color-text-secondary)]
+      hover:bg-[var(--color-surface-tertiary)] hover:border-[var(--color-text-muted)]
+      focus:ring-[var(--color-text-muted)]
+    `,
+    ghost: `
+      text-[var(--color-text-secondary)]
+      hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]
+      focus:ring-[var(--color-text-muted)]
+    `,
+    danger: `
+      bg-[var(--color-error)] text-white
+      hover:bg-red-700
+      focus:ring-[var(--color-error)]
+    `,
   }
   
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm gap-1.5',
-    md: 'px-4 py-2 text-base gap-2',
+    sm: 'px-4 py-2 text-sm gap-2',
+    md: 'px-5 py-2.5 text-base gap-2',
     lg: 'px-6 py-3 text-lg gap-2.5',
   }
   

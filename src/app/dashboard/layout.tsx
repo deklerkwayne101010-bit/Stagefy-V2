@@ -12,7 +12,7 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[var(--color-surface-secondary)]">
         <Sidebar />
         <main className="ml-64 min-h-screen">
           {children}

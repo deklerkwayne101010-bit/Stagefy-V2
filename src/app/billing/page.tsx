@@ -1,4 +1,4 @@
-// Billing & Credits page
+// Premium Billing & Credits page
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -119,17 +119,17 @@ export default function BillingPage() {
     <div>
       <Header title="Billing & Credits" subtitle="Manage your subscription and credits" />
 
-      <div className="p-6">
+      <div className="p-8">
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-2 mb-8">
           {['overview', 'plans', 'history'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors capitalize ${
+              className={`px-5 py-2.5 rounded-xl font-medium transition-all duration-200 capitalize ${
                 activeTab === tab
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  ? 'bg-[var(--color-primary)] text-white shadow-md'
+                  : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]'
               }`}
             >
               {tab}
@@ -142,29 +142,29 @@ export default function BillingPage() {
             {/* Current Plan */}
             <Card className="lg:col-span-2">
               <CardHeader title="Current Plan" subtitle="Your active subscription" />
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between p-5 bg-[var(--color-primary-light)] rounded-2xl">
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{plan.name} Plan</p>
-                  <p className="text-gray-600">${plan.price}/month</p>
+                  <p className="text-3xl font-bold text-[var(--color-text-primary)]">{plan.name} Plan</p>
+                  <p className="text-[var(--color-text-secondary)]">${plan.price}/month</p>
                 </div>
                 <Button variant="outline" onClick={() => setActiveTab('plans')}>
                   Change Plan
                 </Button>
               </div>
-              <div className="mt-4">
-                <p className="text-sm text-gray-500 mb-2">This month&apos;s usage</p>
+              <div className="mt-6">
+                <p className="text-sm text-[var(--color-text-muted)] mb-3">This month&apos;s usage</p>
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">{creditsUsed}</p>
-                    <p className="text-sm text-gray-500">Credits used</p>
+                  <div className="p-5 bg-[var(--color-surface-tertiary)] rounded-xl">
+                    <p className="text-3xl font-bold text-[var(--color-text-primary)]">{creditsUsed}</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mt-1">Credits used</p>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">{creditsRemaining}</p>
-                    <p className="text-sm text-gray-500">Credits remaining</p>
+                  <div className="p-5 bg-[var(--color-surface-tertiary)] rounded-xl">
+                    <p className="text-3xl font-bold text-[var(--color-text-primary)]">{creditsRemaining}</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mt-1">Credits remaining</p>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">{monthlyCredits}</p>
-                    <p className="text-sm text-gray-500">Monthly allocation</p>
+                  <div className="p-5 bg-[var(--color-surface-tertiary)] rounded-xl">
+                    <p className="text-3xl font-bold text-[var(--color-text-primary)]">{monthlyCredits}</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mt-1">Monthly allocation</p>
                   </div>
                 </div>
               </div>
@@ -179,16 +179,16 @@ export default function BillingPage() {
                     key={pack.id}
                     onClick={() => handleBuyCredits(pack.id)}
                     disabled={loading}
-                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
                       pack.id === '250_credits'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                        : 'border-[var(--color-border-light)] hover:border-[var(--color-primary)]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-gray-900">{pack.credits} credits</p>
-                        <p className="text-sm text-gray-500">${pack.price}</p>
+                        <p className="font-semibold text-[var(--color-text-primary)]">{pack.credits} credits</p>
+                        <p className="text-sm text-[var(--color-text-muted)]">${pack.price}</p>
                       </div>
                       {pack.id === '250_credits' && <Badge variant="info" size="sm">Popular</Badge>}
                     </div>
@@ -212,19 +212,19 @@ export default function BillingPage() {
                 </Button>
               } />
               {transactions.length === 0 ? (
-                <div className="py-8 text-center text-gray-500">
-                  <p>No transactions yet</p>
-                  <p className="text-sm mt-1">Your credit purchases and usage will appear here</p>
+                <div className="py-12 text-center">
+                  <p className="text-[var(--color-text-muted)]">No transactions yet</p>
+                  <p className="text-sm text-[var(--color-text-muted)] mt-1">Your credit purchases and usage will appear here</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-[var(--color-border-light)]">
                   {transactions.slice(0, 5).map((tx) => (
-                    <div key={tx.id} className="flex items-center justify-between py-3">
+                    <div key={tx.id} className="flex items-center justify-between py-4">
                       <div>
-                        <p className="font-medium text-gray-900">{tx.description}</p>
-                        <p className="text-sm text-gray-500">{tx.date}</p>
+                        <p className="font-medium text-[var(--color-text-primary)]">{tx.description}</p>
+                        <p className="text-sm text-[var(--color-text-muted)]">{tx.date}</p>
                       </div>
-                      <p className={`font-semibold ${tx.amount > 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                      <p className={`font-semibold ${tx.amount > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-text-primary)]'}`}>
                         {tx.amount > 0 ? '+' : ''}{tx.amount} credits
                       </p>
                     </div>
@@ -240,26 +240,27 @@ export default function BillingPage() {
             {Object.values(SUBSCRIPTION_PLANS).map((plan) => (
               <Card 
                 key={plan.id} 
-                className={`relative ${currentPlan === plan.id ? 'ring-2 ring-blue-500' : ''}`}
+                className={`relative ${currentPlan === plan.id ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+                hover={currentPlan !== plan.id}
               >
                 {currentPlan === plan.id && (
                   <Badge variant="success" className="absolute -top-3 left-1/2 -translate-x-1/2">Current</Badge>
                 )}
                 <div className="text-center">
-                  <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-                  <p className="text-gray-500 text-sm mt-1">{plan.description}</p>
+                  <h3 className="text-xl font-bold text-[var(--color-text-primary)]">{plan.name}</h3>
+                  <p className="text-[var(--color-text-muted)] text-sm mt-1">{plan.description}</p>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-900">${plan.price}</span>
-                    <span className="text-gray-500">/month</span>
+                    <span className="text-5xl font-bold text-[var(--color-text-primary)]">${plan.price}</span>
+                    <span className="text-[var(--color-text-muted)]">/month</span>
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-3">
                     <CreditBadge credits={plan.monthlyCredits} />
                   </div>
                 </div>
                 <ul className="mt-6 space-y-3">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-sm">
-                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <li key={feature} className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                      <svg className="w-5 h-5 text-[var(--color-success)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                       </svg>
                       {feature}
@@ -285,25 +286,25 @@ export default function BillingPage() {
           <Card>
             <CardHeader title="Payment History" subtitle="All your transactions" />
             {transactions.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">
-                <p>No transactions yet</p>
+              <div className="py-12 text-center">
+                <p className="text-[var(--color-text-muted)]">No transactions yet</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-[var(--color-surface-tertiary)] border-b border-[var(--color-border-light)]">
                     <tr>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Description</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-                      <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="text-left px-6 py-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">Date</th>
+                      <th className="text-left px-6 py-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">Description</th>
+                      <th className="text-left px-6 py-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">Type</th>
+                      <th className="text-right px-6 py-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-[var(--color-border-light)]">
                     {transactions.map((tx) => (
                       <tr key={tx.id}>
-                        <td className="px-6 py-4 text-sm text-gray-900">{tx.date}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{tx.description}</td>
+                        <td className="px-6 py-4 text-sm text-[var(--color-text-primary)]">{tx.date}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-[var(--color-text-primary)]">{tx.description}</td>
                         <td className="px-6 py-4">
                           <Badge 
                             variant={tx.type === 'purchase' ? 'success' : tx.type === 'subscription' ? 'info' : tx.type === 'refund' ? 'warning' : 'default'}
@@ -312,7 +313,7 @@ export default function BillingPage() {
                             {tx.type}
                           </Badge>
                         </td>
-                        <td className={`px-6 py-4 text-sm font-semibold text-right ${tx.amount > 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        <td className={`px-6 py-4 text-sm font-semibold text-right ${tx.amount > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-text-primary)]'}`}>
                           {tx.amount > 0 ? '+' : ''}{tx.amount} credits
                         </td>
                       </tr>

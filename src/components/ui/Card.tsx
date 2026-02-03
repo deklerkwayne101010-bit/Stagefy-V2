@@ -1,4 +1,4 @@
-// Card component
+// Premium Card component
 import React from 'react'
 
 interface CardProps {
@@ -18,16 +18,26 @@ export function Card({
 }: CardProps) {
   const paddingClasses = {
     none: '',
-    sm: 'p-3',
-    md: 'p-5',
-    lg: 'p-6',
+    sm: 'p-4',
+    md: 'p-6',
+    lg: 'p-8',
   }
   
-  const hoverClass = hover ? 'hover:shadow-lg hover:border-blue-200 cursor-pointer transition-all duration-200' : ''
+  const hoverClass = hover 
+    ? 'hover:shadow-lg hover:border-[var(--color-primary-light)] cursor-pointer transition-all duration-300' 
+    : ''
   
   return (
     <div
-      className={`bg-white rounded-xl border border-gray-200 ${paddingClasses[padding]} ${hoverClass} ${className}`}
+      className={`
+        bg-[var(--color-surface)] 
+        rounded-2xl 
+        border border-[var(--color-border-light)]
+        shadow-sm
+        ${paddingClasses[padding]} 
+        ${hoverClass} 
+        ${className}
+      `}
       onClick={onClick}
     >
       {children}
@@ -43,10 +53,10 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, subtitle, action }: CardHeaderProps) {
   return (
-    <div className="flex items-start justify-between mb-4">
+    <div className="flex items-start justify-between mb-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+        <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{title}</h3>
+        {subtitle && <p className="text-base text-[var(--color-text-muted)] mt-1">{subtitle}</p>}
       </div>
       {action && <div>{action}</div>}
     </div>
