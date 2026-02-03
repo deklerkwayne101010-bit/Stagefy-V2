@@ -20,7 +20,7 @@ interface Transaction {
 
 export default function BillingPage() {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'history'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'history' | 'help'>('overview')
   const [loading, setLoading] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [currentPlan, setCurrentPlan] = useState<string>(user?.subscription_tier || 'free')
@@ -122,7 +122,7 @@ export default function BillingPage() {
       <div className="p-8">
         {/* Tabs */}
         <div className="flex gap-2 mb-8">
-          {['overview', 'plans', 'history'].map((tab) => (
+          {['overview', 'plans', 'history', 'help'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
@@ -132,7 +132,7 @@ export default function BillingPage() {
                   : 'bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
-              {tab}
+              {tab === 'help' ? 'Help & FAQ' : tab}
             </button>
           ))}
         </div>
@@ -323,6 +323,176 @@ export default function BillingPage() {
               </div>
             )}
           </Card>
+        )}
+
+        {activeTab === 'help' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* How Credits Work */}
+            <Card>
+              <CardHeader title="How Credits Work" subtitle="Understanding your credit system" />
+              <div className="space-y-4 mt-4">
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">What are credits?</h4>
+                  <p className="text-slate-600 text-sm">
+                    Credits are our currency for using AI features. Each action like photo editing, 
+                    image to video conversion, or template generation costs a certain number of credits.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">Getting credits</h4>
+                  <p className="text-slate-600 text-sm">
+                    You get credits by purchasing credit packages or subscribing to a monthly plan. 
+                    Subscriptions give you credits every month automatically.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">Credits never expire</h4>
+                  <p className="text-slate-600 text-sm">
+                    Your purchased credits stay in your account until you use them. They do not expire.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Credit Costs */}
+            <Card>
+              <CardHeader title="Credit Costs" subtitle="What each action costs" />
+              <div className="space-y-3 mt-4">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Photo Editing</p>
+                    <p className="text-sm text-slate-400">Enhance and edit your listing photos</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">2 credits</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Image to Video (3 seconds)</p>
+                    <p className="text-sm text-slate-400">Turn photos into short videos</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">5 credits</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Image to Video (5 seconds)</p>
+                    <p className="text-sm text-slate-400">Create longer video clips</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">8 credits</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Image to Video (10 seconds)</p>
+                    <p className="text-sm text-slate-400">Create full-length video clips</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">15 credits</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Template Generation</p>
+                    <p className="text-sm text-slate-400">Create marketing templates with AI</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">3 credits</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Free Usage */}
+            <Card>
+              <CardHeader title="Free Usage" subtitle="Try before you buy" />
+              <div className="space-y-4 mt-4">
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">3 Free Actions</h4>
+                  <p className="text-slate-600 text-sm">
+                    Every new account gets 3 free AI actions to try out our features. This lets you 
+                    test photo editing, video creation, and templates before purchasing credits.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">What happens after free usage?</h4>
+                  <p className="text-slate-600 text-sm">
+                    Once you use your 3 free actions, you&apos;ll need to purchase credits or subscribe 
+                    to continue using AI features. Free actions do not renew monthly.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">Watermarks</h4>
+                  <p className="text-slate-600 text-sm">
+                    Free tier outputs include a Stagefy watermark. Subscribers and credit purchasers 
+                    get watermark-free downloads.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Subscriptions */}
+            <Card>
+              <CardHeader title="Subscriptions" subtitle="Monthly plans explained" />
+              <div className="space-y-4 mt-4">
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">Monthly credits</h4>
+                  <p className="text-slate-600 text-sm">
+                    Subscriptions give you a set number of credits every month. Unused credits roll 
+                    over to the next month. You can always buy extra credits if you run out.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">Cancel anytime</h4>
+                  <p className="text-slate-600 text-sm">
+                    You can cancel your subscription at any time. You&apos;ll keep access until the end 
+                    of your current billing period.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <h4 className="font-semibold text-slate-900 mb-2">Switching plans</h4>
+                  <p className="text-slate-600 text-sm">
+                    Upgrade or downgrade your plan anytime. Changes take effect on your next billing cycle.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Contact */}
+            <Card className="lg:col-span-2">
+              <CardHeader title="Need Help?" subtitle="Get in touch with our team" />
+              <div className="flex flex-col md:flex-row gap-6 mt-4">
+                <div className="flex-1 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-semibold text-slate-900">Email Support</h4>
+                  </div>
+                  <p className="text-slate-600 text-sm mb-3">
+                    Have questions about billing, credits, or your account? Our team is here to help.
+                  </p>
+                  <a 
+                    href="mailto:support@stagefy.com" 
+                    className="inline-flex items-center gap-2 text-blue-600 font-medium hover:text-blue-700"
+                  >
+                    support@stagefy.com
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </a>
+                </div>
+                <div className="flex-1 p-6 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-semibold text-slate-900">Response Time</h4>
+                  </div>
+                  <p className="text-slate-600 text-sm">
+                    We typically respond to all inquiries within 24-48 hours on business days.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
         )}
       </div>
     </div>
