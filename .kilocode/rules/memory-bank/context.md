@@ -143,3 +143,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-03 | Redesigned login and signup pages with clean, minimal design |
 | 2026-02-03 | Fixed landing page routing - removed conflicting page.tsx so landing page displays at / |
 | 2026-02-04 | Made Supabase SQL idempotent with IF NOT EXISTS clauses to handle already-exists errors |
+| 2026-02-04 | Fixed RLS verification query - changed row_security_level to row_security_enabled |
