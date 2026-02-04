@@ -13,7 +13,7 @@ import { getCurrentUser } from '@/lib/supabase'
 
 export async function POST(request: Request) {
   try {
-    const { image, prompt, userId } = await request.json()
+    const { image, referenceImage, prompt, userId } = await request.json()
 
     // Validate input
     if (!image || !prompt) {
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     try {
       // Call Replicate API for Qwen Image Edit Plus
-      const response = await fetch('https://api.replicate.com/v1/predictions', {
+      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen-image-edit-plus/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -75,16 +75,20 @@ export async function POST(request: Request) {
           'Prefer': 'wait',
         },
         body: JSON.stringify({
-          version: 'qwen/qwen2-vl-72b-instruct',
           input: {
-            image: image,
+            image: referenceImage ? [referenceImage, image] : [image],
             prompt: prompt,
-            num_outputs: 1,
+            go_fast: true,
+            aspect_ratio: 'match_input_image',
+            output_format: 'jpg',
+            output_quality: 100,
           },
         }),
       })
 
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Replicate API error:', errorText)
         throw new Error('Failed to process image')
       }
 
@@ -106,7 +110,9 @@ export async function POST(request: Request) {
         usingFreeTier,
         isWatermarked: usingFreeTier,
       })
-    } catch (aiError) {
+    } catch (aiError: any) {
+      console.error('AI processing error:', aiError)
+      
       // Refund credits on failure (only if we reserved them)
       if (!usingFreeTier) {
         await refundCredits(userIdStr, 'photo_edit', `photo-${Date.now()}`)

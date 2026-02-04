@@ -19,6 +19,7 @@ const presets = [
   { id: 'sky-replace', name: 'Sky Replacement', icon: '☁️', prompt: 'Replace the current sky with a beautiful blue sky with fluffy white clouds. Match the lighting appropriately.' },
   { id: 'enhance-lighting', name: 'Enhance Lighting', icon: '💡', prompt: 'Improve the lighting in this photo. Brighten the room, enhance natural light, and make the space look warm and welcoming.' },
   { id: 'window-pulling', name: 'Window Pulling', icon: '🪟', prompt: 'Enhance the windows to appear larger and more prominent. Brighten the window areas to bring in more natural light and create a stunning view effect. Make the window frames crisp and clear.' },
+  { id: 'pose-transfer', name: 'Pose Transfer', icon: '👤', prompt: 'Transfer the pose from the reference image to the target image while maintaining natural look.' },
 ]
 
 const CREDIT_COST = 1
@@ -26,7 +27,9 @@ const CREDIT_COST = 1
 export default function PhotoEditPage() {
   const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const referenceInputRef = useRef<HTMLInputElement>(null)
+  const [targetImage, setTargetImage] = useState<string | null>(null)
+  const [referenceImage, setReferenceImage] = useState<string | null>(null)
   const [processedImage, setProcessedImage] = useState<string | null>(null)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customPrompt, setCustomPrompt] = useState('')
@@ -36,6 +39,7 @@ export default function PhotoEditPage() {
   const [isWatermarked, setIsWatermarked] = useState(false)
   const [uploadHistory, setUploadHistory] = useState<Array<{ id: string; url: string; created_at: string }>>([])
   const [uploading, setUploading] = useState(false)
+  const [useReference, setUseReference] = useState(false)
 
   // Check free tier usage on mount
   useEffect(() => {
@@ -65,7 +69,7 @@ export default function PhotoEditPage() {
     fetchUploadHistory()
   }, [user?.id])
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isReference = false) => {
     const file = e.target.files?.[0]
     if (file) {
       setUploading(true)
@@ -87,8 +91,12 @@ export default function PhotoEditPage() {
         // Show local preview
         const reader = new FileReader()
         reader.onload = (event) => {
-          setSelectedImage(event.target?.result as string)
-          setProcessedImage(null)
+          if (isReference) {
+            setReferenceImage(event.target?.result as string)
+          } else {
+            setTargetImage(event.target?.result as string)
+            setProcessedImage(null)
+          }
         }
         reader.readAsDataURL(file)
       } finally {
@@ -97,19 +105,31 @@ export default function PhotoEditPage() {
     }
   }
 
-  const handleSelectFromHistory = (url: string) => {
-    setSelectedImage(url)
-    setProcessedImage(null)
+  const handleSelectFromHistory = (url: string, isReference = false) => {
+    if (isReference) {
+      setReferenceImage(url)
+    } else {
+      setTargetImage(url)
+      setProcessedImage(null)
+    }
   }
 
   const handlePresetClick = (preset: typeof presets[0]) => {
     setSelectedPreset(preset.id)
     setCustomPrompt(preset.prompt)
+    if (preset.id === 'pose-transfer') {
+      setUseReference(true)
+    }
   }
 
   const handleSubmit = async () => {
-    if (!selectedImage) {
-      setError('Please upload an image first')
+    if (!targetImage) {
+      setError('Please upload a target image first')
+      return
+    }
+
+    if (useReference && !referenceImage) {
+      setError('Please upload a reference image')
       return
     }
 
@@ -139,7 +159,8 @@ export default function PhotoEditPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image: selectedImage,
+          image: targetImage,
+          referenceImage: useReference ? referenceImage : null,
           prompt: customPrompt,
         }),
       })
@@ -160,7 +181,7 @@ export default function PhotoEditPage() {
     } catch (err: any) {
       setError(err.message || 'Failed to process image. Please try again.')
       // For demo, show a mock processed image
-      setProcessedImage(selectedImage)
+      setProcessedImage(targetImage)
       setIsWatermarked(true)
     } finally {
       setLoading(false)
@@ -227,11 +248,70 @@ export default function PhotoEditPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Upload & Preview */}
           <div className="space-y-6">
-            {/* Upload Area */}
+            {/* Reference Image Upload (for pose transfer, etc.) */}
+            {useReference && (
+              <Card>
+                <CardHeader title="Reference Image" subtitle="Image with the pose or style you want to apply" />
+                
+                {!referenceImage ? (
+                  <div
+                    className="border-2 border-dashed border-purple-300 bg-purple-50 rounded-lg p-6 text-center hover:border-purple-500 transition-colors cursor-pointer"
+                    onClick={() => referenceInputRef.current?.click()}
+                  >
+                    <svg className="w-10 h-10 mx-auto text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="mt-3 text-purple-700 font-medium">Upload Reference Image</p>
+                    <p className="text-sm text-purple-500 mt-1">This image provides the pose or style to apply</p>
+                    <input
+                      ref={referenceInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, true)}
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <img
+                        src={referenceImage}
+                        alt="Reference"
+                        className="w-full rounded-lg"
+                      />
+                      <button
+                        onClick={() => setReferenceImage(null)}
+                        className="absolute top-2 right-2 p-1 bg-purple-500 text-white rounded-full hover:bg-purple-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      fullWidth
+                      onClick={() => referenceInputRef.current?.click()}
+                    >
+                      Change Reference Image
+                    </Button>
+                    <input
+                      ref={referenceInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, true)}
+                      className="hidden"
+                    />
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Target Image Upload */}
             <Card>
-              <CardHeader title="Upload Image" subtitle="Drag & drop or click to browse" />
+              <CardHeader title="Target Image" subtitle="Drag & drop or click to browse" />
               
-              {!selectedImage ? (
+              {!targetImage ? (
                 <div
                   className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
@@ -245,7 +325,7 @@ export default function PhotoEditPage() {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload}
+                    onChange={(e) => handleImageUpload(e, false)}
                     className="hidden"
                   />
                 </div>
@@ -253,13 +333,13 @@ export default function PhotoEditPage() {
                 <div className="space-y-4">
                   <div className="relative">
                     <img
-                      src={selectedImage}
+                      src={targetImage}
                       alt="Original"
                       className="w-full rounded-lg"
                     />
                     <button
                       onClick={() => {
-                        setSelectedImage(null)
+                        setTargetImage(null)
                         setProcessedImage(null)
                       }}
                       className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
@@ -274,13 +354,13 @@ export default function PhotoEditPage() {
                     fullWidth
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    Change Image
+                    Change Target Image
                   </Button>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload}
+                    onChange={(e) => handleImageUpload(e, false)}
                     className="hidden"
                   />
                 </div>
@@ -295,7 +375,7 @@ export default function PhotoEditPage() {
                   {uploadHistory.map((item) => (
                     <button
                       key={item.id}
-                      onClick={() => handleSelectFromHistory(item.url)}
+                      onClick={() => handleSelectFromHistory(item.url, useReference)}
                       className="relative group aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all"
                     >
                       <img
@@ -336,7 +416,7 @@ export default function PhotoEditPage() {
                   <div>
                     <p className="text-sm text-gray-500 mb-2">Before</p>
                     <img
-                      src={selectedImage!}
+                      src={targetImage!}
                       alt="Before"
                       className="w-full rounded-lg"
                     />
@@ -397,16 +477,16 @@ export default function PhotoEditPage() {
             <Card>
               <CardHeader 
                 title="Edit Prompt" 
-                subtitle="Describe what you want to change"
+                subtitle={useReference ? "Describe what to transfer from reference to target" : "Describe what you want to change"}
               />
               <Textarea
-                placeholder="Describe your edit... (e.g., 'Make the living room brighter and add a plant in the corner')"
+                placeholder={useReference ? "e.g., 'Apply the pose from image 1 to make the person in image 2 stand similarly'" : "Describe your edit... (e.g., 'Make the living room brighter and add a plant in the corner')"}
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 rows={4}
               />
               <p className="text-sm text-gray-500 mt-2">
-                💡 Tip: Be specific about what you want. Include details about style, colors, and layout.
+                💡 Tip: Be specific about what you want. {useReference && "Mention which image provides the reference."}
               </p>
             </Card>
 
@@ -429,7 +509,8 @@ export default function PhotoEditPage() {
                   size="lg"
                   loading={loading}
                   disabled={
-                    !selectedImage || 
+                    !targetImage || 
+                    (useReference && !referenceImage) ||
                     !customPrompt.trim() || 
                     freeLimitReached ||
                     (!isFreeTierUser && (user?.credits || 0) < CREDIT_COST)
@@ -459,6 +540,7 @@ export default function PhotoEditPage() {
                     <li>• Be specific in your prompts</li>
                     <li>• Virtual staging works best on empty rooms</li>
                     <li>• Day-to-dusk looks great on homes with good exterior shots</li>
+                    {useReference && <li>• Reference images should clearly show the desired pose or style</li>}
                   </ul>
                 </div>
               </div>
