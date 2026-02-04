@@ -172,7 +172,7 @@ export default function PhotoEditPage() {
 
       const data = await response.json()
       setProcessedImage(data.outputUrl)
-      setIsWatermarked(data.isWatermarked || false)
+      setIsWatermarked(false)
       
       // Update free usage display
       if (data.freeUsageRemaining !== undefined) {
@@ -182,7 +182,7 @@ export default function PhotoEditPage() {
       setError(err.message || 'Failed to process image. Please try again.')
       // For demo, show a mock processed image
       setProcessedImage(targetImage)
-      setIsWatermarked(true)
+      setIsWatermarked(false)
     } finally {
       setLoading(false)
     }
@@ -191,7 +191,7 @@ export default function PhotoEditPage() {
   const handleDownload = () => {
     if (processedImage) {
       const link = document.createElement('a')
-      link.download = isWatermarked ? 'edited-photo-watermarked.png' : 'edited-photo.png'
+      link.download = 'edited-photo.png'
       link.href = processedImage
       link.click()
     }
@@ -397,20 +397,10 @@ export default function PhotoEditPage() {
                   title="Result" 
                   subtitle="Your edited image is ready"
                   action={
-                    <div className="flex items-center gap-2">
-                      {isWatermarked && (
-                        <Badge variant="warning" className="mr-2">
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                          Watermarked
-                        </Badge>
-                      )}
                       <Button size="sm" onClick={handleDownload}>
-                        {isWatermarked ? 'Download (Low Res)' : 'Download'}
+                        Download
                       </Button>
-                    </div>
-                  }
+                    }
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -429,23 +419,9 @@ export default function PhotoEditPage() {
                         alt="After"
                         className="w-full rounded-lg"
                       />
-                      {isWatermarked && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="bg-black/50 text-white px-4 py-2 rounded-lg text-sm font-medium transform -rotate-12">
-                            Stagefy Free
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
-                {isWatermarked && (
-                  <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      💡 Upgrade to Pro to remove watermarks and get high-resolution downloads!
-                    </p>
-                  </div>
-                )}
               </Card>
             )}
           </div>

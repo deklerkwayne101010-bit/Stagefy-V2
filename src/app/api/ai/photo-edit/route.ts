@@ -103,7 +103,6 @@ export async function POST(request: Request) {
       }
 
       // Success! Return response
-      // Free tier users get watermarked output
       return NextResponse.json({
         outputUrl: prediction.output,
         jobId: prediction.id,
@@ -111,7 +110,7 @@ export async function POST(request: Request) {
         remainingCredits: usingFreeTier ? 0 : (await checkUserCredits(userIdStr)),
         freeUsageRemaining: usingFreeTier ? freeUsageRemaining - 1 : 0,
         usingFreeTier,
-        isWatermarked: usingFreeTier,
+        isWatermarked: false,
       })
     } catch (aiError: any) {
       console.error('AI processing error:', aiError)
@@ -129,7 +128,7 @@ export async function POST(request: Request) {
         remainingCredits: usingFreeTier ? 0 : await checkUserCredits(userIdStr),
         freeUsageRemaining: usingFreeTier ? freeUsageRemaining : 0,
         usingFreeTier,
-        isWatermarked: usingFreeTier,
+        isWatermarked: false,
         demo: true,
       })
     }
