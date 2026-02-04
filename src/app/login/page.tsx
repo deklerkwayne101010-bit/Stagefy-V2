@@ -4,7 +4,8 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth, getDemoUsers } from '@/lib/auth-context'
+import { isDemoMode } from '@/lib/demo-users'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
@@ -15,6 +16,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Initialize demo mode check synchronously (safe since isDemoMode() is synchronous)
+  const [demoActive] = useState(() => isDemoMode())
+  const demoUsers = getDemoUsers()
+
+  const handleDemoLogin = (demoEmail: string) => {
+    setEmail(demoEmail)
+    setPassword('demo123') // Demo password for all demo users
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,6 +52,38 @@ export default function LoginPage() {
           </div>
           <span className="text-2xl font-semibold text-[#1A1A2E]">Stagefy</span>
         </Link>
+
+        {/* Demo Mode Banner */}
+        {demoActive && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium text-blue-800">Demo Mode Active</span>
+            </div>
+            <p className="text-sm text-blue-600 mb-3">
+              Supabase is not configured. Use one of the demo accounts below:
+            </p>
+            <div className="space-y-2">
+              {demoUsers.map((user) => (
+                <button
+                  key={user.id}
+                  onClick={() => handleDemoLogin(user.email)}
+                  className="w-full text-left px-3 py-2 bg-white border border-blue-200 rounded-lg hover:border-blue-400 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-medium text-blue-800">{user.full_name}</span>
+                      <span className="text-xs text-blue-500 ml-2">({user.role})</span>
+                    </div>
+                    <span className="text-xs text-blue-400">Click to login</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
