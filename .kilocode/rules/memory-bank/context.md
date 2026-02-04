@@ -145,3 +145,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-04 | Made Supabase SQL idempotent with IF NOT EXISTS clauses to handle already-exists errors |
 | 2026-02-04 | Fixed RLS verification query - changed row_security_level to row_security_enabled |
 | 2026-02-04 | Fixed RLS query again - use pg_tables.rowsecurity for compatibility |
+| 2026-02-04 | Optimized authentication performance - parallelized user fetching, added database index for users.id |
