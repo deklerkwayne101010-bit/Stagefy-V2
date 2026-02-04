@@ -124,7 +124,7 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 
 ## Next Steps
 
-1. [ ] **Connect Supabase database tables** - Run schema from `supabase-schema.md`
+1. [x] **Connect Supabase database tables** - Run schema from `supabase-schema.md` or `supabase-setup.sql`
 2. [ ] Configure PayFast sandbox for testing
 3. [ ] Deploy to production
 4. [ ] Add email notifications
@@ -142,3 +142,8 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-03 | Created premium marketing landing page with hero, before/after slider, features, and pricing |
 | 2026-02-03 | Redesigned login and signup pages with clean, minimal design |
 | 2026-02-03 | Fixed landing page routing - removed conflicting page.tsx so landing page displays at / |
+| 2026-02-04 | Made Supabase SQL idempotent with IF NOT EXISTS clauses to handle already-exists errors |
+| 2026-02-04 | Fixed RLS verification query - changed row_security_level to row_security_enabled |
+| 2026-02-04 | Fixed RLS query again - use pg_tables.rowsecurity for compatibility |
+| 2026-02-04 | Optimized authentication performance - parallelized user fetching, added database index for users.id |
+| 2026-02-04 | Updated photo edit to use Replicate qwen/qwen-image-edit-plus model with reference image support |

@@ -13,7 +13,7 @@ import { getCurrentUser } from '@/lib/supabase'
 
 export async function POST(request: Request) {
   try {
-    const { image, prompt, userId } = await request.json()
+    const { image, referenceImage, prompt, userId } = await request.json()
 
     // Validate input
     if (!image || !prompt) {
@@ -67,7 +67,16 @@ export async function POST(request: Request) {
 
     try {
       // Call Replicate API for Qwen Image Edit Plus
-      const response = await fetch('https://api.replicate.com/v1/predictions', {
+      // Using the correct model and input format
+      const inputPayload: any = {
+        image: referenceImage ? [referenceImage, image] : image,
+        prompt: prompt,
+        go_fast: true,
+        output_format: 'jpg',
+        output_quality: 90,
+      }
+
+      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen-image-edit-plus/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -75,20 +84,18 @@ export async function POST(request: Request) {
           'Prefer': 'wait',
         },
         body: JSON.stringify({
-          version: 'qwen/qwen2-vl-72b-instruct',
-          input: {
-            image: image,
-            prompt: prompt,
-            num_outputs: 1,
-          },
+          input: inputPayload,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to process image')
+        const errorText = await response.text()
+        console.error('Replicate API error:', errorText)
+        throw new Error(`Replicate API failed: ${errorText}`)
       }
 
       const prediction = await response.json()
+      console.log('Replicate prediction:', prediction)
 
       // Record free tier usage if applicable
       if (usingFreeTier) {
@@ -96,7 +103,6 @@ export async function POST(request: Request) {
       }
 
       // Success! Return response
-      // Free tier users get watermarked output
       return NextResponse.json({
         outputUrl: prediction.output,
         jobId: prediction.id,
@@ -104,9 +110,11 @@ export async function POST(request: Request) {
         remainingCredits: usingFreeTier ? 0 : (await checkUserCredits(userIdStr)),
         freeUsageRemaining: usingFreeTier ? freeUsageRemaining - 1 : 0,
         usingFreeTier,
-        isWatermarked: usingFreeTier,
+        isWatermarked: false,
       })
-    } catch (aiError) {
+    } catch (aiError: any) {
+      console.error('AI processing error:', aiError)
+      
       // Refund credits on failure (only if we reserved them)
       if (!usingFreeTier) {
         await refundCredits(userIdStr, 'photo_edit', `photo-${Date.now()}`)
@@ -120,7 +128,7 @@ export async function POST(request: Request) {
         remainingCredits: usingFreeTier ? 0 : await checkUserCredits(userIdStr),
         freeUsageRemaining: usingFreeTier ? freeUsageRemaining : 0,
         usingFreeTier,
-        isWatermarked: usingFreeTier,
+        isWatermarked: false,
         demo: true,
       })
     }

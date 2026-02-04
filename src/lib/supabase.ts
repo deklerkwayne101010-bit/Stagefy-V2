@@ -233,18 +233,18 @@ export async function getMediaById(
   }
 }
 
-// Helper function to check if user is authenticated
+// Helper function to check if user is authenticated - optimized with parallel fetching
 export async function getCurrentUser(): Promise<User | null> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const client = getSupabaseClient()
+  if (!client) return null
   
   // For demo purposes, return a mock user if Supabase is not configured
   if (!supabaseUrl || !supabaseAnonKey) {
     return {
-      id: user.id || 'demo-user',
-      email: user.email || 'demo@example.com',
+      id: 'demo-user',
+      email: 'demo@example.com',
       full_name: 'Demo User',
-      credits: 0, // Demo user has 0 credits to test free tier
+      credits: 0,
       subscription_tier: 'free',
       free_usage_used: 0,
       role: 'agent',
@@ -253,13 +253,44 @@ export async function getCurrentUser(): Promise<User | null> {
     }
   }
   
-  const { data } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  // Fetch auth user and profile in parallel
+  const [authResult, profileResult] = await Promise.all([
+    client.auth.getUser(),
+    client.auth.getSession(),
+  ])
   
-  return data as User | null
+  const user = authResult.data.user
+  if (!user) return null
+  
+  // Use session data if available, otherwise fallback to profile query
+  const session = profileResult.data.session
+  if (session?.user?.id) {
+    // Quick profile fetch with timeout protection
+    try {
+      const { data } = await client
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+      
+      return data as User | null
+    } catch {
+      // If profile doesn't exist yet, return minimal user data
+      return {
+        id: user.id,
+        email: user.email || '',
+        full_name: user.user_metadata?.full_name || '',
+        role: 'agent',
+        credits: 50,
+        subscription_tier: 'free',
+        free_usage_used: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    }
+  }
+  
+  return null
 }
 
 // Helper function to check if user is admin

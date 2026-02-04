@@ -40,10 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // Check for existing session on mount
+    // Initialize auth in background - don't block rendering
     const initAuth = async () => {
-      await refreshUser()
-      setLoading(false)
+      try {
+        await refreshUser()
+      } finally {
+        setLoading(false)
+      }
     }
     initAuth()
 
