@@ -142,4 +142,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-03 | Created premium marketing landing page with hero, before/after slider, features, and pricing |
 | 2026-02-03 | Redesigned login and signup pages with clean, minimal design |
 | 2026-02-03 | Fixed landing page routing - removed conflicting page.tsx so landing page displays at / |
-| 2026-02-04 | Added `supabase-setup.sql` - SQL schema file for Supabase dashboard execution |
+| 2026-02-04 | Made Supabase SQL idempotent with IF NOT EXISTS clauses to handle already-exists errors |
