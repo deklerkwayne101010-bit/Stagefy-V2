@@ -67,7 +67,16 @@ export async function POST(request: Request) {
 
     try {
       // Call Replicate API for Qwen Image Edit Plus
-      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen-image-edit-plus/predictions', {
+      // Using the correct model and input format
+      const inputPayload: any = {
+        image: referenceImage ? [referenceImage, image] : image,
+        prompt: prompt,
+        go_fast: true,
+        output_format: 'jpg',
+        output_quality: 90,
+      }
+
+      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen2-5-ide-edit-8b/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -75,24 +84,18 @@ export async function POST(request: Request) {
           'Prefer': 'wait',
         },
         body: JSON.stringify({
-          input: {
-            image: referenceImage ? [referenceImage, image] : [image],
-            prompt: prompt,
-            go_fast: true,
-            aspect_ratio: 'match_input_image',
-            output_format: 'jpg',
-            output_quality: 100,
-          },
+          input: inputPayload,
         }),
       })
 
       if (!response.ok) {
         const errorText = await response.text()
         console.error('Replicate API error:', errorText)
-        throw new Error('Failed to process image')
+        throw new Error(`Replicate API failed: ${errorText}`)
       }
 
       const prediction = await response.json()
+      console.log('Replicate prediction:', prediction)
 
       // Record free tier usage if applicable
       if (usingFreeTier) {
