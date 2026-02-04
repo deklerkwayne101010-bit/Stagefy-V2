@@ -285,6 +285,7 @@ CREATE TABLE IF NOT EXISTS admin_audit_log (
 -- INDEXES
 -- ============================================
 
+CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_subscription_tier ON users(subscription_tier);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
