@@ -27,11 +27,11 @@ export const SUBSCRIPTION_PLANS = {
   basic: {
     id: 'basic',
     name: 'Basic',
-    price: 520,
-    monthlyCredits: 200,
+    price: 75,
+    monthlyCredits: 50,
     description: 'Perfect for individual agents',
     features: [
-      '200 credits per month',
+      '50 credits per month',
       'Photo editing',
       'Video generation',
       'Template creation',
@@ -41,11 +41,11 @@ export const SUBSCRIPTION_PLANS = {
   pro: {
     id: 'pro',
     name: 'Pro',
-    price: 1420,
-    monthlyCredits: 500,
+    price: 225,
+    monthlyCredits: 150,
     description: 'For growing teams',
     features: [
-      '500 credits per month',
+      '150 credits per month',
       'Photo editing',
       'Video generation',
       'Template creation',
@@ -56,11 +56,11 @@ export const SUBSCRIPTION_PLANS = {
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    price: 3580,
-    monthlyCredits: 1500,
+    price: 375,
+    monthlyCredits: 300,
     description: 'For large brokerages',
     features: [
-      '1,500 credits per month',
+      '300 credits per month',
       'Photo editing',
       'Video generation',
       'Template creation',
