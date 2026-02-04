@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         output_quality: 90,
       }
 
-      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen2-5-ide-edit-8b/predictions', {
+      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen-image-edit-plus/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
