@@ -67,9 +67,15 @@ export async function POST(request: Request) {
 
     try {
       // Call Replicate API for Qwen Image Edit Plus
-      // Using the correct model and input format
-      const inputPayload: any = {
-        image: referenceImage ? [referenceImage, image] : image,
+      // Using the exact format from the model schema
+      // Image array: [reference_image, target_image] - order matters for pose transfer
+      
+      const imageArray = referenceImage 
+        ? [referenceImage, image]  // [pose/template, target] - matches curl example
+        : [image]
+      
+      const inputPayload = {
+        image: imageArray,
         prompt: prompt,
         go_fast: true,
         output_format: 'jpg',
@@ -81,11 +87,9 @@ export async function POST(request: Request) {
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait',
+          'Prefer': 'wait',  // Wait for prediction to complete
         },
-        body: JSON.stringify({
-          input: inputPayload,
-        }),
+        body: JSON.stringify({ input: inputPayload }),
       })
 
       if (!response.ok) {
