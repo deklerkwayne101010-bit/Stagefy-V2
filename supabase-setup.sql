@@ -439,4 +439,4 @@ CREATE TRIGGER update_templates_modtime BEFORE UPDATE ON templates FOR EACH ROW 
 SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name NOT LIKE 'pg_%' ORDER BY table_name;
 
 -- Verify RLS is enabled
-SELECT table_name, row_security_level FROM information_schema.tables WHERE table_schema = 'public' AND row_security_level = 'enforce' ORDER BY table_name;
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND row_security_enabled = true ORDER BY table_name;
