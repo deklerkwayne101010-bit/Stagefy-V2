@@ -146,3 +146,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-04 | Fixed RLS verification query - changed row_security_level to row_security_enabled |
 | 2026-02-04 | Fixed RLS query again - use pg_tables.rowsecurity for compatibility |
 | 2026-02-04 | Optimized authentication performance - parallelized user fetching, added database index for users.id |
+| 2026-02-04 | Updated photo edit to use Replicate qwen/qwen-image-edit-plus model with reference image support |
