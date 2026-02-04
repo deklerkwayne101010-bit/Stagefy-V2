@@ -237,7 +237,9 @@ export async function pauseUserAccess(
   return { success: true }
 }
 
-// Reactivate user after successful payment
+// Reactivate user after successful payment and reset monthly credits
+// For subscriptions: credits are RESET to the monthly allocation (not added)
+// For credit purchases: credits are ADDED to existing balance
 export async function reactivateUser(
   userId: string,
   subscriptionTier: string,
@@ -248,7 +250,7 @@ export async function reactivateUser(
   const { error } = await (supabase.from as any)('users')
     .update({
       subscriptionTier,
-      credits,
+      credits, // RESET to monthly allocation for subscriptions
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
@@ -264,6 +266,63 @@ export async function reactivateUser(
       type: 'payment_success',
       title: 'Payment Successful',
       message: 'Your payment was processed successfully. Your account has been reactivated.',
+    })
+
+  return { success: true }
+}
+
+// Monthly credit reset for active subscriptions
+// This can be called by a scheduled job or webhook on subscription renewal
+export async function resetMonthlyCredits(
+  userId: string,
+  planId: SubscriptionPlanId
+): Promise<{ success: boolean; error?: string }> {
+  const plan = SUBSCRIPTION_PLANS[planId]
+  if (!plan) {
+    return { success: false, error: 'Invalid subscription plan' }
+  }
+
+  const { supabase } = await import('./supabase')
+  
+  // Reset credits to monthly allocation
+  const { error } = await (supabase.from as any)('users')
+    .update({
+      credits: plan.monthlyCredits,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // Update subscription record
+  await (supabase.from as any)('subscriptions')
+    .update({
+      credits_remaining: plan.monthlyCredits,
+      current_period_start: new Date().toISOString(),
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .eq('status', 'active')
+
+  // Log transaction
+  await (supabase.from as any)('credit_transactions')
+    .insert({
+      user_id: userId,
+      amount: plan.monthlyCredits,
+      type: 'subscription',
+      description: `Monthly credit reset - ${plan.name} plan`,
+    })
+
+  // Create notification
+  await (supabase.from as any)('notifications')
+    .insert({
+      user_id: userId,
+      type: 'subscription_renewal',
+      title: 'Credits Reset',
+      message: `Your ${plan.monthlyCredits} monthly credits have been added to your account.`,
     })
 
   return { success: true }
