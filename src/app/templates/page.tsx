@@ -11,19 +11,12 @@ import { CreditBadge, FreeTierBadge } from '@/components/ui/Badge'
 import { Badge } from '@/components/ui/Badge'
 import { checkFreeUsage, canPerformAction } from '@/lib/credits'
 
-const templateTypes = [
-  { value: 'professional', label: 'Professional Template', icon: '🏢', description: 'Clean and professional design' },
-  { value: 'wacky', label: 'Wacky Template', icon: '🎨', description: 'Creative and fun style' },
-  { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visual content' },
-  { value: 'marketing', label: 'Marketing Material', icon: '📢', description: 'Promotional content' },
-  { value: 'custom', label: 'Custom', icon: '✨', description: 'Create your own' },
+const templateTypes: { value: string; label: string; icon: string; description: string }[] = [
+  // Add your custom template types here
 ]
 
-const sampleTemplates = [
-  { id: 1, name: 'Corporate Pitch', type: 'professional', thumbnail: 'https://example.com/thumb1.jpg' },
-  { id: 2, name: 'Brand Story', type: 'professional', thumbnail: 'https://example.com/thumb2.jpg' },
-  { id: 3, name: 'Neon Dreams', type: 'wacky', thumbnail: 'https://example.com/thumb3.jpg' },
-  { id: 4, name: 'Market Stats', type: 'infographic', thumbnail: 'https://example.com/thumb4.jpg' },
+const sampleTemplates: { id: number; name: string; type: string; thumbnail: string }[] = [
+  // Add your custom sample templates here
 ]
 
 const CREDIT_COST = 3
