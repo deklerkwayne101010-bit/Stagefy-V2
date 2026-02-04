@@ -1,28 +1,28 @@
 // Media page for CRM - Gallery of all photos and videos
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-
-const mockMedia = [
-  { id: 1, title: '123 Main St - Living Room', type: 'image', thumbnail: '/api/placeholder/300/200', listing: '123 Main St', created_at: '2024-01-15' },
-  { id: 2, title: '123 Main St - Kitchen', type: 'image', thumbnail: '/api/placeholder/300/200', listing: '123 Main St', created_at: '2024-01-15' },
-  { id: 3, title: '456 Oak Ave - Listing Video', type: 'video', thumbnail: '/api/placeholder/300/200', listing: '456 Oak Ave', created_at: '2024-01-14' },
-  { id: 4, title: '789 Pine Rd - Virtual Staging', type: 'image', thumbnail: '/api/placeholder/300/200', listing: '789 Pine Rd', created_at: '2024-01-13' },
-  { id: 5, title: '789 Pine Rd - Day to Dusk', type: 'image', thumbnail: '/api/placeholder/300/200', listing: '789 Pine Rd', created_at: '2024-01-12' },
-  { id: 6, title: '321 Elm Dr - Master Bedroom', type: 'image', thumbnail: '/api/placeholder/300/200', listing: '321 Elm Dr', created_at: '2024-01-11' },
-]
+import { useAuth } from '@/lib/auth-context'
+import { getUserMedia, getEmptyCrmMessage } from '@/lib/demo-crm-data'
 
 export default function MediaPage() {
+  const { user } = useAuth()
   const [filterType, setFilterType] = useState('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  const filteredMedia = mockMedia.filter(item => {
+  // Get user-specific media
+  const userMedia = useMemo(() => {
+    if (!user) return []
+    return getUserMedia(user.id)
+  }, [user])
+
+  const filteredMedia = userMedia.filter(item => {
     if (filterType === 'all') return true
     return item.type === filterType
   })
@@ -67,7 +67,24 @@ export default function MediaPage() {
           </div>
         </div>
 
-        {viewMode === 'grid' ? (
+        {filteredMedia.length === 0 ? (
+          <div className="text-center py-12">
+            <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="text-gray-500 mt-4">{user ? getEmptyCrmMessage('media') : 'Please log in to view your media'}</p>
+            {user && (
+              <div className="mt-4 flex gap-2 justify-center">
+                <Link href="/photo-edit">
+                  <Button>Create Photo</Button>
+                </Link>
+                <Link href="/image-to-video">
+                  <Button variant="outline">Create Video</Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : viewMode === 'grid' ? (
           /* Grid View */
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredMedia.map((item) => (

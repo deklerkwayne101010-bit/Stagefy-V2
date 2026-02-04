@@ -1,26 +1,27 @@
 // Listings page for CRM
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-
-const mockListings = [
-  { id: 1, address: '123 Main St, Los Angeles, CA', price: 15300000, bedrooms: 3, bathrooms: 2, sqft: 1800, status: 'active', city: 'Los Angeles' },
-  { id: 2, address: '456 Oak Ave, Beverly Hills, CA', price: 43200000, bedrooms: 5, bathrooms: 4, sqft: 4200, status: 'pending', city: 'Beverly Hills' },
-  { id: 3, address: '789 Pine Rd, Santa Monica, CA', price: 21600000, bedrooms: 4, bathrooms: 3, sqft: 2400, status: 'active', city: 'Santa Monica' },
-  { id: 4, address: '321 Elm Dr, Malibu, CA', price: 81000000, bedrooms: 6, bathrooms: 5, sqft: 5500, status: 'active', city: 'Malibu' },
-  { id: 5, address: '654 Maple Ln, Pasadena, CA', price: 17640000, bedrooms: 3, bathrooms: 2, sqft: 2000, status: 'sold', city: 'Pasadena' },
-]
+import { useAuth } from '@/lib/auth-context'
+import { getUserListings, getEmptyCrmMessage } from '@/lib/demo-crm-data'
 
 export default function ListingsPage() {
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
 
-  const filteredListings = mockListings.filter(listing => {
+  // Get user-specific listings
+  const userListings = useMemo(() => {
+    if (!user) return []
+    return getUserListings(user.id)
+  }, [user])
+
+  const filteredListings = userListings.filter(listing => {
     const matchesSearch = listing.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          listing.city.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || listing.status === filterStatus
@@ -28,9 +29,9 @@ export default function ListingsPage() {
   })
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-ZA', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'ZAR',
+      currency: 'USD',
       maximumFractionDigits: 0,
     }).format(price)
   }
@@ -121,8 +122,8 @@ export default function ListingsPage() {
             <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <p className="text-gray-500 mt-4">No listings found</p>
-            <Button className="mt-4">Add your first listing</Button>
+            <p className="text-gray-500 mt-4">{user ? getEmptyCrmMessage('listings') : 'Please log in to view your listings'}</p>
+            {user && <Button className="mt-4">Add your first listing</Button>}
           </div>
         )}
       </div>

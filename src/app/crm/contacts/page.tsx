@@ -1,27 +1,28 @@
 // Contacts page for CRM
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-
-const mockContacts = [
-  { id: 1, name: 'Sarah Johnson', email: 'sarah@email.com', phone: '(555) 123-4567', type: 'buyer', status: 'active', notes: 'Looking for 3BR in Beverly Hills' },
-  { id: 2, name: 'Mike Chen', email: 'mike@email.com', phone: '(555) 234-5678', type: 'seller', status: 'lead', notes: 'Selling investment property' },
-  { id: 3, name: 'Emily Davis', email: 'emily@email.com', phone: '(555) 345-6789', type: 'investor', status: 'active', notes: 'Portfolio buyer' },
-  { id: 4, name: 'James Wilson', email: 'james@email.com', phone: '(555) 456-7890', type: 'buyer', status: 'closed', notes: 'Purchased 456 Oak Ave' },
-  { id: 5, name: 'Lisa Brown', email: 'lisa@email.com', phone: '(555) 567-8901', type: 'seller', status: 'active', notes: 'Relocating to Florida' },
-]
+import { useAuth } from '@/lib/auth-context'
+import { getUserContacts, getEmptyCrmMessage } from '@/lib/demo-crm-data'
 
 export default function ContactsPage() {
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
 
-  const filteredContacts = mockContacts.filter(contact => {
+  // Get user-specific contacts
+  const userContacts = useMemo(() => {
+    if (!user) return []
+    return getUserContacts(user.id)
+  }, [user])
+
+  const filteredContacts = userContacts.filter(contact => {
     const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          contact.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = filterType === 'all' || contact.type === filterType
@@ -101,8 +102,8 @@ export default function ContactsPage() {
             <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <p className="text-gray-500 mt-4">No contacts found</p>
-            <Button className="mt-4" onClick={() => setShowAddModal(true)}>Add your first contact</Button>
+            <p className="text-gray-500 mt-4">{user ? getEmptyCrmMessage('contacts') : 'Please log in to view your contacts'}</p>
+            {user && <Button className="mt-4" onClick={() => setShowAddModal(true)}>Add your first contact</Button>}
           </div>
         )}
       </div>
