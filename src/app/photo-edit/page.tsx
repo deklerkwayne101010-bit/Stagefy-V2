@@ -19,7 +19,6 @@ const presets = [
   { id: 'sky-replace', name: 'Sky Replacement', icon: '☁️', prompt: 'Replace the current sky with a beautiful blue sky with fluffy white clouds. Match the lighting appropriately.' },
   { id: 'enhance-lighting', name: 'Enhance Lighting', icon: '💡', prompt: 'Improve the lighting in this photo. Brighten the room, enhance natural light, and make the space look warm and welcoming.' },
   { id: 'window-pulling', name: 'Window Pulling', icon: '🪟', prompt: 'Enhance the windows to appear larger and more prominent. Brighten the window areas to bring in more natural light and create a stunning view effect. Make the window frames crisp and clear.' },
-  { id: 'pose-transfer', name: 'Pose Transfer', icon: '👤', prompt: 'Transfer the pose from the reference image to the target image while maintaining natural look.' },
 ]
 
 const CREDIT_COST = 1
@@ -117,9 +116,6 @@ export default function PhotoEditPage() {
   const handlePresetClick = (preset: typeof presets[0]) => {
     setSelectedPreset(preset.id)
     setCustomPrompt(preset.prompt)
-    if (preset.id === 'pose-transfer') {
-      setUseReference(true)
-    }
   }
 
   const handleSubmit = async () => {
