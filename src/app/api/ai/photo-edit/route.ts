@@ -1,15 +1,18 @@
 // API route for AI Photo Editing (Qwen Image Edit Plus)
 import { NextResponse } from 'next/server'
-import { 
-  checkUserCredits, 
-  reserveCredits, 
-  refundCredits, 
-  CREDIT_COSTS, 
-  checkFreeUsage, 
+import {
+  checkUserCredits,
+  reserveCredits,
+  refundCredits,
+  CREDIT_COSTS,
+  checkFreeUsage,
   recordFreeUsage,
-  canPerformAction 
+  canPerformAction
 } from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
+
+// Check if running in demo mode (no Supabase configured)
+const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export async function POST(request: Request) {
   try {
@@ -23,17 +26,42 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get user ID from auth or parameter
-    const user = userId ? { id: userId } : await getCurrentUser()
-    if (!user?.id) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+    // Demo mode: allow requests without authentication
+    let user: any = null
+    if (isDemoMode) {
+      user = { id: 'demo-user', credits: 50, subscription_tier: 'free', free_usage_used: 0 }
+    } else {
+      // Get user ID from auth or parameter
+      user = userId ? { id: userId } : await getCurrentUser()
+      if (!user?.id) {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        )
+      }
     }
 
     const userIdStr = user.id
     const creditCost = CREDIT_COSTS.photo_edit
+
+    // Demo mode: skip credit check and return demo response
+    if (isDemoMode) {
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Return mock response for demo
+      return NextResponse.json({
+        outputUrl: null,
+        jobId: 'demo-job-' + Date.now(),
+        creditsUsed: 0,
+        remainingCredits: 50,
+        freeUsageRemaining: 3,
+        usingFreeTier: true,
+        isWatermarked: true,
+        demo: true,
+        demoMessage: 'Demo mode: AI photo editing requires Supabase and Replicate API configuration. Set environment variables to enable.',
+      })
+    }
 
     // Check if user can perform this action (free tier or credits)
     const canPerform = await canPerformAction(userIdStr)
