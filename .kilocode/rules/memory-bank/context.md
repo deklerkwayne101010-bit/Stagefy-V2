@@ -109,6 +109,16 @@ Users on the free tier (subscription_tier='free' with 0 credits) get 3 free AI a
 | Marketing Material | Promotional content |
 | Custom | Create your own |
 
+## Description Generator Formats
+
+| Format | Description |
+|--------|-------------|
+| Property24 | Standard property listing format (150-300 words) |
+| TikTok | Short, engaging caption with hashtags (50-100 words) |
+| Facebook | Medium post with engagement hook (150-250 words) |
+| Instagram | Visual-focused with hashtags (100-150 words) |
+| Twitter/X | Concise, punchy tweet (50-100 chars) |
+
 ## Environment Variables Required
 
 ```
@@ -149,3 +159,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-04 | Updated photo edit to use Replicate qwen/qwen-image-edit-plus model with reference image support |
 | 2026-02-05 | Fixed Supabase storage RLS policies syntax with DO $ blocks for idempotent execution |
 | 2026-02-05 | Updated photo-edit to use Supabase URL for AI processing when available |
+| 2026-02-05 | Added output format option to description generator (Property24, TikTok, Facebook, Instagram, Twitter) |
