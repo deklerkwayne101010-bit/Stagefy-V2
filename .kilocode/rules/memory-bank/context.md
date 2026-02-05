@@ -160,3 +160,8 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-05 | Fixed Supabase storage RLS policies syntax with DO $ blocks for idempotent execution |
 | 2026-02-05 | Updated photo-edit to use Supabase URL for AI processing when available |
 | 2026-02-05 | Added output format option to description generator (Property24, TikTok, Facebook, Instagram, Twitter) |
+| 2026-02-05 | Added cancel subscription functionality with PayFast API |
+| 2026-02-05 | Added billing success and cancelled pages |
+| 2026-02-05 | Added GitHub Actions and Vercel Cron for monthly credit reset |
+| 2026-02-05 | Fixed PGRST116 error when user row not found |
+| 2026-02-05 | **Synced all commits to GitHub repository** |
