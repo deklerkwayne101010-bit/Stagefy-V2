@@ -24,13 +24,35 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [currentPlan, setCurrentPlan] = useState<string>(user?.subscription_tier || 'free')
+  const [subscriptionId, setSubscriptionId] = useState<string>('')
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('inactive')
 
-  // Fetch transactions on mount
+  // Fetch transactions and subscription on mount
   useEffect(() => {
     if (user?.id) {
       fetchTransactions()
+      fetchSubscription()
     }
   }, [user])
+
+  const fetchSubscription = async () => {
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data } = await (supabase.from as any)('subscriptions')
+        .select('id, status')
+        .eq('user_id', user?.id)
+        .in('status', ['active', 'cancelled'])
+        .order('created_at', { ascending: false })
+        .single()
+      
+      if (data) {
+        setSubscriptionId(data.id)
+        setSubscriptionStatus(data.status)
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription:', error)
+    }
+  }
 
   const fetchTransactions = async () => {
     try {
@@ -103,6 +125,34 @@ export default function BillingPage() {
     }
   }
 
+  const handleCancelSubscription = async () => {
+    if (!subscriptionId) return
+    if (!confirm('Are you sure you want to cancel your subscription? You will lose access to AI features at the end of your billing period.')) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch('/api/payments/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSubscriptionStatus('cancelled')
+        alert('Your subscription has been cancelled. You will retain access until the end of your billing period.')
+      } else {
+        alert(data.error || 'Failed to cancel subscription')
+      }
+    } catch (error) {
+      console.error('Cancel subscription error:', error)
+      alert('Failed to cancel subscription. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const plan = SUBSCRIPTION_PLANS[currentPlan as keyof typeof SUBSCRIPTION_PLANS] || {
     id: 'free',
     name: 'Free',
@@ -146,10 +196,20 @@ export default function BillingPage() {
                 <div>
                   <p className="text-3xl font-bold text-slate-900">{plan.name} Plan</p>
                   <p className="text-slate-600">R{plan.price}/month</p>
+                  {subscriptionStatus === 'cancelled' && (
+                    <Badge variant="warning" className="mt-2">Cancelled</Badge>
+                  )}
                 </div>
-                <Button variant="outline" onClick={() => setActiveTab('plans')}>
-                  Change Plan
-                </Button>
+                <div className="flex gap-2">
+                  {subscriptionStatus === 'active' && (
+                    <Button variant="outline" onClick={handleCancelSubscription} loading={loading}>
+                      Cancel Subscription
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setActiveTab('plans')}>
+                    {subscriptionStatus === 'cancelled' ? 'Resubscribe' : 'Change Plan'}
+                  </Button>
+                </div>
               </div>
               <div className="mt-6">
                 <p className="text-sm text-slate-400 mb-3">This month&apos;s usage</p>
