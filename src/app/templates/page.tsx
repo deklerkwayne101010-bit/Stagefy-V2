@@ -159,6 +159,7 @@ export default function TemplatesPage() {
           images: selectedImages,
           type: templateType,
           prompt,
+          userId: user?.id,
         }),
       })
 

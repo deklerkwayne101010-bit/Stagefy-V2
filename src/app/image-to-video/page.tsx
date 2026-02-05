@@ -101,6 +101,7 @@ export default function ImageToVideoPage() {
           mode,
           duration: parseInt(duration),
           prompt,
+          userId: user?.id,
         }),
       })
 

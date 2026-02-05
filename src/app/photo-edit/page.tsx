@@ -175,6 +175,7 @@ export default function PhotoEditPage() {
           image: imageToProcess,
           referenceImage: referenceToProcess,
           prompt: customPrompt,
+          userId: user?.id,
         }),
       })
 
