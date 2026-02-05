@@ -609,3 +609,50 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 4. **JSONB**: Use for flexible settings/data that may evolve
 5. **Foreign Keys**: Add `ON DELETE CASCADE` where appropriate for cleanup
 6. **Indexes**: Create based on query patterns (shown above are recommendations)
+
+---
+
+## Storage Bucket Setup
+
+### Uploads Bucket (Required for AI Photo Editing)
+
+The app uses Supabase Storage for uploading images. You need to create the 'uploads' bucket and configure RLS policies.
+
+**Setup Steps:**
+
+1. **Create the bucket** (in Supabase Dashboard → Storage):
+   - Click "New Bucket"
+   - Name: `uploads`
+   - Make it **Public**
+   - Save
+
+2. **Add RLS Policies** (run in Supabase SQL Editor):
+
+```sql
+-- Allow authenticated users to SELECT files
+CREATE POLICY "Allow authenticated users to select files" ON storage.objects
+FOR SELECT
+TO authenticated
+USING (bucket_id = 'uploads');
+
+-- Allow authenticated users to INSERT files
+CREATE POLICY "Allow authenticated users to insert files" ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'uploads' AND bucket_id = 'uploads');
+
+-- Allow authenticated users to UPDATE files
+CREATE POLICY "Allow authenticated users to update files" ON storage.objects
+FOR UPDATE
+TO authenticated
+USING (bucket_id = 'uploads')
+WITH CHECK (bucket_id = 'uploads');
+
+-- Allow authenticated users to DELETE their own files
+CREATE POLICY "Allow authenticated users to delete files" ON storage.objects
+FOR DELETE
+TO authenticated
+USING (bucket_id = 'uploads' AND auth.uid() = owner);
+```
+
+**Note:** Storage buckets are managed through Supabase Storage API, not SQL tables. The policies above are the only SQL commands needed.
