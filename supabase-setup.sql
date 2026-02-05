@@ -432,44 +432,42 @@ CREATE TRIGGER update_contacts_modtime BEFORE UPDATE ON crm_contacts FOR EACH RO
 CREATE TRIGGER update_listings_modtime BEFORE UPDATE ON crm_listings FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 CREATE TRIGGER update_templates_modtime BEFORE UPDATE ON templates FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
--- ============================================
--- STORAGE BUCKET SETUP
--- ============================================
+DO $ BEGIN
+    CREATE POLICY "Allow authenticated users to select files" ON storage.objects
+    FOR SELECT
+    TO authenticated
+    USING (bucket_id = 'uploads');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
 
--- Create 'uploads' storage bucket (if not exists)
--- Note: This uses the Storage API, not SQL. Run this in Supabase Dashboard:
--- 1. Go to Storage → New Bucket
--- 2. Name: 'uploads'
--- 3. Make it Public
--- 4. Add RLS policies below
+DO $ BEGIN
+    CREATE POLICY "Allow authenticated users to insert files" ON storage.objects
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (bucket_id = 'uploads');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
 
--- Allow authenticated users to upload images
--- Run these policies in Supabase SQL Editor:
+DO $ BEGIN
+    CREATE POLICY "Allow authenticated users to update files" ON storage.objects
+    FOR UPDATE
+    TO authenticated
+    USING (bucket_id = 'uploads')
+    WITH CHECK (bucket_id = 'uploads');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
 
--- Policy: Allow authenticated users to SELECT files
-CREATE POLICY "Allow authenticated users to select files" ON storage.objects
-FOR SELECT
-TO authenticated
-USING (bucket_id = 'uploads');
-
--- Policy: Allow authenticated users to INSERT files
-CREATE POLICY "Allow authenticated users to insert files" ON storage.objects
-FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'uploads' AND bucket_id = 'uploads');
-
--- Policy: Allow authenticated users to UPDATE files
-CREATE POLICY "Allow authenticated users to update files" ON storage.objects
-FOR UPDATE
-TO authenticated
-USING (bucket_id = 'uploads')
-WITH CHECK (bucket_id = 'uploads');
-
--- Policy: Allow authenticated users to DELETE their own files
-CREATE POLICY "Allow authenticated users to delete files" ON storage.objects
-FOR DELETE
-TO authenticated
-USING (bucket_id = 'uploads' AND auth.uid() = owner);
+DO $ BEGIN
+    CREATE POLICY "Allow authenticated users to delete files" ON storage.objects
+    FOR DELETE
+    TO authenticated
+    USING (bucket_id = 'uploads' AND auth.uid() = owner);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
 
 -- ============================================
 -- DONE
