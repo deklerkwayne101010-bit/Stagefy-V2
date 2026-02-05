@@ -79,7 +79,7 @@ const marketplaceTypes: { value: string; label: string; icon: string; descriptio
   { value: 'marketing', label: 'Marketing', icon: '📢', description: 'Promotional content' }
 ]
 
-const CREDIT_COST = 3
+const CREDIT_COST = 5
 
 export default function TemplatesPage() {
   const { user } = useAuth()
