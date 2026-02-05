@@ -1,5 +1,5 @@
 {
-  "name": "nextjs-template",
+  "name": "stagefy",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "reset-monthly-credits": "node scripts/reset-monthly-credits.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3",
