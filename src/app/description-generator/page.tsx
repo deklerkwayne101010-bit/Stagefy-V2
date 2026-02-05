@@ -30,6 +30,15 @@ const listingStyles = [
   { value: 'minimalist', label: 'Minimalist', icon: '⬜', description: 'Simple and clean' },
 ]
 
+// Output length/format options
+const lengthOptions = [
+  { value: 'property24', label: 'Property24', icon: '🏠', description: 'Standard property listing format' },
+  { value: 'tiktok', label: 'TikTok', icon: '🎵', description: 'Short, engaging video caption' },
+  { value: 'facebook', label: 'Facebook', icon: '📘', description: 'Medium post with engagement hook' },
+  { value: 'instagram', label: 'Instagram', icon: '📸', description: 'Visual-focused with hashtags' },
+  { value: 'twitter', label: 'Twitter/X', icon: '🐦', description: 'Concise, punchy tweet' },
+]
+
 // Key features options
 const featureOptions = [
   'Open Plan Living', 'Modern Kitchen', 'Swimming Pool', 'Garden',
@@ -52,6 +61,7 @@ export default function DescriptionGeneratorPage() {
   // Form state
   const [propertyType, setPropertyType] = useState('')
   const [listingStyle, setListingStyle] = useState('professional')
+  const [outputFormat, setOutputFormat] = useState('property24')
   const [propertyTitle, setPropertyTitle] = useState('')
   const [address, setAddress] = useState('')
   const [price, setPrice] = useState('')
@@ -116,6 +126,7 @@ export default function DescriptionGeneratorPage() {
         body: JSON.stringify({
           propertyType,
           listingStyle,
+          outputFormat,
           propertyTitle,
           address,
           price,
@@ -234,6 +245,15 @@ export default function DescriptionGeneratorPage() {
                         options={listingStyles.map(s => ({ value: s.value, label: `${s.icon} ${s.label}` }))}
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Output Format</label>
+                    <Select
+                      value={outputFormat}
+                      onChange={(e) => setOutputFormat(e.target.value)}
+                      options={lengthOptions.map(f => ({ value: f.value, label: `${f.icon} ${f.label}` }))}
+                    />
                   </div>
 
                   <div>

@@ -20,10 +20,40 @@ const styleDescriptions: Record<string, string> = {
   'minimalist': 'clean and simple tone, emphasizing functionality and space',
 }
 
+// Output format configurations
+const formatConfigs: Record<string, { wordCount: string; structure: string; extra: string }> = {
+  'property24': {
+    wordCount: '150-300 words',
+    structure: 'standard property listing format with headline, property description, features list, and call-to-action',
+    extra: 'Include property details, location highlights, and viewing contact information'
+  },
+  'tiktok': {
+    wordCount: '50-100 words',
+    structure: 'short, engaging caption with trending hashtags and hooks',
+    extra: 'Use emojis, trending hashtags like #property #realestate #dreamhome, and include a strong hook'
+  },
+  'facebook': {
+    wordCount: '150-250 words',
+    structure: 'engaging post format with hook, property details, and engagement call-to-action',
+    extra: 'Include emojis, ask questions to encourage comments, and add a clear CTA'
+  },
+  'instagram': {
+    wordCount: '100-150 words',
+    structure: 'visual-focused caption with line breaks, emojis, and hashtags',
+    extra: 'Include 10-15 relevant hashtags (#realestate #property #home #luxuryliving etc.), use vertical spacing'
+  },
+  'twitter': {
+    wordCount: '50-100 characters (very concise)',
+    structure: 'punchy tweet with key selling point and hashtags',
+    extra: 'Keep it extremely concise, use 2-3 relevant hashtags, focus on one key selling point'
+  },
+}
+
 // Generate a description using OpenAI-compatible API (using Replicate or similar)
 async function generateDescriptionWithAI(
   propertyType: string,
   listingStyle: string,
+  outputFormat: string,
   propertyTitle: string,
   address: string,
   price: string,
@@ -37,10 +67,16 @@ async function generateDescriptionWithAI(
 ): Promise<string> {
   // Build the prompt
   const styleDesc = styleDescriptions[listingStyle] || 'professional tone'
+  const formatConfig = formatConfigs[outputFormat] || formatConfigs.property24
 
   let prompt = `Write a compelling real estate property listing description for a ${propertyType}.
 
 Style: ${styleDesc}
+
+Output Format: ${outputFormat.toUpperCase()}
+- Word count: ${formatConfig.wordCount}
+- Structure: ${formatConfig.structure}
+- Extra requirements: ${formatConfig.extra}
 
 Property Details:
 - Title: ${propertyTitle}
@@ -58,14 +94,14 @@ Additional Notes: ${additionalNotes || 'None'}`
   prompt += `
 
 Requirements:
-1. Start with an attention-grabbing headline
+1. Start with an attention-grabbing headline appropriate for ${outputFormat}
 2. Write in a ${listingStyle} style that appeals to the target audience
 3. Highlight the key features prominently
 4. Include information about the property's location and nearby amenities
 5. End with a compelling call-to-action encouraging buyers to schedule a viewing
-6. Keep the description between 150-300 words
-7. Use prose over lists where possible
-8. Make it SEO-friendly with relevant keywords
+6. Keep the description between ${formatConfig.wordCount}
+7. Use appropriate formatting for ${outputFormat}
+8. Make it ${outputFormat === 'instagram' || outputFormat === 'tiktok' ? 'SEO-friendly with relevant real estate hashtags' : 'SEO-friendly with relevant keywords'}
 9. Do not include any pricing in the description except what was provided
 10. Do not include placeholders like [Insert XYZ] - use the information provided
 
@@ -83,7 +119,7 @@ Write the description now:`
       messages: [
         {
           role: 'system',
-          content: 'You are an expert real estate copywriter who creates compelling property listings that sell homes. You write descriptions that highlight unique features, appeal to emotions, and drive buyer interest.'
+          content: `You are an expert real estate copywriter who creates compelling property listings for multiple platforms. You adapt your writing style and length based on the target platform (Property24, TikTok, Facebook, Instagram, Twitter/X). You write descriptions that highlight unique features, appeal to emotions, and drive buyer interest.`
         },
         {
           role: 'user',
@@ -109,6 +145,7 @@ Write the description now:`
 function generateDemoDescription(
   propertyType: string,
   listingStyle: string,
+  outputFormat: string,
   propertyTitle: string,
   address: string,
   price: string,
@@ -130,16 +167,27 @@ function generateDemoDescription(
   const baths = bathrooms ? `${bathrooms}-bathroom` : ''
   const features = keyFeatures.length > 0 ? keyFeatures.slice(0, 3).join(', ') : 'modern amenities'
 
-  return `${prefix} ${propertyTitle}.
+  let description = ''
 
-This stunning ${beds} ${baths} ${propertyType} ${address ? `located at ${address}` : ''} offers an exceptional living experience. With its ${features}, this property is perfect for those seeking both comfort and style.
+  switch (outputFormat) {
+    case 'tiktok':
+      description = `🏠 ${propertyTitle}\n\n✨ ${beds} ${baths} ${propertyType} with ${features}\n\n📍 ${address || 'Prime location'}\n\n💰 ${price || 'Contact for pricing'}\n\n#property #realestate #dreamhome #${propertyType} #home #luxuryliving`
+      break
+    case 'facebook':
+      description = `${prefix} ${propertyTitle}! 🎉\n\nThis stunning ${beds} ${baths} ${propertyType} ${address ? `located at ${address}` : ''} is the perfect place to call home! 🏡\n\nKey Features:\n✨ ${features}\n\nWhy you'll love it:\n• Spacious and bright throughout\n• Perfect for families or investors\n• Close to all amenities\n\nContact us today to schedule a viewing! 👇\n\n${price ? `Priced at ${price}` : 'Contact for pricing'}`
+      break
+    case 'instagram':
+      description = `${propertyTitle} ✨\n\n${beds} | ${baths} | ${propertyType}\n\n📍 ${address || 'Location available upon request'}\n\n${features}\n\nThis stunning property offers the perfect blend of comfort and style. Whether you're looking for a family home or an investment opportunity, this one has it all!\n\n🏠✨💫 #realestate #property #home #luxuryliving #dreamhome #${propertyType} #house #invest #southafrica #property24`
+      break
+    case 'twitter':
+      description = `${propertyTitle} 🏠\n\n${beds} ${baths} ${propertyType} with ${features.split(',')[0].toLowerCase()}.\n\n${address ? address.split(',')[0] : 'Prime location'}\n\n${price || 'Contact for pricing'}\n\n#property #realestate`
+      break
+    default:
+      // Property24 format (default)
+      description = `${prefix} ${propertyTitle}.\n\nThis stunning ${beds} ${baths} ${propertyType} ${address ? `located at ${address}` : ''} offers an exceptional living experience. With its ${features}, this property is perfect for those seeking both comfort and style.\n\nThe thoughtfully designed layout maximizes space and natural light throughout. Whether you're looking for a family home, investment property, or personal sanctuary, this property delivers on all fronts.\n\nDon't miss this incredible opportunity to own a piece of paradise. Schedule your private viewing today and envision yourself living in this remarkable home.\n\n*This is a demo description. Connect your OpenAI API key for AI-generated descriptions.*`
+  }
 
-The thoughtfully designed layout maximizes space and natural light throughout. Whether you're looking for a family home, investment property, or personal sanctuary, this property delivers on all fronts.
-
-Don't miss this incredible opportunity to own a piece of paradise. Schedule your private viewing today and envision yourself living in this remarkable home.
-
-*This is a demo description. Connect your OpenAI API key for AI-generated descriptions.*
-  `.trim()
+  return description.trim()
 }
 
 export async function POST(request: Request) {
@@ -147,6 +195,7 @@ export async function POST(request: Request) {
     const {
       propertyType,
       listingStyle,
+      outputFormat,
       propertyTitle,
       address,
       price,
@@ -218,6 +267,7 @@ export async function POST(request: Request) {
         description = await generateDescriptionWithAI(
           propertyType,
           listingStyle,
+          outputFormat,
           propertyTitle,
           address,
           price,
@@ -234,6 +284,7 @@ export async function POST(request: Request) {
         description = generateDemoDescription(
           propertyType,
           listingStyle,
+          outputFormat,
           propertyTitle,
           address,
           price,
