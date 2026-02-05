@@ -16,9 +16,10 @@ export async function checkFreeUsage(userId: string): Promise<{
   const { data: user, error } = await (supabase.from as any)('users')
     .select('free_usage_used, subscription_tier, credits')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
   if (error || !user) {
+    // User not found or error - assume not eligible for free tier
     return { isEligible: false, used: 0, remaining: 0, total: FREE_TIER_LIMIT }
   }
 
@@ -41,10 +42,15 @@ export async function checkUserCredits(userId: string): Promise<number> {
   const { data: user, error } = await (supabase.from as any)('users')
     .select('credits')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
-  if (error || !user) {
+  if (error) {
     console.error('Error fetching user credits:', error)
+    return 0
+  }
+
+  // User not found - return 0 credits
+  if (!user) {
     return 0
   }
 
@@ -98,7 +104,7 @@ export async function recordFreeUsage(
   const { data: user, error: fetchError } = await (supabase.from as any)('users')
     .select('free_usage_used')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
   if (fetchError || !user) {
     return { success: false, error: 'User not found' }
