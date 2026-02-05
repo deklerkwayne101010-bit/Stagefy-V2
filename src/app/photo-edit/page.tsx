@@ -28,7 +28,9 @@ export default function PhotoEditPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const referenceInputRef = useRef<HTMLInputElement>(null)
   const [targetImage, setTargetImage] = useState<string | null>(null)
+  const [targetImageUrl, setTargetImageUrl] = useState<string | null>(null)
   const [referenceImage, setReferenceImage] = useState<string | null>(null)
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null)
   const [processedImage, setProcessedImage] = useState<string | null>(null)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customPrompt, setCustomPrompt] = useState('')
@@ -72,6 +74,8 @@ export default function PhotoEditPage() {
     const file = e.target.files?.[0]
     if (file) {
       setUploading(true)
+      let uploadedUrl: string | null = null
+      
       try {
         // Upload to Supabase if user is logged in
         if (user?.id) {
@@ -79,6 +83,9 @@ export default function PhotoEditPage() {
           if (error) {
             console.warn('Supabase upload failed, using local preview:', error)
           } else if (data) {
+            // Store Supabase URL for AI processing
+            uploadedUrl = data.url
+            
             // Add to upload history
             setUploadHistory(prev => [
               { id: data.id, url: data.url, created_at: new Date().toISOString() },
@@ -92,8 +99,12 @@ export default function PhotoEditPage() {
         reader.onload = (event) => {
           if (isReference) {
             setReferenceImage(event.target?.result as string)
+            // Use Supabase URL if available, otherwise local preview
+            setReferenceImageUrl(uploadedUrl)
           } else {
             setTargetImage(event.target?.result as string)
+            // Use Supabase URL if available, otherwise local preview
+            setTargetImageUrl(uploadedUrl)
             setProcessedImage(null)
           }
         }
@@ -107,8 +118,10 @@ export default function PhotoEditPage() {
   const handleSelectFromHistory = (url: string, isReference = false) => {
     if (isReference) {
       setReferenceImage(url)
+      setReferenceImageUrl(url)
     } else {
       setTargetImage(url)
+      setTargetImageUrl(url)
       setProcessedImage(null)
     }
   }
@@ -150,13 +163,17 @@ export default function PhotoEditPage() {
     setError(null)
 
     try {
+      // Use Supabase URL if available, otherwise local preview
+      const imageToProcess = targetImageUrl || targetImage
+      const referenceToProcess = useReference ? (referenceImageUrl || referenceImage) : null
+      
       // Call the API to process the image with Qwen Image Edit Plus
       const response = await fetch('/api/ai/photo-edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image: targetImage,
-          referenceImage: useReference ? referenceImage : null,
+          image: imageToProcess,
+          referenceImage: referenceToProcess,
           prompt: customPrompt,
         }),
       })
