@@ -148,3 +148,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-04 | Optimized authentication performance - parallelized user fetching, added database index for users.id |
 | 2026-02-04 | Updated photo edit to use Replicate qwen/qwen-image-edit-plus model with reference image support |
 | 2026-02-05 | Fixed Supabase storage RLS policies syntax with DO $ blocks for idempotent execution |
+| 2026-02-05 | Updated photo-edit to use Supabase URL for AI processing when available |
