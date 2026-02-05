@@ -144,6 +144,10 @@ export async function uploadImage(
       })
 
     if (uploadError) {
+      // Check if bucket doesn't exist
+      if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')) {
+        throw new Error('Storage bucket "uploads" not found. Please create it in Supabase Dashboard → Storage → New Bucket (name: uploads, make it public)')
+      }
       throw uploadError
     }
 

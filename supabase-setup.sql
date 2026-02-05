@@ -13,6 +13,22 @@
 -- DROP TYPE IF EXISTS user_role, subscription_tier, credit_transaction_type, subscription_status, job_status, project_type, ai_service, contact_type, contact_status, listing_status, media_type, template_type, notification_type, use_case CASCADE;
 
 -- ============================================
+-- SUPABASE STORAGE SETUP (MUST BE DONE FIRST)
+-- ============================================
+-- IMPORTANT: Storage buckets cannot be created via SQL.
+-- You must create the bucket manually in Supabase Dashboard:
+-- 1. Go to Storage -> New Bucket
+-- 2. Bucket name: uploads (lowercase)
+-- 3. Make bucket public: YES
+-- 4. Enable RLS: YES
+-- 5. The RLS policies below will handle access control
+--
+-- OR use the Supabase CLI:
+-- supabase storage bucket uploads --public
+--
+-- After creating the bucket, run the rest of this SQL file.
+
+-- ============================================
 -- ENUMS
 -- ============================================
 
