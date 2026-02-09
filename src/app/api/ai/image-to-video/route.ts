@@ -5,8 +5,7 @@ import {
   reserveCredits, 
   refundCredits, 
   CREDIT_COSTS, 
-  canPerformAction, 
-  recordFreeUsage 
+  canPerformAction 
 } from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
 
@@ -35,8 +34,8 @@ export async function POST(request: Request) {
     const durationKey = `${duration}sec` as '3sec' | '5sec' | '10sec'
     const creditCost = CREDIT_COSTS[`image_to_video_${durationKey}`]
 
-    // Check if user can perform this action (free tier or credits)
-    const canPerform = await canPerformAction(userIdStr)
+    // Check if user can perform this action (based on credits)
+    const canPerform = await canPerformAction(userIdStr, creditCost)
     
     if (!canPerform.canPerform) {
       return NextResponse.json(
@@ -45,24 +44,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // Track if using free tier
-    let usingFreeTier = false
-    let freeUsageRemaining = 0
-
-    if (canPerform.reason === 'free_tier') {
-      usingFreeTier = true
-      freeUsageRemaining = canPerform.remaining || 0
-    }
-
-    // If using credits, reserve them
-    if (!usingFreeTier) {
-      const reservation = await reserveCredits(userIdStr, `image_to_video_${durationKey}` as any, `video-${Date.now()}`)
-      if (!reservation.success) {
-        return NextResponse.json(
-          { error: reservation.error || 'Failed to reserve credits' },
-          { status: 402 }
-        )
-      }
+    // Reserve credits for the operation
+    const reservation = await reserveCredits(userIdStr, `image_to_video_${durationKey}` as any, `video-${Date.now()}`)
+    if (!reservation.success) {
+      return NextResponse.json(
+        { error: reservation.error || 'Failed to reserve credits' },
+        { status: 402 }
+      )
     }
 
     try {
@@ -92,36 +80,25 @@ export async function POST(request: Request) {
 
       const prediction = await response.json()
 
-      // Record free tier usage if applicable
-      if (usingFreeTier) {
-        await recordFreeUsage(userIdStr, `image_to_video_${durationKey}` as any)
-      }
-
       // Success! Return response
       return NextResponse.json({
         outputUrl: prediction.output,
         jobId: prediction.id,
-        creditsUsed: usingFreeTier ? 0 : creditCost,
-        remainingCredits: usingFreeTier ? 0 : (await checkUserCredits(userIdStr)),
-        freeUsageRemaining: usingFreeTier ? freeUsageRemaining - 1 : 0,
-        usingFreeTier,
-        isWatermarked: usingFreeTier,
+        creditsUsed: creditCost,
+        remainingCredits: await checkUserCredits(userIdStr),
+        isWatermarked: false,
       })
     } catch (aiError) {
-      // Refund credits on failure (only if we reserved them)
-      if (!usingFreeTier) {
-        await refundCredits(userIdStr, `image_to_video_${durationKey}` as any, `video-${Date.now()}`)
-      }
+      // Refund credits on failure
+      await refundCredits(userIdStr, `image_to_video_${durationKey}` as any, `video-${Date.now()}`)
       
       // Return mock response for demo
       return NextResponse.json({
         outputUrl: 'https://example.com/video.mp4',
         jobId: 'demo-job-' + Date.now(),
         creditsUsed: 0,
-        remainingCredits: usingFreeTier ? 0 : await checkUserCredits(userIdStr),
-        freeUsageRemaining: usingFreeTier ? freeUsageRemaining : 0,
-        usingFreeTier,
-        isWatermarked: usingFreeTier,
+        remainingCredits: await checkUserCredits(userIdStr),
+        isWatermarked: false,
         demo: true,
       })
     }

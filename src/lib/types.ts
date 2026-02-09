@@ -1,8 +1,6 @@
 // Type definitions for Stagefy database
 // Generated from Supabase schema
 
-// Free tier configuration
-export const FREE_TIER_LIMIT = 3 // Free users get 3 AI actions
 export type UserRole = 'agent' | 'admin'
 
 export interface User {
@@ -15,7 +13,6 @@ export interface User {
   role: UserRole
   credits: number
   subscription_tier: 'free' | 'basic' | 'pro' | 'enterprise'
-  free_usage_used: number // Track how many free AI actions used
   created_at: string
   updated_at: string
 }

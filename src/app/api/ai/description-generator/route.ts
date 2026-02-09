@@ -4,8 +4,6 @@ import {
   checkUserCredits,
   reserveCredits,
   CREDIT_COSTS,
-  checkFreeUsage,
-  recordFreeUsage,
   canPerformAction
 } from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
@@ -229,8 +227,8 @@ export async function POST(request: Request) {
     const userIdStr = user.id
     const creditCost = CREDIT_COSTS.description_generation || 2
 
-    // Check if user can perform this action (free tier or credits)
-    const canPerform = await canPerformAction(userIdStr)
+    // Check if user can perform this action (based on credits)
+    const canPerform = await canPerformAction(userIdStr, creditCost)
 
     if (!canPerform.canPerform) {
       return NextResponse.json(
@@ -239,24 +237,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // Track if using free tier
-    let usingFreeTier = false
-    let freeUsageRemaining = 0
-
-    if (canPerform.reason === 'free_tier') {
-      usingFreeTier = true
-      freeUsageRemaining = canPerform.remaining || 0
-    }
-
-    // If using credits, reserve them
-    if (!usingFreeTier) {
-      const reservation = await reserveCredits(userIdStr, 'description_generation', `desc-${Date.now()}`)
-      if (!reservation.success) {
-        return NextResponse.json(
-          { error: reservation.error || 'Failed to reserve credits' },
-          { status: 402 }
-        )
-      }
+    // Reserve credits for the operation
+    const reservation = await reserveCredits(userIdStr, 'description_generation', `desc-${Date.now()}`)
+    if (!reservation.success) {
+      return NextResponse.json(
+        { error: reservation.error || 'Failed to reserve credits' },
+        { status: 402 }
+      )
     }
 
     try {
@@ -294,42 +281,28 @@ export async function POST(request: Request) {
         )
       }
 
-      // Record free tier usage if applicable
-      if (usingFreeTier) {
-        await recordFreeUsage(userIdStr, 'description_generation')
-      }
-
-      // Determine if watermark should be shown
-      const isWatermarked = usingFreeTier
-
       return NextResponse.json({
         description,
-        isWatermarked,
         creditCost,
-        usingFreeTier,
-        freeUsageRemaining: usingFreeTier ? freeUsageRemaining - 1 : undefined,
+        remainingCredits: await checkUserCredits(userIdStr),
       })
     } catch (aiError) {
       console.error('AI generation error:', aiError)
 
-      // Refund credits if we reserved them
-      if (!usingFreeTier) {
-        await reserveCredits(userIdStr, 'description_generation', `desc-${Date.now()}`)
-        // This is a refund operation - negative amount
-        await (async () => {
-          const { supabase } = await import('@/lib/supabase')
-          await supabase.from('credit_transactions').insert({
-            user_id: userIdStr,
-            amount: -creditCost,
-            type: 'refund',
-            description: 'AI description generation failed - credits refunded',
-          })
-          await supabase
-            .from('users')
-            .update({ credits: (await checkUserCredits(userIdStr)) + creditCost })
-            .eq('id', userIdStr)
-        })()
-      }
+      // Refund credits on failure
+      await (async () => {
+        const { supabase } = await import('@/lib/supabase')
+        await supabase.from('credit_transactions').insert({
+          user_id: userIdStr,
+          amount: creditCost,
+          type: 'refund',
+          description: 'AI description generation failed - credits refunded',
+        })
+        await supabase
+          .from('users')
+          .update({ credits: (await checkUserCredits(userIdStr)) + creditCost })
+          .eq('id', userIdStr)
+      })()
 
       return NextResponse.json(
         { error: 'Failed to generate description. Please try again.' },
