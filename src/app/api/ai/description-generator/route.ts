@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import {
   checkUserCredits,
   reserveCredits,
+  refundCredits,
   CREDIT_COSTS,
   canPerformAction
 } from '@/lib/credits'
@@ -290,19 +291,7 @@ export async function POST(request: Request) {
       console.error('AI generation error:', aiError)
 
       // Refund credits on failure
-      await (async () => {
-        const { supabase } = await import('@/lib/supabase')
-        await supabase.from('credit_transactions').insert({
-          user_id: userIdStr,
-          amount: creditCost,
-          type: 'refund',
-          description: 'AI description generation failed - credits refunded',
-        })
-        await supabase
-          .from('users')
-          .update({ credits: (await checkUserCredits(userIdStr)) + creditCost })
-          .eq('id', userIdStr)
-      })()
+      await refundCredits(userIdStr, 'description_generation', `desc-${Date.now()}`)
 
       return NextResponse.json(
         { error: 'Failed to generate description. Please try again.' },
