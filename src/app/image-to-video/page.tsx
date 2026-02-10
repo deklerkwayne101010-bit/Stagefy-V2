@@ -119,12 +119,22 @@ export default function ImageToVideoPage() {
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (result?.videoUrl) {
-      const link = document.createElement('a')
-      link.download = 'listing-video.mp4'
-      link.href = result.videoUrl
-      link.click()
+      try {
+        const response = await fetch(result.videoUrl)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = `listing-video-${Date.now()}.mp4`
+        link.href = url
+        link.click()
+        window.URL.revokeObjectURL(url)
+      } catch (error) {
+        console.error('Download failed:', error)
+        // Fallback: open in new tab
+        window.open(result.videoUrl, '_blank')
+      }
     }
   }
 
