@@ -14,7 +14,7 @@ const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PU
 
 export async function POST(request: Request) {
   try {
-    const { images, type, prompt, userId } = await request.json()
+    const { images, type, prompt, userId, customOptions } = await request.json()
 
     // Validate input
     if (!images || images.length === 0) {
@@ -72,6 +72,26 @@ export async function POST(request: Request) {
     }
 
     try {
+      // Build input for Replicate API
+      const replicateInput: any = {
+        images: images,
+        template_type: type,
+        prompt: prompt || 'Create a professional listing template',
+      }
+
+      // Add custom template options if provided
+      if (type === 'custom' && customOptions) {
+        replicateInput.color_theme = customOptions.colorTheme
+        replicateInput.aspect_ratio = customOptions.aspectRatio
+        replicateInput.text_style = customOptions.textStyle
+        if (customOptions.title) {
+          replicateInput.title_text = customOptions.title
+        }
+        if (customOptions.subtitle) {
+          replicateInput.subtitle_text = customOptions.subtitle
+        }
+      }
+
       // Call Replicate API for template generation
       const response = await fetch('https://api.replicate.com/v1/predictions', {
         method: 'POST',
@@ -82,11 +102,7 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           version: 'google/nanobanana-pro',
-          input: {
-            images: images,
-            template_type: type,
-            prompt: prompt || 'Create a professional listing template',
-          },
+          input: replicateInput,
         }),
       })
 
