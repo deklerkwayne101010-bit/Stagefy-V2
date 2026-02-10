@@ -7,9 +7,8 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
-import { CreditBadge, FreeTierBadge } from '@/components/ui/Badge'
-import { Badge } from '@/components/ui/Badge'
-import { checkFreeUsage, canPerformAction } from '@/lib/credits'
+import { CreditBadge } from '@/components/ui/Badge'
+import { canPerformAction } from '@/lib/credits'
 
 // Marketplace Templates - Preset templates available to all users
 const marketplaceTemplates: { id: number; name: string; type: string; thumbnail: string; description: string }[] = [
@@ -93,22 +92,6 @@ export default function TemplatesPage() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ outputUrl: string; isWatermarked?: boolean } | null>(null)
   const [savedTemplates, setSavedTemplates] = useState<{ id: number; name: string; type: string; thumbnail: string }[]>([])
-  const [freeUsage, setFreeUsage] = useState<{ used: number; remaining: number; total: number } | null>(null)
-
-  // Check free tier usage on mount
-  useEffect(() => {
-    const checkFreeTier = async () => {
-      if (user?.id) {
-        const freeInfo = await checkFreeUsage(user.id)
-        setFreeUsage({
-          used: freeInfo.used,
-          remaining: freeInfo.remaining,
-          total: freeInfo.total,
-        })
-      }
-    }
-    checkFreeTier()
-  }, [user?.id])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -122,8 +105,7 @@ export default function TemplatesPage() {
     })
   }
 
-  const isFreeTierUser = user?.subscription_tier === 'free' && (user?.credits || 0) === 0
-  const freeLimitReached = freeUsage && freeUsage.remaining === 0
+  const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
 
   const handleSubmit = async () => {
     if (selectedImages.length === 0) {
@@ -170,11 +152,6 @@ export default function TemplatesPage() {
 
       const data = await response.json()
       setResult({ outputUrl: data.outputUrl, isWatermarked: data.isWatermarked || false })
-      
-      // Update free usage display
-      if (data.freeUsageRemaining !== undefined) {
-        setFreeUsage(prev => prev ? { ...prev, remaining: data.freeUsageRemaining } : prev)
-      }
     } catch (err: any) {
       setError(err.message || 'Failed to create template. Please try again.')
       setResult({ outputUrl: 'https://example.com/template.jpg', isWatermarked: true })
@@ -199,43 +176,7 @@ export default function TemplatesPage() {
       <Header title="AI Template Builder" subtitle="Create stunning listing templates with AI" />
 
       <div className="p-6">
-        {/* Free Tier Usage Banner */}
-        {isFreeTierUser && freeUsage && (
-          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🎁</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">Free Tier Active</p>
-                  <p className="text-sm text-gray-600">
-                    You have <span className="font-bold text-blue-600">{freeUsage.remaining}</span> of{' '}
-                    <span className="font-bold">{freeUsage.total}</span> free AI actions remaining
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-500 rounded-full transition-all"
-                    style={{ width: `${(freeUsage.remaining / freeUsage.total) * 100}%` }}
-                  />
-                </div>
-                <Badge variant={freeLimitReached ? 'danger' : 'info'}>
-                  {freeUsage.remaining}/{freeUsage.total}
-                </Badge>
-              </div>
-            </div>
-            {freeLimitReached && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  ⚠️ You&apos;ve used all your free actions. Upgrade to continue creating templates!
-                </p>
-              </div>
-            )}
-          </Card>
-        )}
+
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6">

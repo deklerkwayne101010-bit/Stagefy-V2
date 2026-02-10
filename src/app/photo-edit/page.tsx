@@ -7,9 +7,8 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
-import { CreditBadge, FreeTierBadge } from '@/components/ui/Badge'
-import { Badge } from '@/components/ui/Badge'
-import { FREE_TIER_LIMIT, checkFreeUsage, canPerformAction } from '@/lib/credits'
+import { CreditBadge } from '@/components/ui/Badge'
+import { canPerformAction } from '@/lib/credits'
 import { uploadImage, getUploadHistory } from '@/lib/supabase'
 
 const presets = [
@@ -36,26 +35,13 @@ export default function PhotoEditPage() {
   const [customPrompt, setCustomPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [freeUsage, setFreeUsage] = useState<{ used: number; remaining: number; total: number } | null>(null)
   const [isWatermarked, setIsWatermarked] = useState(false)
   const [uploadHistory, setUploadHistory] = useState<Array<{ id: string; url: string; created_at: string }>>([])
   const [uploading, setUploading] = useState(false)
   const [useReference, setUseReference] = useState(false)
 
-  // Check free tier usage on mount
-  useEffect(() => {
-    const checkFreeTier = async () => {
-      if (user?.id) {
-        const freeInfo = await checkFreeUsage(user.id)
-        setFreeUsage({
-          used: freeInfo.used,
-          remaining: freeInfo.remaining,
-          total: freeInfo.total,
-        })
-      }
-    }
-    checkFreeTier()
-  }, [user?.id])
+  // Check if user has enough credits
+  const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
 
   // Fetch upload history on mount
   useEffect(() => {
@@ -187,11 +173,6 @@ export default function PhotoEditPage() {
       const data = await response.json()
       setProcessedImage(data.outputUrl)
       setIsWatermarked(false)
-      
-      // Update free usage display
-      if (data.freeUsageRemaining !== undefined) {
-        setFreeUsage(prev => prev ? { ...prev, remaining: data.freeUsageRemaining } : prev)
-      }
     } catch (err: any) {
       setError(err.message || 'Failed to process image. Please try again.')
       // For demo, show a mock processed image
@@ -211,54 +192,13 @@ export default function PhotoEditPage() {
     }
   }
 
-  // Check if free tier limit reached
-  const freeLimitReached = freeUsage && freeUsage.remaining === 0
-  const isFreeTierUser = user?.subscription_tier === 'free' && (user?.credits || 0) === 0
+
 
   return (
     <div>
       <Header title="AI Photo Editing" subtitle="Edit listing photos with AI-powered tools" />
 
       <div className="p-6">
-        {/* Free Tier Usage Banner */}
-        {isFreeTierUser && freeUsage && (
-          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🎁</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">Free Tier Active</p>
-                  <p className="text-sm text-gray-600">
-                    You have <span className="font-bold text-blue-600">{freeUsage.remaining}</span> of{' '}
-                    <span className="font-bold">{freeUsage.total}</span> free AI edits remaining
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* Progress bar */}
-                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-500 rounded-full transition-all"
-                    style={{ width: `${(freeUsage.remaining / freeUsage.total) * 100}%` }}
-                  />
-                </div>
-                <Badge variant={freeLimitReached ? 'danger' : 'info'}>
-                  {freeUsage.remaining}/{freeUsage.total}
-                </Badge>
-              </div>
-            </div>
-            {freeLimitReached && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  ⚠️ You&apos;ve used all your free edits. Upgrade to continue using AI photo editing!
-                </p>
-              </div>
-            )}
-          </Card>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Upload & Preview */}
           <div className="space-y-6">
@@ -484,15 +424,9 @@ export default function PhotoEditPage() {
             <Card className="bg-gray-900 text-white border-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">
-                    {isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? 'Free Tier' : 'Credit Cost'}
-                  </p>
+                  <p className="text-gray-400 text-sm">Credit Cost</p>
                   <p className="text-2xl font-bold mt-1">
-                    {isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? (
-                      <FreeTierBadge remaining={freeUsage.remaining} />
-                    ) : (
-                      <CreditBadge credits={CREDIT_COST} />
-                    )}
+                    <CreditBadge credits={CREDIT_COST} />
                   </p>
                 </div>
                 <Button
@@ -502,12 +436,11 @@ export default function PhotoEditPage() {
                     !targetImage || 
                     (useReference && !referenceImage) ||
                     !customPrompt.trim() || 
-                    freeLimitReached ||
-                    (!isFreeTierUser && (user?.credits || 0) < CREDIT_COST)
+                    !hasEnoughCredits
                   }
                   onClick={handleSubmit}
                 >
-                  {loading ? 'Processing...' : freeLimitReached ? 'Upgrade Required' : 'Edit Photo'}
+                  {loading ? 'Processing...' : 'Edit Photo'}
                 </Button>
               </div>
               {error && (
