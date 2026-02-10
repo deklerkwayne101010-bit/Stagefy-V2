@@ -15,17 +15,18 @@ export async function checkUserCredits(userId: string): Promise<number> {
 
   if (error) {
     console.error('Error fetching user credits:', error, 'UserId:', userId)
-    return 0
+    // If profile doesn't exist, return 50 credits as fallback
+    return 50
   }
 
-  // User not found - return 0 credits
+  // User not found - return 50 credits as fallback for new users
   if (!user) {
-    console.warn('User not found in database:', userId)
-    return 0
+    console.warn('User profile not found in users table:', userId, '- returning 50 credits as fallback')
+    return 50
   }
 
   console.log('User credits:', userId, 'credits:', user.credits)
-  return (user as User).credits || 0
+  return (user as User).credits || 50
 }
 
 // Check if user can perform an AI action (based solely on credit balance)
