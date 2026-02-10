@@ -8,7 +8,6 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
-import { canPerformAction } from '@/lib/credits'
 import { uploadImage, getUploadHistory } from '@/lib/supabase'
 
 const presets = [
@@ -133,14 +132,8 @@ export default function PhotoEditPage() {
       return
     }
 
-    // Check if user can perform action
-    if (user?.id) {
-      const canPerform = await canPerformAction(user.id)
-      if (!canPerform.canPerform) {
-        setError(canPerform.error || 'Cannot perform action')
-        return
-      }
-    } else if ((user?.credits || 0) < CREDIT_COST) {
+    // Check if user has enough credits
+    if (!hasEnoughCredits) {
       setError('Not enough credits. Please purchase more credits.')
       return
     }
