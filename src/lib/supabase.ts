@@ -250,7 +250,6 @@ export async function getCurrentUser(): Promise<User | null> {
       full_name: 'Demo User',
       credits: 0,
       subscription_tier: 'free',
-      free_usage_used: 0,
       role: 'agent',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -287,7 +286,6 @@ export async function getCurrentUser(): Promise<User | null> {
         role: 'agent',
         credits: 50,
         subscription_tier: 'free',
-        free_usage_used: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
