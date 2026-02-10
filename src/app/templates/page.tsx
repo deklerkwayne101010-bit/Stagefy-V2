@@ -8,7 +8,6 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
-import { canPerformAction } from '@/lib/credits'
 
 // Marketplace Templates - Preset templates available to all users
 const marketplaceTemplates: { id: number; name: string; type: string; thumbnail: string; description: string }[] = [
@@ -118,14 +117,8 @@ export default function TemplatesPage() {
       return
     }
 
-    // Check if user can perform action
-    if (user?.id) {
-      const canPerformResult = await canPerformAction(user.id)
-      if (!canPerformResult.canPerform) {
-        setError(canPerformResult.error || 'Cannot perform action')
-        return
-      }
-    } else if ((user?.credits || 0) < CREDIT_COST) {
+    // Check if user has enough credits
+    if (!hasEnoughCredits) {
       setError('Not enough credits. Please purchase more credits.')
       return
     }
@@ -319,14 +312,8 @@ export default function TemplatesPage() {
               {/* Submit */}
               <Card className="bg-gray-900 text-white border-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">
-                    {isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? 'Free Tier' : 'Credit Cost'}
-                  </span>
-                  {isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? (
-                    <FreeTierBadge remaining={freeUsage.remaining} />
-                  ) : (
-                    <CreditBadge credits={CREDIT_COST} />
-                  )}
+                  <span className="text-gray-400">Credit Cost</span>
+                  <CreditBadge credits={CREDIT_COST} />
                 </div>
 
                 <Button
@@ -334,10 +321,10 @@ export default function TemplatesPage() {
                   size="lg"
                   className="mt-4"
                   loading={loading}
-                  disabled={selectedImages.length === 0 || !prompt.trim() || freeLimitReached || (!isFreeTierUser && (user?.credits || 0) < CREDIT_COST)}
+                  disabled={selectedImages.length === 0 || !prompt.trim() || !hasEnoughCredits}
                   onClick={handleSubmit}
                 >
-                  {loading ? 'Creating Template...' : freeLimitReached ? 'Upgrade Required' : 'Generate Template'}
+                  {loading ? 'Creating Template...' : 'Generate Template'}
                 </Button>
 
                 {error && (
