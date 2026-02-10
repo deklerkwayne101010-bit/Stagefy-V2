@@ -176,12 +176,22 @@ export default function PhotoEditPage() {
     }
   }
 
-  const handleDownload = () => {
-    if (processedImage) {
+  const handleDownload = async () => {
+    if (!processedImage) return
+    
+    try {
+      const response = await fetch(processedImage)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.download = 'edited-photo.png'
-      link.href = processedImage
+      link.download = `edited-photo-${Date.now()}.png`
+      link.href = url
       link.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Download failed:', error)
+      // Fallback: open in new tab
+      window.open(processedImage, '_blank')
     }
   }
 
