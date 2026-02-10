@@ -9,6 +9,9 @@ import {
 } from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
 
+// Check if running in demo mode (no Supabase configured)
+const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 export async function POST(request: Request) {
   try {
     const { images, mode, duration, prompt, userId } = await request.json()
@@ -33,6 +36,22 @@ export async function POST(request: Request) {
     const userIdStr = user.id
     const durationKey = `${duration}sec` as '3sec' | '5sec' | '10sec'
     const creditCost = CREDIT_COSTS[`image_to_video_${durationKey}`]
+
+    // Demo mode: skip credit check and return demo response
+    if (isDemoMode) {
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Return mock response for demo
+      return NextResponse.json({
+        outputUrl: null,
+        jobId: 'demo-job-' + Date.now(),
+        creditsUsed: 0,
+        remainingCredits: 50,
+        demo: true,
+        demoMessage: 'Demo mode: Image to video requires Supabase and Replicate API configuration. Set environment variables to enable.',
+      })
+    }
 
     // Check if user can perform this action (based on credits)
     const canPerform = await canPerformAction(userIdStr, creditCost)

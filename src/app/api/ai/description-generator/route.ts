@@ -9,6 +9,9 @@ import {
 } from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
 
+// Check if running in demo mode (no Supabase configured)
+const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 // Property style descriptions
 const styleDescriptions: Record<string, string> = {
   'professional': 'professional and corporate tone, emphasizing value and investment potential',
@@ -227,6 +230,29 @@ export async function POST(request: Request) {
 
     const userIdStr = user.id
     const creditCost = CREDIT_COSTS.description_generation || 2
+
+    // Demo mode: skip credit check and return demo response
+    if (isDemoMode) {
+      const description = generateDemoDescription(
+        propertyType,
+        listingStyle,
+        outputFormat,
+        propertyTitle,
+        address,
+        price,
+        bedrooms,
+        bathrooms,
+        keyFeatures
+      )
+      
+      return NextResponse.json({
+        description,
+        creditCost: 0,
+        remainingCredits: 50,
+        demo: true,
+        demoMessage: 'Demo mode: AI description generation requires Supabase and OpenAI API configuration. Set environment variables to enable.',
+      })
+    }
 
     // Check if user can perform this action (based on credits)
     const canPerform = await canPerformAction(userIdStr, creditCost)
