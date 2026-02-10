@@ -313,7 +313,7 @@ export default function ImageToVideoPage() {
                 size="lg"
                 className="mt-4"
                 loading={loading}
-                disabled={selectedImages.length === 0 || (user && userCredits < creditCost)}
+                disabled={selectedImages.length === 0 || !user || userCredits < creditCost}
                 onClick={handleSubmit}
               >
                 {loading ? 'Creating Video...' : 'Create Video'}
