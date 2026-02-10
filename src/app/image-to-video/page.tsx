@@ -7,9 +7,9 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
-import { CreditBadge, FreeTierBadge } from '@/components/ui/Badge'
+import { CreditBadge } from '@/components/ui/Badge'
 import { Badge } from '@/components/ui/Badge'
-import { checkFreeUsage, canPerformAction, FREE_TIER_LIMIT } from '@/lib/credits'
+import { canPerformAction, checkUserCredits } from '@/lib/credits'
 
 const videoDurations = [
   { value: '3', label: '3 seconds', credits: 5, description: 'Quick social media clip' },
@@ -32,22 +32,18 @@ export default function ImageToVideoPage() {
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ videoUrl: string; isWatermarked?: boolean } | null>(null)
-  const [freeUsage, setFreeUsage] = useState<{ used: number; remaining: number; total: number } | null>(null)
+  const [result, setResult] = useState<{ videoUrl: string } | null>(null)
+  const [userCredits, setUserCredits] = useState<number>(0)
 
-  // Check free tier usage on mount
+  // Check user credits on mount
   useEffect(() => {
-    const checkFreeTier = async () => {
+    const checkCredits = async () => {
       if (user?.id) {
-        const freeInfo = await checkFreeUsage(user.id)
-        setFreeUsage({
-          used: freeInfo.used,
-          remaining: freeInfo.remaining,
-          total: freeInfo.total,
-        })
+        const credits = await checkUserCredits(user.id)
+        setUserCredits(credits)
       }
     }
-    checkFreeTier()
+    checkCredits()
   }, [user?.id])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,8 +63,6 @@ export default function ImageToVideoPage() {
   }
 
   const creditCost = CREDIT_COSTS[duration as keyof typeof CREDIT_COSTS] || 8
-  const isFreeTierUser = user?.subscription_tier === 'free' && (user?.credits || 0) === 0
-  const freeLimitReached = freeUsage && freeUsage.remaining === 0
 
   const handleSubmit = async () => {
     if (selectedImages.length === 0) {
@@ -78,7 +72,7 @@ export default function ImageToVideoPage() {
 
     // Check if user can perform action
     if (user?.id) {
-      const canPerformResult = await canPerformAction(user.id)
+      const canPerformResult = await canPerformAction(user.id, creditCost)
       if (!canPerformResult.canPerform) {
         setError(canPerformResult.error || 'Cannot perform action')
         return
@@ -111,16 +105,15 @@ export default function ImageToVideoPage() {
       }
 
       const data = await response.json()
-      setResult({ videoUrl: data.outputUrl, isWatermarked: data.isWatermarked || false })
+      setResult({ videoUrl: data.outputUrl })
       
-      // Update free usage display
-      if (data.freeUsageRemaining !== undefined) {
-        setFreeUsage(prev => prev ? { ...prev, remaining: data.freeUsageRemaining } : prev)
-      }
+      // Update credits display
+      const credits = await checkUserCredits(user?.id || '')
+      setUserCredits(credits)
     } catch (err: any) {
       setError(err.message || 'Failed to create video. Please try again.')
       // For demo, set a mock result
-      setResult({ videoUrl: 'https://example.com/video.mp4', isWatermarked: true })
+      setResult({ videoUrl: 'https://example.com/video.mp4' })
     } finally {
       setLoading(false)
     }
@@ -129,7 +122,7 @@ export default function ImageToVideoPage() {
   const handleDownload = () => {
     if (result?.videoUrl) {
       const link = document.createElement('a')
-      link.download = result.isWatermarked ? 'video-watermarked.mp4' : 'listing-video.mp4'
+      link.download = 'listing-video.mp4'
       link.href = result.videoUrl
       link.click()
     }
@@ -140,44 +133,6 @@ export default function ImageToVideoPage() {
       <Header title="Image to Video" subtitle="Turn your listing photos into engaging videos" />
 
       <div className="p-6">
-        {/* Free Tier Usage Banner */}
-        {isFreeTierUser && freeUsage && (
-          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🎁</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">Free Tier Active</p>
-                  <p className="text-sm text-gray-600">
-                    You have <span className="font-bold text-blue-600">{freeUsage.remaining}</span> of{' '}
-                    <span className="font-bold">{freeUsage.total}</span> free AI actions remaining
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-500 rounded-full transition-all"
-                    style={{ width: `${(freeUsage.remaining / freeUsage.total) * 100}%` }}
-                  />
-                </div>
-                <Badge variant={freeLimitReached ? 'danger' : 'info'}>
-                  {freeUsage.remaining}/{freeUsage.total}
-                </Badge>
-              </div>
-            </div>
-            {freeLimitReached && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  ⚠️ You&apos;ve used all your free actions. Upgrade to continue creating videos!
-                </p>
-              </div>
-            )}
-          </Card>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Upload & Settings */}
           <div className="lg:col-span-2 space-y-6">
@@ -284,18 +239,12 @@ export default function ImageToVideoPage() {
                   label="Video Duration"
                   value={duration}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDuration(e.target.value)}
-                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? 'FREE' : `${d.credits} credits`}` }))}
+                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${d.credits} credits` }))}
                 />
                 
-                <div className={`p-4 rounded-lg ${isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? 'bg-emerald-50' : 'bg-blue-50'}`}>
-                  <p className={`text-sm ${isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? 'text-emerald-600' : 'text-blue-600'} font-medium`}>
-                    {isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? 'Free Tier' : 'Credit Cost'}
-                  </p>
-                  {isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? (
-                    <FreeTierBadge remaining={freeUsage.remaining} size="md" />
-                  ) : (
-                    <CreditBadge credits={creditCost} size="md" />
-                  )}
+                <div className="p-4 rounded-lg bg-blue-50">
+                  <p className="text-sm text-blue-600 font-medium">Credit Cost</p>
+                  <CreditBadge credits={creditCost} size="md" />
                 </div>
               </div>
 
@@ -332,16 +281,6 @@ export default function ImageToVideoPage() {
                     controls
                     className="w-full h-full"
                   />
-                  {result.isWatermarked && (
-                    <div className="absolute top-2 right-2">
-                      <Badge variant="warning">
-                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Watermarked
-                      </Badge>
-                    </div>
-                  )}
                 </div>
               )}
             </Card>
@@ -359,12 +298,14 @@ export default function ImageToVideoPage() {
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-gray-700">
                   <span className="text-gray-400">Total Cost</span>
-                  {isFreeTierUser && freeUsage && freeUsage.remaining > 0 ? (
-                    <FreeTierBadge remaining={freeUsage.remaining} />
-                  ) : (
-                    <CreditBadge credits={creditCost} />
-                  )}
+                  <CreditBadge credits={creditCost} />
                 </div>
+                {user && (
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-700">
+                    <span className="text-gray-400">Your Balance</span>
+                    <span className="font-medium">{userCredits} credits</span>
+                  </div>
+                )}
               </div>
 
               <Button
@@ -372,10 +313,10 @@ export default function ImageToVideoPage() {
                 size="lg"
                 className="mt-4"
                 loading={loading}
-                disabled={selectedImages.length === 0 || freeLimitReached || (!isFreeTierUser && (user?.credits || 0) < creditCost)}
+                disabled={selectedImages.length === 0 || (user && userCredits < creditCost)}
                 onClick={handleSubmit}
               >
-                {loading ? 'Creating Video...' : freeLimitReached ? 'Upgrade Required' : 'Create Video'}
+                {loading ? 'Creating Video...' : 'Create Video'}
               </Button>
 
               {error && (
@@ -390,13 +331,8 @@ export default function ImageToVideoPage() {
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  {result.isWatermarked ? 'Download (Low Res)' : 'Download Video'}
+                  Download Video
                 </Button>
-                {result.isWatermarked && (
-                  <p className="text-xs text-gray-500 mt-2 text-center">
-                    Upgrade to remove watermark
-                  </p>
-                )}
               </Card>
             )}
 
