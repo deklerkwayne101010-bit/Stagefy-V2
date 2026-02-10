@@ -51,8 +51,8 @@ const formatConfigs: Record<string, { wordCount: string; structure: string; extr
   },
 }
 
-// Generate a description using OpenAI-compatible API (using Replicate or similar)
-async function generateDescriptionWithAI(
+// Generate a description using Replicate (Qwen model)
+async function generateDescriptionWithReplicate(
   propertyType: string,
   listingStyle: string,
   outputFormat: string,
@@ -71,7 +71,7 @@ async function generateDescriptionWithAI(
   const styleDesc = styleDescriptions[listingStyle] || 'professional tone'
   const formatConfig = formatConfigs[outputFormat] || formatConfigs.property24
 
-  let prompt = `Write a compelling real estate property listing description for a ${propertyType}.
+  const prompt = `Write a compelling real estate property listing description for a ${propertyType}.
 
 Style: ${styleDesc}
 
@@ -91,9 +91,7 @@ Property Details:
 
 Key Features: ${keyFeatures.length > 0 ? keyFeatures.join(', ') : 'None specified'}
 Target Audience: ${targetAudience || 'General buyers'}
-Additional Notes: ${additionalNotes || 'None'}`
-
-  prompt += `
+Additional Notes: ${additionalNotes || 'None'}
 
 Requirements:
 1. Start with an attention-grabbing headline appropriate for ${outputFormat}
@@ -109,38 +107,33 @@ Requirements:
 
 Write the description now:`
 
-  // Call OpenAI API (or compatible endpoint)
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  // Call Replicate API with Qwen model
+  const response = await fetch('https://api.replicate.com/v1/predictions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_TOKEN}`,
+      'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
       'Content-Type': 'application/json',
+      'Prefer': 'wait',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are an expert real estate copywriter who creates compelling property listings for multiple platforms. You adapt your writing style and length based on the target platform (Property24, TikTok, Facebook, Instagram, Twitter/X). You write descriptions that highlight unique features, appeal to emotions, and drive buyer interest.`
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      max_tokens: 600,
-      temperature: 0.7,
+      version: 'qwen/qwen3-235b-a22b-instruct-2507',
+      input: {
+        prompt: prompt,
+        system: 'You are an expert real estate copywriter who creates compelling property listings for multiple platforms. You adapt your writing style and length based on the target platform (Property24, TikTok, Facebook, Instagram, Twitter/X). You write descriptions that highlight unique features, appeal to emotions, and drive buyer interest.',
+        max_tokens: 600,
+        temperature: 0.7,
+      },
     }),
   })
 
   if (!response.ok) {
     const errorData = await response.json()
-    console.error('AI API error:', errorData)
+    console.error('Replicate API error:', errorData)
     throw new Error('Failed to generate description')
   }
 
   const data = await response.json()
-  return data.choices[0]?.message?.content || 'Failed to generate description'
+  return data.output || 'Failed to generate description'
 }
 
 // Fallback demo description generator
@@ -186,7 +179,7 @@ function generateDemoDescription(
       break
     default:
       // Property24 format (default)
-      description = `${prefix} ${propertyTitle}.\n\nThis stunning ${beds} ${baths} ${propertyType} ${address ? `located at ${address}` : ''} offers an exceptional living experience. With its ${features}, this property is perfect for those seeking both comfort and style.\n\nThe thoughtfully designed layout maximizes space and natural light throughout. Whether you're looking for a family home, investment property, or personal sanctuary, this property delivers on all fronts.\n\nDon't miss this incredible opportunity to own a piece of paradise. Schedule your private viewing today and envision yourself living in this remarkable home.\n\n*This is a demo description. Connect your OpenAI API key for AI-generated descriptions.*`
+      description = `${prefix} ${propertyTitle}.\n\nThis stunning ${beds} ${baths} ${propertyType} ${address ? `located at ${address}` : ''} offers an exceptional living experience. With its ${features}, this property is perfect for those seeking both comfort and style.\n\nThe thoughtfully designed layout maximizes space and natural light throughout. Whether you're looking for a family home, investment property, or personal sanctuary, this property delivers on all fronts.\n\nDon't miss this incredible opportunity to own a piece of paradise. Schedule your private viewing today and envision yourself living in this remarkable home.\n\n*This is a demo description. Connect your Replicate API key for AI-generated descriptions.*`
   }
 
   return description.trim()
@@ -250,7 +243,7 @@ export async function POST(request: Request) {
         creditCost: 0,
         remainingCredits: 50,
         demo: true,
-        demoMessage: 'Demo mode: AI description generation requires Supabase and OpenAI API configuration. Set environment variables to enable.',
+        demoMessage: 'Demo mode: AI description generation requires Supabase and Replicate API configuration. Set environment variables to enable.',
       })
     }
 
@@ -274,11 +267,11 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Generate the description
+      // Generate the description using Replicate
       let description: string
 
-      if (process.env.OPENAI_API_TOKEN) {
-        description = await generateDescriptionWithAI(
+      if (process.env.REPLICATE_API_TOKEN) {
+        description = await generateDescriptionWithReplicate(
           propertyType,
           listingStyle,
           outputFormat,
