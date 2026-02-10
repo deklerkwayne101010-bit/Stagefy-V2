@@ -83,7 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: 'agent',
         credits: 50,
         subscription_tier: 'free',
-        free_usage_used: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -111,7 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: 'agent',
         credits: 50,
         subscription_tier: 'free',
-        free_usage_used: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
