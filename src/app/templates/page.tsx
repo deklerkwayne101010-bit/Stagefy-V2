@@ -676,7 +676,7 @@ export default function TemplatesPage() {
               </Card>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'library' ? (
           /* Template Library */
           <div className="space-y-6">
             {/* Sub-tabs for library */}
