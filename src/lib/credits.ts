@@ -6,22 +6,33 @@ import { CREDIT_COSTS, type CreditOperation, type User } from './types'
 export { CREDIT_COSTS }
 export type { CreditOperation }
 
+// Get the appropriate Supabase client (prefer admin for credit operations)
+function getCreditClient() {
+  const adminClient = getAdminClient()
+  if (adminClient) {
+    return { client: adminClient, isAdmin: true }
+  }
+  return { client: supabase as any, isAdmin: false }
+}
+
 // Check user's available credits
 export async function checkUserCredits(userId: string): Promise<number> {
-  const { data: user, error } = await (supabase.from as any)('users')
+  const { client, isAdmin } = getCreditClient()
+  
+  const { data: user, error } = await (client.from as any)('users')
     .select('credits')
     .eq('id', userId)
     .maybeSingle()
 
   if (error) {
-    console.error('Error fetching user credits:', error, 'UserId:', userId)
+    console.error('Error fetching user credits:', error, 'UserId:', userId, 'isAdmin:', isAdmin)
     // If profile doesn't exist, return 50 credits as fallback
     return 50
   }
 
   // User not found - return 50 credits as fallback for new users
   if (!user) {
-    console.warn('User profile not found in users table:', userId, '- returning 50 credits as fallback')
+    console.warn('User profile not found in users table:', userId, '- returning 50 credits as fallback (isAdmin:', isAdmin + ')')
     return 50
   }
 
@@ -64,10 +75,13 @@ export async function reserveCredits(
   operation: CreditOperation,
   projectId: string
 ): Promise<{ success: boolean; error?: string; creditsReserved?: number }> {
+  const { client, isAdmin } = getCreditClient()
   const creditCost = CREDIT_COSTS[operation]
   
   // Check current balance
   const currentCredits = await checkUserCredits(userId)
+  
+  console.log('Reserve credits:', { userId, creditCost, currentCredits, isAdmin })
   
   if (currentCredits < creditCost) {
     return { 
@@ -77,7 +91,7 @@ export async function reserveCredits(
   }
 
   // Log the reservation
-  const { error: logError } = await (supabase.from as any)('credit_transactions')
+  const { error: logError } = await (client.from as any)('credit_transactions')
     .insert({
       user_id: userId,
       amount: -creditCost,
@@ -92,13 +106,13 @@ export async function reserveCredits(
   }
 
   // Deduct credits from user balance
-  const { error: updateError } = await (supabase.from as any)('users')
+  const { error: updateError } = await (client.from as any)('users')
     .update({ credits: currentCredits - creditCost })
     .eq('id', userId)
 
   if (updateError) {
     // Rollback the transaction log
-    await (supabase.from as any)('credit_transactions')
+    await (client.from as any)('credit_transactions')
       .delete()
       .eq('user_id', userId)
       .eq('reference_id', projectId)
@@ -115,11 +129,12 @@ export async function refundCredits(
   operation: CreditOperation,
   projectId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const { client } = getCreditClient()
   const creditCost = CREDIT_COSTS[operation]
   const currentCredits = await checkUserCredits(userId)
 
   // Log the refund
-  const { error: logError } = await (supabase.from as any)('credit_transactions')
+  const { error: logError } = await (client.from as any)('credit_transactions')
     .insert({
       user_id: userId,
       amount: creditCost,
@@ -134,7 +149,7 @@ export async function refundCredits(
   }
 
   // Restore credits to user balance
-  const { error: updateError } = await (supabase.from as any)('users')
+  const { error: updateError } = await (client.from as any)('users')
     .update({ credits: currentCredits + creditCost })
     .eq('id', userId)
 
@@ -165,11 +180,12 @@ export async function addCredits(
   description: string,
   referenceId?: string
 ): Promise<{ success: boolean; error?: string; newBalance?: number }> {
+  const { client } = getCreditClient()
   const currentCredits = await checkUserCredits(userId)
   const newBalance = currentCredits + amount
 
   // Log the credit addition
-  const { error: logError } = await (supabase.from as any)('credit_transactions')
+  const { error: logError } = await (client.from as any)('credit_transactions')
     .insert({
       user_id: userId,
       amount: amount,
@@ -184,7 +200,7 @@ export async function addCredits(
   }
 
   // Update user balance
-  const { error: updateError } = await (supabase.from as any)('users')
+  const { error: updateError } = await (client.from as any)('users')
     .update({ credits: newBalance })
     .eq('id', userId)
 
@@ -252,11 +268,12 @@ export async function grantMonthlyCredits(
   credits: number,
   planName: string
 ): Promise<{ success: boolean; error?: string }> {
+  const { client } = getCreditClient()
   const currentCredits = await checkUserCredits(userId)
   const newBalance = currentCredits + credits
 
   // Log the credit addition
-  const { error: logError } = await (supabase.from as any)('credit_transactions')
+  const { error: logError } = await (client.from as any)('credit_transactions')
     .insert({
       user_id: userId,
       amount: credits,
@@ -270,7 +287,7 @@ export async function grantMonthlyCredits(
   }
 
   // Update user balance
-  const { error: updateError } = await (supabase.from as any)('users')
+  const { error: updateError } = await (client.from as any)('users')
     .update({ credits: newBalance })
     .eq('id', userId)
 
@@ -280,7 +297,7 @@ export async function grantMonthlyCredits(
   }
 
   // Create notification
-  await (supabase.from as any)('notifications')
+  await (client.from as any)('notifications')
     .insert({
       user_id: userId,
       type: 'subscription_renewal',
