@@ -6,8 +6,8 @@ import { useAuth } from '@/lib/auth-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
-import { CreditBadge, FreeTierBadge } from '@/components/ui/Badge'
-import { checkFreeUsage, canPerformAction } from '@/lib/credits'
+import { CreditBadge } from '@/components/ui/Badge'
+import { canPerformAction, checkUserCredits } from '@/lib/credits'
 
 // Property types for the generator
 const propertyTypes = [
@@ -54,9 +54,8 @@ export default function DescriptionGeneratorPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [freeUsage, setFreeUsage] = useState<{ used: number; remaining: number; total: number } | null>(null)
+  const [userCredits, setUserCredits] = useState<number>(0)
   const [generatedDescription, setGeneratedDescription] = useState<string | null>(null)
-  const [isWatermarked, setIsWatermarked] = useState(false)
 
   // Form state
   const [propertyType, setPropertyType] = useState('')
@@ -73,19 +72,15 @@ export default function DescriptionGeneratorPage() {
   const [additionalNotes, setAdditionalNotes] = useState('')
   const [targetAudience, setTargetAudience] = useState('')
 
-  // Check free tier usage on mount
+  // Check user credits on mount
   useEffect(() => {
-    const checkFreeTier = async () => {
+    const checkCredits = async () => {
       if (user?.id) {
-        const freeInfo = await checkFreeUsage(user.id)
-        setFreeUsage({
-          used: freeInfo.used,
-          remaining: freeInfo.remaining,
-          total: freeInfo.total,
-        })
+        const credits = await checkUserCredits(user.id)
+        setUserCredits(credits)
       }
     }
-    checkFreeTier()
+    checkCredits()
   }, [user?.id])
 
   const toggleFeature = (feature: string) => {
@@ -113,7 +108,7 @@ export default function DescriptionGeneratorPage() {
 
     try {
       // Check if user can perform this action
-      const canPerform = await canPerformAction(user.id)
+      const canPerform = await canPerformAction(user.id, CREDIT_COST)
       if (!canPerform.canPerform) {
         setError(canPerform.error || 'Cannot perform action. Please upgrade or purchase credits.')
         setLoading(false)
@@ -150,16 +145,11 @@ export default function DescriptionGeneratorPage() {
       }
 
       setGeneratedDescription(data.description)
-      setIsWatermarked(data.isWatermarked || false)
       setSuccess('Description generated successfully!')
 
-      // Refresh free usage if applicable
-      const freeInfo = await checkFreeUsage(user.id)
-      setFreeUsage({
-        used: freeInfo.used,
-        remaining: freeInfo.remaining,
-        total: freeInfo.total,
-      })
+      // Refresh user credits
+      const credits = await checkUserCredits(user.id)
+      setUserCredits(credits)
     } catch (err) {
       setError('An error occurred. Please try again.')
       console.error('Generation error:', err)
@@ -192,10 +182,11 @@ export default function DescriptionGeneratorPage() {
 
         {/* Credit Status */}
         <div className="mb-6 flex items-center gap-4">
-          {freeUsage && freeUsage.remaining > 0 ? (
-            <FreeTierBadge remaining={freeUsage.remaining} />
-          ) : (
-            <CreditBadge credits={CREDIT_COST} />
+          <CreditBadge credits={CREDIT_COST} />
+          {userCredits > 0 && (
+            <span className="text-sm text-slate-600">
+              Your balance: {userCredits} credits
+            </span>
           )}
         </div>
 
@@ -395,12 +386,6 @@ export default function DescriptionGeneratorPage() {
                     <div className="p-4 bg-slate-50 rounded-lg whitespace-pre-wrap text-slate-700">
                       {generatedDescription}
                     </div>
-                    {isWatermarked && (
-                      <div className="flex items-center gap-2 text-sm text-amber-600">
-                        <span>🟡</span>
-                        <span>Free tier output - Upgrade to remove watermark</span>
-                      </div>
-                    )}
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
