@@ -14,15 +14,17 @@ export async function checkUserCredits(userId: string): Promise<number> {
     .maybeSingle()
 
   if (error) {
-    console.error('Error fetching user credits:', error)
+    console.error('Error fetching user credits:', error, 'UserId:', userId)
     return 0
   }
 
   // User not found - return 0 credits
   if (!user) {
+    console.warn('User not found in database:', userId)
     return 0
   }
 
+  console.log('User credits:', userId, 'credits:', user.credits)
   return (user as User).credits || 0
 }
 
@@ -33,8 +35,11 @@ export async function canPerformAction(userId: string, creditCost: number): Prom
   remaining?: number
   error?: string
 }> {
+  console.log('canPerformAction called:', { userId, creditCost })
+  
   // Check regular credits
   const credits = await checkUserCredits(userId)
+  console.log('User credits check:', { userId, credits, creditCost, canPerform: credits >= creditCost })
   
   if (credits >= creditCost) {
     return {

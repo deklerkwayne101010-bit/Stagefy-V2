@@ -265,34 +265,42 @@ export async function getCurrentUser(): Promise<User | null> {
   const user = authResult.data.user
   if (!user) return null
   
-  // Use session data if available, otherwise fallback to profile query
-  const session = profileResult.data.session
-  if (session?.user?.id) {
-    // Quick profile fetch with timeout protection
-    try {
-      const { data } = await client
-        .from('users')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
-      
-      return data as User | null
-    } catch {
-      // If profile doesn't exist yet, return minimal user data
-      return {
-        id: user.id,
-        email: user.email || '',
-        full_name: user.user_metadata?.full_name || '',
-        role: 'agent',
-        credits: 50,
-        subscription_tier: 'free',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+  // Fetch profile from users table
+  try {
+    const { data } = await client
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    
+    if (data) {
+      return data as User
+    }
+    
+    // If profile doesn't exist in users table, return minimal user data with credits
+    return {
+      id: user.id,
+      email: user.email || '',
+      full_name: user.user_metadata?.full_name || '',
+      role: 'agent',
+      credits: 50,
+      subscription_tier: 'free',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+  } catch {
+    // If profile fetch fails, return minimal user data
+    return {
+      id: user.id,
+      email: user.email || '',
+      full_name: user.user_metadata?.full_name || '',
+      role: 'agent',
+      credits: 50,
+      subscription_tier: 'free',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
   }
-  
-  return null
 }
 
 // Helper function to check if user is admin
