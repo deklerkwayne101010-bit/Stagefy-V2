@@ -75,33 +75,6 @@ const marketplaceTypes: { value: string; label: string; icon: string; descriptio
   { value: 'wacky', label: 'Wacky', icon: '🎨', description: 'Creative and fun' },
   { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visuals' },
   { value: 'marketing', label: 'Marketing', icon: '📢', description: 'Promotional content' },
-  { value: 'custom', label: 'Custom', icon: '✨', description: 'Create your own style' },
-]
-
-// Color themes for custom templates
-const colorThemes = [
-  { value: 'modern_blue', label: 'Modern Blue', primary: '#3B82F6', secondary: '#1E40AF' },
-  { value: 'elegant_gold', label: 'Elegant Gold', primary: '#F59E0B', secondary: '#B45309' },
-  { value: 'fresh_green', label: 'Fresh Green', primary: '#10B981', secondary: '#047857' },
-  { value: 'bold_red', label: 'Bold Red', primary: '#EF4444', secondary: '#B91C1C' },
-  { value: 'soft_purple', label: 'Soft Purple', primary: '#8B5CF6', secondary: '#5B21B6' },
-  { value: 'clean_white', label: 'Clean White', primary: '#F3F4F6', secondary: '#9CA3AF' },
-]
-
-// Aspect ratios for custom templates
-const aspectRatios = [
-  { value: '16:9', label: '16:9', description: 'Landscape (Video)' },
-  { value: '9:16', label: '9:16', description: 'Portrait (Social)' },
-  { value: '1:1', label: '1:1', description: 'Square (Instagram)' },
-  { value: '4:3', label: '4:3', description: 'Standard' },
-]
-
-// Text overlay styles
-const textStyles = [
-  { value: 'minimal', label: 'Minimal', description: 'Subtle text overlays' },
-  { value: 'bold', label: 'Bold', description: 'Large prominent text' },
-  { value: 'elegant', label: 'Elegant', description: 'Sophisticated typography' },
-  { value: 'none', label: 'None', description: 'No text overlays' },
 ]
 
 const CREDIT_COST = 5
@@ -120,13 +93,6 @@ export default function TemplatesPage() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ outputUrl: string; isWatermarked?: boolean } | null>(null)
   const [savedTemplates, setSavedTemplates] = useState<{ id: number; name: string; type: string; thumbnail: string }[]>([])
-  
-  // Custom template options
-  const [customColorTheme, setCustomColorTheme] = useState('modern_blue')
-  const [customAspectRatio, setCustomAspectRatio] = useState('16:9')
-  const [customTextStyle, setCustomTextStyle] = useState('minimal')
-  const [customTitle, setCustomTitle] = useState('')
-  const [customSubtitle, setCustomSubtitle] = useState('')
 
   // Agent profile state
   const [agentName, setAgentName] = useState('')
@@ -227,7 +193,7 @@ export default function TemplatesPage() {
       return
     }
 
-    if (!prompt.trim() && templateType !== 'custom') {
+    if (!prompt.trim()) {
       setError('Please describe your template')
       return
     }
@@ -255,17 +221,6 @@ export default function TemplatesPage() {
         type: templateType,
         userId: user?.id,
         prompt: finalPrompt,
-      }
-      
-      // Add custom template options if selected
-      if (templateType === 'custom') {
-        requestBody.customOptions = {
-          colorTheme: customColorTheme,
-          aspectRatio: customAspectRatio,
-          textStyle: customTextStyle,
-          title: customTitle,
-          subtitle: customSubtitle,
-        }
       }
       
       // Add agent profile data if toggle is enabled
@@ -377,105 +332,6 @@ export default function TemplatesPage() {
                 </div>
               </Card>
 
-              {/* Custom Template Options */}
-              {templateType === 'custom' && (
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardHeader 
-                    title="Custom Template Settings" 
-                    subtitle="Customize your template with specific options"
-                  />
-                  
-                  {/* Color Theme */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Color Theme</label>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                      {colorThemes.map((theme) => (
-                        <button
-                          key={theme.value}
-                          onClick={() => setCustomColorTheme(theme.value)}
-                          className={`p-2 rounded-lg border-2 transition-all ${
-                            customColorTheme === theme.value
-                              ? 'border-blue-500 ring-2 ring-blue-200'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                          title={theme.label}
-                        >
-                          <div 
-                            className="w-full h-8 rounded"
-                            style={{ 
-                              background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`
-                            }}
-                          />
-                          <p className="text-xs text-gray-600 mt-1 text-center">{theme.label}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Aspect Ratio */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Aspect Ratio</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {aspectRatios.map((ratio) => (
-                        <button
-                          key={ratio.value}
-                          onClick={() => setCustomAspectRatio(ratio.value)}
-                          className={`p-3 rounded-lg border-2 text-center transition-all ${
-                            customAspectRatio === ratio.value
-                              ? 'border-blue-500 bg-blue-100'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <p className="font-medium text-gray-900">{ratio.label}</p>
-                          <p className="text-xs text-gray-500">{ratio.description}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Text Style */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Text Overlay Style</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {textStyles.map((style) => (
-                        <button
-                          key={style.value}
-                          onClick={() => setCustomTextStyle(style.value)}
-                          className={`p-3 rounded-lg border-2 text-center transition-all ${
-                            customTextStyle === style.value
-                              ? 'border-blue-500 bg-blue-100'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <p className="font-medium text-gray-900">{style.label}</p>
-                          <p className="text-xs text-gray-500">{style.description}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Title & Subtitle */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Title Text (optional)</label>
-                      <Input
-                        placeholder="e.g., Luxury Villa in Sandton"
-                        value={customTitle}
-                        onChange={(e: any) => setCustomTitle(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle Text (optional)</label>
-                      <Input
-                        placeholder="e.g., 4 Bed | 3 Bath | R4.5M"
-                        value={customSubtitle}
-                        onChange={(e: any) => setCustomSubtitle(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </Card>
-              )}
-
               {/* Image Upload */}
               <Card>
                 <CardHeader title="Upload Images" subtitle="Add photos to include in your template" />
@@ -519,8 +375,8 @@ export default function TemplatesPage() {
               {/* Prompt */}
               <Card>
                 <CardHeader 
-                  title="Template Description" 
-                  subtitle="Describe your template style and elements" 
+                  title="Template Prompt" 
+                  subtitle="Describe what you want the AI to generate" 
                 />
                 <Textarea
                   placeholder="Describe your template... (e.g., 'Create a modern luxury listing promo with smooth transitions, elegant text overlay showing property features, and a warm color scheme')"
