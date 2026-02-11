@@ -1,4 +1,4 @@
-// API route for AI Photo Editing (Qwen Image Edit Plus)
+// API route for AI Photo Editing (Qwen Image Edit 2511)
 import { NextResponse } from 'next/server'
 import {
   checkUserCredits,
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Call Replicate API for Qwen Image Edit Plus
+      // Call Replicate API for Qwen Image Edit 2511
       // Using the exact format from the model schema
       // Image array: [reference_image, target_image] - order matters for pose transfer
       
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         output_quality: 90,
       }
 
-      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen-image-edit-plus/predictions', {
+      const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen-image-edit-2511/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,

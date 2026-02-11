@@ -1,105 +1,341 @@
-// Demo CRM data - user-specific contacts, listings, and media
-// Each demo user gets their own unique data
+// Demo CRM Data - Shows all new enhanced fields and features
+// This file is for demonstration and can be used for seeding/testing
 
-export interface DemoContact {
-  id: string
-  user_id: string
-  name: string
-  email: string
-  phone: string
-  type: 'buyer' | 'seller' | 'investor'
-  status: 'active' | 'lead' | 'closed'
-  notes: string
-  created_at: string
-}
-
-export interface DemoListing {
-  id: string
-  user_id: string
-  address: string
-  price: number
-  bedrooms: number
-  bathrooms: number
-  sqft: number
-  status: 'active' | 'pending' | 'sold'
-  city: string
-  created_at: string
-}
-
-export interface DemoMedia {
-  id: string
-  user_id: string
-  title: string
-  type: 'image' | 'video'
-  listing: string
-  created_at: string
-}
-
-// Demo Agent's data (demo-user-1)
-const demoAgentContacts: DemoContact[] = [
-  { id: 'c1', user_id: 'demo-user-1', name: 'Sarah Johnson', email: 'sarah@email.com', phone: '(555) 123-4567', type: 'buyer', status: 'active', notes: 'Looking for 3BR in Beverly Hills', created_at: '2024-01-15' },
-  { id: 'c2', user_id: 'demo-user-1', name: 'Mike Chen', email: 'mike@email.com', phone: '(555) 234-5678', type: 'seller', status: 'lead', notes: 'Selling investment property', created_at: '2024-01-14' },
-  { id: 'c3', user_id: 'demo-user-1', name: 'Emily Davis', email: 'emily@email.com', phone: '(555) 345-6789', type: 'investor', status: 'active', notes: 'Portfolio buyer', created_at: '2024-01-13' },
+export const demoContacts = [
+  {
+    id: 'demo-contact-1',
+    name: 'John Buyer',
+    email: 'john.buyer@email.com',
+    phone: '+27 82 123 4567',
+    contact_type: 'buyer',
+    status: 'active',
+    source: 'property_portal',
+    rating: 4,
+    budget_min: 1500000,
+    budget_max: 3000000,
+    preferences: {
+      property_types: ['house', 'townhouse'],
+      bedrooms: [3, 4],
+      locations: ['Sandton', 'Bryanston'],
+      features: ['pool', 'garden', 'garage'],
+    },
+    notes: 'Looking for family home in Sandton area. Pre-approved for R2.5M.',
+    last_contacted_at: '2024-01-15T10:30:00Z',
+    created_at: '2024-01-01T09:00:00Z',
+    tags: ['hot_lead', 'family'],
+  },
+  {
+    id: 'demo-contact-2',
+    name: 'Sarah Seller',
+    email: 'sarah.seller@email.com',
+    phone: '+27 83 987 6543',
+    contact_type: 'seller',
+    status: 'active',
+    source: 'referral',
+    rating: 5,
+    property_address: '45 Oak Avenue, Randburg',
+    property_type: 'house',
+    bedrooms: 4,
+    asking_price: 2800000,
+    mandate_expiry: '2024-03-31',
+    notes: 'Motivated seller, looking to downsize. Property has been renovated.',
+    last_contacted_at: '2024-01-14T14:00:00Z',
+    created_at: '2023-12-15T11:00:00Z',
+    tags: ['mandate', 'motivated'],
+  },
+  {
+    id: 'demo-contact-3',
+    name: 'Mike Investor',
+    email: 'mike.investor@email.com',
+    phone: '+27 84 555 1234',
+    contact_type: 'investor',
+    status: 'active',
+    source: 'website',
+    rating: 3,
+    budget_min: 5000000,
+    budget_max: 10000000,
+    preferences: {
+      property_types: ['apartment', 'block_of_flats'],
+      locations: ['CBD', 'Midrand'],
+      yield_min: 8,
+    },
+    notes: 'Looking for high-yield investment properties. All cash buyer.',
+    last_contacted_at: '2024-01-10T09:00:00Z',
+    created_at: '2024-01-05T16:00:00Z',
+    tags: ['investor', 'cash_buyer'],
+  },
 ]
 
-const demoAgentListings: DemoListing[] = [
-  { id: 'l1', user_id: 'demo-user-1', address: '123 Main St, Los Angeles, CA', price: 1530000, bedrooms: 3, bathrooms: 2, sqft: 1800, status: 'active', city: 'Los Angeles', created_at: '2024-01-15' },
-  { id: 'l2', user_id: 'demo-user-1', address: '456 Oak Ave, Beverly Hills, CA', price: 4320000, bedrooms: 5, bathrooms: 4, sqft: 4200, status: 'pending', city: 'Beverly Hills', created_at: '2024-01-14' },
-  { id: 'l3', user_id: 'demo-user-1', address: '789 Pine Rd, Santa Monica, CA', price: 2160000, bedrooms: 4, bathrooms: 3, sqft: 2400, status: 'active', city: 'Santa Monica', created_at: '2024-01-13' },
+export const demoListings = [
+  {
+    id: 'demo-listing-1',
+    address: '45 Oak Avenue, Randburg',
+    city: 'Johannesburg',
+    suburb: 'Randburg',
+    property_type: 'house',
+    bedrooms: 4,
+    bathrooms: 3,
+    garages: 2,
+    asking_price: 2800000,
+    status: 'active',
+    listing_type: 'sale',
+    features: ['pool', 'garden', 'braai', 'guest bathroom'],
+    description: 'Beautiful family home in quiet neighborhood. Recently renovated kitchen and bathrooms.',
+    agent_id: 'demo-user-1',
+    inquiry_count: 15,
+    view_count: 234,
+    mandate_expiry: '2024-03-31',
+    created_at: '2023-12-15T11:00:00Z',
+    updated_at: '2024-01-14T10:00:00Z',
+  },
+  {
+    id: 'demo-listing-2',
+    address: 'Unit 12, Sandton Heights',
+    city: 'Johannesburg',
+    suburb: 'Sandton',
+    property_type: 'apartment',
+    bedrooms: 2,
+    bathrooms: 2,
+    garages: 1,
+    asking_price: 1950000,
+    status: 'active',
+    listing_type: 'sale',
+    features: ['balcony', 'security', 'pool', 'gym'],
+    description: 'Stunning apartment in Sandton with panoramic city views.',
+    agent_id: 'demo-user-1',
+    inquiry_count: 8,
+    view_count: 156,
+    created_at: '2024-01-02T14:00:00Z',
+    updated_at: '2024-01-12T09:00:00Z',
+  },
+  {
+    id: 'demo-listing-3',
+    address: '24 Beach Road, Camps Bay',
+    city: 'Cape Town',
+    suburb: 'Camps Bay',
+    property_type: 'house',
+    bedrooms: 5,
+    bathrooms: 4,
+    garages: 2,
+    asking_price: 12500000,
+    status: 'active',
+    listing_type: 'sale',
+    features: ['ocean_view', 'pool', 'entertainment_area', 'guest_quarters'],
+    description: 'Luxurious beachfront property with stunning ocean views.',
+    agent_id: 'demo-user-1',
+    inquiry_count: 3,
+    view_count: 89,
+    created_at: '2024-01-10T08:00:00Z',
+    updated_at: '2024-01-15T11:00:00Z',
+  },
 ]
 
-const demoAgentMedia: DemoMedia[] = [
-  { id: 'm1', user_id: 'demo-user-1', title: '123 Main St - Living Room', type: 'image', listing: '123 Main St', created_at: '2024-01-15' },
-  { id: 'm2', user_id: 'demo-user-1', title: '123 Main St - Kitchen', type: 'image', listing: '123 Main St', created_at: '2024-01-15' },
-  { id: 'm3', user_id: 'demo-user-1', title: '456 Oak Ave - Listing Video', type: 'video', listing: '456 Oak Ave', created_at: '2024-01-14' },
-  { id: 'm4', user_id: 'demo-user-1', title: '789 Pine Rd - Virtual Staging', type: 'image', listing: '789 Pine Rd', created_at: '2024-01-13' },
+export const demoTasks = [
+  {
+    id: 'demo-task-1',
+    title: 'Follow up with John Buyer',
+    description: 'Send property listings matching his criteria',
+    task_type: 'follow-up',
+    priority: 'high',
+    status: 'pending',
+    due_date: '2024-01-16T09:00:00Z',
+    contact_id: 'demo-contact-1',
+    listing_id: null,
+    reminder: '2024-01-16T08:00:00Z',
+    created_at: '2024-01-14T15:00:00Z',
+  },
+  {
+    id: 'demo-task-2',
+    title: 'Schedule property viewing',
+    description: 'Arrange showing for Sarah Seller\'s property',
+    task_type: 'showing',
+    priority: 'high',
+    status: 'pending',
+    due_date: '2024-01-17T10:00:00Z',
+    contact_id: 'demo-contact-2',
+    listing_id: 'demo-listing-1',
+    reminder: '2024-01-17T09:00:00Z',
+    created_at: '2024-01-14T14:30:00Z',
+  },
+  {
+    id: 'demo-task-3',
+    title: 'Call Mike Investor',
+    description: 'Discuss new investment opportunities in CBD',
+    task_type: 'call',
+    priority: 'medium',
+    status: 'pending',
+    due_date: '2024-01-18T11:00:00Z',
+    contact_id: 'demo-contact-3',
+    listing_id: null,
+    reminder: '2024-01-18T10:00:00Z',
+    created_at: '2024-01-15T09:00:00Z',
+  },
+  {
+    id: 'demo-task-4',
+    title: 'Update listing photos',
+    description: 'Add new photos to Sandton Heights listing',
+    task_type: 'admin',
+    priority: 'low',
+    status: 'completed',
+    due_date: '2024-01-13T12:00:00Z',
+    contact_id: null,
+    listing_id: 'demo-listing-2',
+    completed_at: '2024-01-13T11:30:00Z',
+    created_at: '2024-01-12T16:00:00Z',
+  },
 ]
 
-// Demo Admin's data (demo-admin-1)
-const demoAdminContacts: DemoContact[] = [
-  { id: 'c4', user_id: 'demo-admin-1', name: 'James Wilson', email: 'james@email.com', phone: '(555) 456-7890', type: 'buyer', status: 'closed', notes: 'Purchased 456 Oak Ave', created_at: '2024-01-12' },
-  { id: 'c5', user_id: 'demo-admin-1', name: 'Lisa Brown', email: 'lisa@email.com', phone: '(555) 567-8901', type: 'seller', status: 'active', notes: 'Relocating to Florida', created_at: '2024-01-11' },
+export const demoActivities = [
+  {
+    id: 'demo-activity-1',
+    activity_type: 'call',
+    subject: 'Follow-up call',
+    content: 'Discussed property preferences and budget range. John is looking for a 3-4 bedroom house in Sandton.',
+    direction: 'outbound',
+    duration: 15,
+    outcome: 'positive',
+    next_action: 'Send listings',
+    contact_id: 'demo-contact-1',
+    listing_id: null,
+    created_at: '2024-01-15T10:30:00Z',
+  },
+  {
+    id: 'demo-activity-2',
+    activity_type: 'email',
+    subject: 'Property Inquiry Response',
+    content: 'Sent 3 matching property listings to John Buyer.',
+    direction: 'outbound',
+    duration: 5,
+    outcome: 'sent',
+    contact_id: 'demo-contact-1',
+    listing_id: null,
+    created_at: '2024-01-15T11:00:00Z',
+  },
+  {
+    id: 'demo-activity-3',
+    activity_type: 'showing',
+    subject: 'Property Viewing',
+    content: 'Conducted showing of 45 Oak Avenue. Buyer was impressed with the renovation.',
+    direction: 'outbound',
+    duration: 45,
+    outcome: 'positive_feedback',
+    next_action: 'Send offer instructions',
+    contact_id: 'demo-contact-1',
+    listing_id: 'demo-listing-1',
+    created_at: '2024-01-14T14:00:00Z',
+  },
+  {
+    id: 'demo-activity-4',
+    activity_type: 'meeting',
+    subject: 'Mandate Signing',
+    content: 'Met with Sarah Seller to sign exclusive mandate.',
+    direction: 'outbound',
+    duration: 60,
+    outcome: 'mandate_signed',
+    contact_id: 'demo-contact-2',
+    listing_id: 'demo-listing-1',
+    created_at: '2023-12-15T11:00:00Z',
+  },
+  {
+    id: 'demo-activity-5',
+    activity_type: 'email',
+    subject: 'Inquiry Response',
+    content: 'Responded to web inquiry about Sandton apartment.',
+    direction: 'outbound',
+    duration: 10,
+    outcome: 'responded',
+    contact_id: null,
+    listing_id: 'demo-listing-2',
+    created_at: '2024-01-14T09:00:00Z',
+  },
+  {
+    id: 'demo-activity-6',
+    activity_type: 'note',
+    subject: 'Internal Note',
+    content: 'Updated property valuation based on recent comparable sales in the area.',
+    direction: 'internal',
+    contact_id: null,
+    listing_id: 'demo-listing-1',
+    created_at: '2024-01-13T16:00:00Z',
+  },
 ]
 
-const demoAdminListings: DemoListing[] = [
-  { id: 'l4', user_id: 'demo-admin-1', address: '321 Elm Dr, Malibu, CA', price: 8100000, bedrooms: 6, bathrooms: 5, sqft: 5500, status: 'active', city: 'Malibu', created_at: '2024-01-12' },
-  { id: 'l5', user_id: 'demo-admin-1', address: '654 Maple Ln, Pasadena, CA', price: 1764000, bedrooms: 3, bathrooms: 2, sqft: 2000, status: 'sold', city: 'Pasadena', created_at: '2024-01-11' },
-]
-
-const demoAdminMedia: DemoMedia[] = [
-  { id: 'm5', user_id: 'demo-admin-1', title: '789 Pine Rd - Day to Dusk', type: 'image', listing: '789 Pine Rd', created_at: '2024-01-12' },
-  { id: 'm6', user_id: 'demo-admin-1', title: '321 Elm Dr - Master Bedroom', type: 'image', listing: '321 Elm Dr', created_at: '2024-01-11' },
-  { id: 'm7', user_id: 'demo-admin-1', title: '654 Maple Ln - Virtual Tour', type: 'video', listing: '654 Maple Ln', created_at: '2024-01-10' },
-]
-
-// Functions to get user-specific data
-export function getUserContacts(userId: string): DemoContact[] {
-  if (userId === 'demo-user-1') return demoAgentContacts
-  if (userId === 'demo-admin-1') return demoAdminContacts
-  // For other users (temp users), return empty array
-  return []
+export const activityTypeLabels: Record<string, string> = {
+  call: 'Phone Call',
+  email: 'Email',
+  sms: 'SMS',
+  whatsapp: 'WhatsApp',
+  meeting: 'Meeting',
+  showing: 'Property Showing',
+  note: 'Note',
+  task: 'Task',
+  open_house: 'Open House',
 }
 
-export function getUserListings(userId: string): DemoListing[] {
-  if (userId === 'demo-user-1') return demoAgentListings
-  if (userId === 'demo-admin-1') return demoAdminListings
-  return []
+export const activityTypeIcons: Record<string, string> = {
+  call: '📞',
+  email: '📧',
+  sms: '💬',
+  whatsapp: '💬',
+  meeting: '🤝',
+  showing: '🏠',
+  note: '📝',
+  task: '✅',
+  open_house: '🚪',
 }
 
-export function getUserMedia(userId: string): DemoMedia[] {
-  if (userId === 'demo-user-1') return demoAgentMedia
-  if (userId === 'demo-admin-1') return demoAdminMedia
-  return []
+export const taskPriorityColors: Record<string, string> = {
+  low: 'bg-gray-100 text-gray-800',
+  medium: 'bg-blue-100 text-blue-800',
+  high: 'bg-orange-100 text-orange-800',
+  urgent: 'bg-red-100 text-red-800',
 }
 
-// Get empty state message for new users
-export function getEmptyCrmMessage(type: 'contacts' | 'listings' | 'media'): string {
-  switch (type) {
-    case 'contacts':
-      return 'No contacts found. Add your first contact to get started!'
-    case 'listings':
-      return 'No listings found. Add your first listing to get started!'
-    case 'media':
-      return 'No media found. Create some media to see it here!'
-  }
+export const taskStatusLabels: Record<string, string> = {
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+}
+
+export const propertyTypeLabels: Record<string, string> = {
+  house: 'House',
+  apartment: 'Apartment',
+  townhouse: 'Townhouse',
+  flat: 'Flat',
+  land: 'Land',
+  commercial: 'Commercial',
+  industrial: 'Industrial',
+  section_title: 'Section Title',
+  freehold: 'Freehold',
+}
+
+export const listingStatusLabels: Record<string, string> = {
+  active: 'Active',
+  pending: 'Pending',
+  sold: 'Sold',
+  withdrawn: 'Withdrawn',
+  expired: 'Expired',
+}
+
+export const contactTypeLabels: Record<string, string> = {
+  buyer: 'Buyer',
+  seller: 'Seller',
+  landlord: 'Landlord',
+  tenant: 'Tenant',
+  investor: 'Investor',
+  developer: 'Developer',
+  other: 'Other',
+}
+
+export const leadSourceLabels: Record<string, string> = {
+  property_portal: 'Property Portal',
+  referral: 'Referral',
+  website: 'Website',
+  social_media: 'Social Media',
+  flyer: 'Flyer/广告',
+  signage: 'Signage',
+  walk_in: 'Walk-in',
+  phone: 'Phone',
+  other: 'Other',
 }

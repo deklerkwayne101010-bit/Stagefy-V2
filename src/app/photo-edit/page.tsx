@@ -1,4 +1,4 @@
-// AI Photo Editing page - Powered by Qwen Image Edit Plus
+// AI Photo Editing page - Powered by Qwen Image Edit 2511
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
@@ -146,7 +146,7 @@ export default function PhotoEditPage() {
       const imageToProcess = targetImageUrl || targetImage
       const referenceToProcess = useReference ? (referenceImageUrl || referenceImage) : null
       
-      // Call the API to process the image with Qwen Image Edit Plus
+      // Call the API to process the image with Qwen Image Edit 2511
       const response = await fetch('/api/ai/photo-edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
