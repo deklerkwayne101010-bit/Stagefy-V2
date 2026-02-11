@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase'
 import { 
-  checkUserCredits, 
+  canPerformAction,
   reserveCredits, 
   refundCredits, 
   CREDIT_COSTS 
@@ -72,10 +72,10 @@ export async function POST(request: Request) {
     }
 
     // Check if user can perform this action
-    const canPerform = await checkUserCredits(user.id, creditCost)
+    const { canPerform, error } = await canPerformAction(user.id, creditCost)
     if (!canPerform) {
       return NextResponse.json(
-        { error: 'Insufficient credits for layout generation' },
+        { error: error || 'Insufficient credits for layout generation' },
         { status: 402 }
       )
     }
