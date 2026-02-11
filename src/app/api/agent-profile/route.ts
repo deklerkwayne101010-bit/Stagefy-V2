@@ -117,6 +117,12 @@ export async function POST(request: Request) {
     }
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json(
+        { error: 'Admin client not configured' },
+        { status: 500 }
+      )
+    }
 
     // Check if profile exists
     const { data: existing } = await supabase
@@ -221,6 +227,12 @@ export async function PUT(request: Request) {
     }
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json(
+        { error: 'Admin client not configured' },
+        { status: 500 }
+      )
+    }
 
     const { data, error } = await (adminClient.from as any)
       .from('agent_profiles')
@@ -289,6 +301,12 @@ export async function DELETE(request: Request) {
     }
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json(
+        { error: 'Admin client not configured' },
+        { status: 500 }
+      )
+    }
 
     const { error } = await (adminClient.from as any)
       .from('agent_profiles')
