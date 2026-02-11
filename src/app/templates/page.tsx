@@ -75,6 +75,7 @@ const marketplaceTypes: { value: string; label: string; icon: string; descriptio
   { value: 'wacky', label: 'Wacky', icon: '🎨', description: 'Creative and fun' },
   { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visuals' },
   { value: 'marketing', label: 'Marketing', icon: '📢', description: 'Promotional content' },
+  { value: 'custom', label: 'Custom', icon: '✨', description: 'Enter your own custom prompt' },
 ]
 
 const CREDIT_COST = 5
