@@ -384,3 +384,203 @@ export const PROPERTY_FEATURES: string[] = [
   'Open Plan',
   'Borehole',
 ]
+
+// =============================================
+// PROFESSIONAL TEMPLATE TYPES (Phase 1)
+// =============================================
+
+export type TemplateCategory = 'luxury' | 'modern' | 'family' | 'investment' | 'commercial' | 'custom'
+export type LogoPosition = 'top' | 'bottom' | 'sidebar'
+export type HeaderLayout = 'standard' | 'compact' | 'extended' | 'minimal'
+export type FooterLayout = 'standard' | 'compact' | 'minimal' | 'contact_only'
+export type BadgeStyle = 'minimal' | 'rounded' | 'square' | 'pill'
+export type TemplateStatus = 'active' | 'draft' | 'archived'
+export type GenerationStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+
+export interface AgencyBrand {
+  id: string
+  name: string
+  slug: string
+  logo_url?: string | null
+  primary_color: string
+  secondary_color?: string | null
+  accent_color?: string | null
+  heading_font?: string | null
+  body_font?: string | null
+  logo_position: LogoPosition
+  tagline?: string | null
+  header_layout: HeaderLayout
+  footer_layout: FooterLayout
+  badge_style: BadgeStyle
+  template_styles?: Record<string, unknown> | null
+  is_active: boolean
+  is_featured: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateSection {
+  id: string
+  name: string
+  type: 'header' | 'hero' | 'gallery' | 'features' | 'details' | 'contact' | 'footer'
+  order: number
+  style?: Record<string, unknown>
+}
+
+export interface ImageSlot {
+  id: string
+  name: string
+  type: 'hero' | 'gallery' | 'detail' | 'floorplan' | 'map'
+  placeholder_id: string
+  preferred_aspect_ratio: number
+  position: number
+  is_required: boolean
+}
+
+export interface TemplateLayoutStructure {
+  sections: TemplateSection[]
+  placeholders: Record<string, {
+    type: string
+    style: Record<string, unknown>
+    content_type: 'text' | 'image' | 'number' | 'date'
+  }>
+}
+
+export interface ProfessionalTemplate {
+  id: string
+  user_id: string
+  name: string
+  category: TemplateCategory
+  description?: string | null
+  thumbnail_url?: string | null
+  prompt_template: string
+  layout_structure: TemplateLayoutStructure
+  image_slots: ImageSlot[]
+  brand_id?: string | null
+  is_public: boolean
+  is_ai_generated: boolean
+  usage_count: number
+  credit_cost: number
+  status: TemplateStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateGeneration {
+  id: string
+  user_id: string
+  template_id?: string | null
+  property_id?: string | null
+  prompt: string
+  agent_profile_included: boolean
+  brand_id?: string | null
+  images_used: { url: string; placeholder_id: string }[]
+  output_url?: string | null
+  prompt_version: number
+  credit_cost: number
+  status: GenerationStatus
+  error_message?: string | null
+  generation_time_ms?: number | null
+  created_at: string
+  completed_at?: string | null
+}
+
+export interface ImageMapping {
+  id: string
+  generation_id: string
+  placeholder_id: string
+  placeholder_name?: string | null
+  image_url: string
+  assigned_manually: boolean
+  assigned_at: string
+}
+
+// =============================================
+// PROFESSIONAL TEMPLATE CONSTANTS
+// =============================================
+
+export const TEMPLATE_CATEGORIES: { value: TemplateCategory; label: string; icon: string; description: string }[] = [
+  { value: 'luxury', label: 'Luxury', icon: '✨', description: 'Elegant high-end designs' },
+  { value: 'modern', label: 'Modern', icon: '🏢', description: 'Clean contemporary style' },
+  { value: 'family', label: 'Family', icon: '👨‍👩‍👧‍👦', description: 'Warm family-oriented' },
+  { value: 'investment', label: 'Investment', icon: '📈', description: 'Data-focused investor appeal' },
+  { value: 'commercial', label: 'Commercial', icon: '🏬', description: 'Business property style' },
+  { value: 'custom', label: 'Custom', icon: '🎨', description: 'Design your own' },
+]
+
+export const PREDEFINED_BRANDS: AgencyBrand[] = [
+  {
+    id: 'brand-remax',
+    name: 'RE/MAX',
+    slug: 'remax',
+    logo_url: null,
+    primary_color: '#e11d48',
+    secondary_color: '#be123c',
+    accent_color: '#f43f5e',
+    heading_font: 'Montserrat',
+    body_font: 'Open Sans',
+    logo_position: 'top',
+    tagline: 'With You All The Way',
+    header_layout: 'extended',
+    footer_layout: 'standard',
+    badge_style: 'pill',
+    template_styles: {},
+    is_active: true,
+    is_featured: true,
+    display_order: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'brand-pam-golding',
+    name: 'Pam Golding Properties',
+    slug: 'pam-golding',
+    logo_url: null,
+    primary_color: '#1e3a5f',
+    secondary_color: '#0f172a',
+    accent_color: '#3b82f6',
+    heading_font: 'Playfair Display',
+    body_font: 'Lato',
+    logo_position: 'top',
+    tagline: 'The Gold Standard in Property',
+    header_layout: 'standard',
+    footer_layout: 'standard',
+    badge_style: 'square',
+    template_styles: {},
+    is_active: true,
+    is_featured: true,
+    display_order: 2,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'brand-seeff',
+    name: 'Seeff',
+    slug: 'seeff',
+    logo_url: null,
+    primary_color: '#0d9488',
+    secondary_color: '#0f766e',
+    accent_color: '#14b8a6',
+    heading_font: 'Raleway',
+    body_font: 'Inter',
+    logo_position: 'sidebar',
+    tagline: 'Experience the Difference',
+    header_layout: 'compact',
+    footer_layout: 'minimal',
+    badge_style: 'rounded',
+    template_styles: {},
+    is_active: true,
+    is_featured: true,
+    display_order: 3,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
+export const CREDIT_COSTS_TEMPLATE = {
+  layout_generation: 1,
+  template_render: 5,
+  professional_template: 5,
+} as const
+
