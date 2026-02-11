@@ -1,6 +1,39 @@
 // Demo CRM Data - Shows all new enhanced fields and features
 // This file is for demonstration and can be used for seeding/testing
 
+// Helper function to get user contacts (demo mode)
+export function getUserContacts(userId: string) {
+  // In demo mode, return all demo contacts
+  return demoContacts
+}
+
+// Helper function to get user listings (demo mode)
+export function getUserListings(userId: string) {
+  return demoListings
+}
+
+// Helper function to get user tasks (demo mode)
+export function getUserTasks(userId: string) {
+  return demoTasks
+}
+
+// Helper function to get user activities (demo mode)
+export function getUserActivities(userId: string) {
+  return demoActivities
+}
+
+// Helper function to get empty CRM message
+export function getEmptyCrmMessage(type: 'contacts' | 'listings' | 'tasks' | 'activities'): string {
+  const messages = {
+    contacts: 'No contacts yet. Add your first contact to get started.',
+    listings: 'No listings yet. Add your first listing to get started.',
+    tasks: 'No tasks yet. Create a task to stay organized.',
+    activities: 'No activities recorded yet. Start logging your interactions.',
+  }
+  return messages[type]
+}
+
+// Demo data arrays
 export const demoContacts = [
   {
     id: 'demo-contact-1',

@@ -91,10 +91,10 @@ export default function ListingsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-semibold text-gray-900">{formatPrice(listing.price)}</p>
+                      <p className="font-semibold text-gray-900">{formatPrice(listing.asking_price)}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">{listing.bedrooms} bed • {listing.bathrooms} bath • {listing.sqft.toLocaleString()} sqft</p>
+                      <p className="text-sm text-gray-600">{listing.bedrooms} bed • {listing.bathrooms} bath • {listing.property_type}</p>
                     </td>
                     <td className="px-6 py-4">
                       <Badge 

@@ -25,7 +25,7 @@ export default function ContactsPage() {
   const filteredContacts = userContacts.filter(contact => {
     const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          contact.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = filterType === 'all' || contact.type === filterType
+    const matchesType = filterType === 'all' || contact.contact_type === filterType
     return matchesSearch && matchesType
   })
 
@@ -75,7 +75,7 @@ export default function ContactsPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold text-gray-900">{contact.name}</h3>
-                      <p className="text-sm text-gray-500 capitalize">{contact.type}</p>
+                      <p className="text-sm text-gray-500 capitalize">{contact.contact_type}</p>
                     </div>
                     <Badge 
                       variant={contact.status === 'active' ? 'success' : contact.status === 'lead' ? 'warning' : 'info'}
