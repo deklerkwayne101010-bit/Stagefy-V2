@@ -47,7 +47,7 @@ const featureOptions = [
   'Waterfront', 'Mountain View', 'City View', 'Beach Access',
 ]
 
-const CREDIT_COST = 2
+const CREDIT_COST = 1
 
 export default function DescriptionGeneratorPage() {
   const { user } = useAuth()
