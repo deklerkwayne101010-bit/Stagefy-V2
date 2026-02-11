@@ -584,3 +584,52 @@ export const CREDIT_COSTS_TEMPLATE = {
   professional_template: 5,
 } as const
 
+// =============================================
+// AGENT PROFILE TYPES (Phase 2)
+// =============================================
+
+export interface AgentProfile {
+  // Existing fields
+  id: string
+  user_id: string
+  name_surname: string
+  email: string
+  phone: string
+  photo_url?: string | null
+  logo_url?: string | null
+  created_at: string
+  updated_at: string
+  
+  // Extended fields (Phase 2)
+  agency_brand?: string | null
+  license_number?: string | null
+  years_experience?: number | null
+  specializations?: string[] | null
+  awards?: string[] | null
+  bio?: string | null
+  website?: string | null
+  facebook?: string | null
+  instagram?: string | null
+  linkedin?: string | null
+  show_on_templates?: boolean | null
+}
+
+export interface AgentProfileFormData {
+  name_surname: string
+  email: string
+  phone: string
+  photo_url?: string
+  logo_url?: string
+  agency_brand?: string
+  license_number?: string
+  years_experience?: number
+  specializations?: string[]
+  awards?: string[]
+  bio?: string
+  website?: string
+  facebook?: string
+  instagram?: string
+  linkedin?: string
+  show_on_templates?: boolean
+}
+
