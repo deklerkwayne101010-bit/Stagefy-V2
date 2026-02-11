@@ -22,13 +22,19 @@ export function getUserActivities(userId: string) {
   return demoActivities
 }
 
+// Helper function to get user media (demo mode)
+export function getUserMedia(userId: string) {
+  return demoMedia
+}
+
 // Helper function to get empty CRM message
-export function getEmptyCrmMessage(type: 'contacts' | 'listings' | 'tasks' | 'activities'): string {
+export function getEmptyCrmMessage(type: 'contacts' | 'listings' | 'tasks' | 'activities' | 'media'): string {
   const messages = {
     contacts: 'No contacts yet. Add your first contact to get started.',
     listings: 'No listings yet. Add your first listing to get started.',
     tasks: 'No tasks yet. Create a task to stay organized.',
     activities: 'No activities recorded yet. Start logging your interactions.',
+    media: 'No media yet. Create photos or videos to get started.',
   }
   return messages[type]
 }
@@ -372,3 +378,49 @@ export const leadSourceLabels: Record<string, string> = {
   phone: 'Phone',
   other: 'Other',
 }
+
+// Demo media data
+export const demoMedia = [
+  {
+    id: 'media-1',
+    type: 'image',
+    title: '45 Oak Avenue - Virtual Staging',
+    listing: '45 Oak Avenue, Randburg',
+    created_at: '2024-01-15',
+  },
+  {
+    id: 'media-2',
+    type: 'video',
+    title: 'Unit 12 Sandton Heights - Video Tour',
+    listing: 'Unit 12, Sandton Heights',
+    created_at: '2024-01-14',
+  },
+  {
+    id: 'media-3',
+    type: 'image',
+    title: 'Beach Road - Day to Dusk',
+    listing: '24 Beach Road, Camps Bay',
+    created_at: '2024-01-13',
+  },
+  {
+    id: 'media-4',
+    type: 'image',
+    title: '45 Oak Avenue - Living Room',
+    listing: '45 Oak Avenue, Randburg',
+    created_at: '2024-01-12',
+  },
+  {
+    id: 'media-5',
+    type: 'video',
+    title: 'Sandton Apartment - Drone Footage',
+    listing: 'Unit 12, Sandton Heights',
+    created_at: '2024-01-11',
+  },
+  {
+    id: 'media-6',
+    type: 'image',
+    title: 'Camps Bay - Pool Enhancement',
+    listing: '24 Beach Road, Camps Bay',
+    created_at: '2024-01-10',
+  },
+]
