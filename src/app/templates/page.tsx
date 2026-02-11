@@ -8,6 +8,11 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
+import { TemplateSelectionModal } from '@/components/templates/TemplateSelectionModal'
+import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPopup'
+import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
+import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
+import { TEMPLATE_CATEGORIES, type TemplateCategory } from '@/lib/types'
 
 // Marketplace Templates - Preset templates available to all users
 const marketplaceTemplates: { id: number; name: string; type: string; thumbnail: string; description: string }[] = [
@@ -104,6 +109,18 @@ export default function TemplatesPage() {
   const [includeAgentProfile, setIncludeAgentProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
+
+  // Professional Template Modal State
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [showLayoutPopup, setShowLayoutPopup] = useState(false)
+  const [showPromptReview, setShowPromptReview] = useState(false)
+  const [showAgentPopup, setShowAgentPopup] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<TemplateCategory | null>(null)
+  const [generatedLayout, setGeneratedLayout] = useState<{
+    prompt: string
+    layoutStructure: any
+  } | null>(null)
+  const [isGeneratingLayout, setIsGeneratingLayout] = useState(false)
 
   // Load agent profile on mount
   useEffect(() => {
@@ -267,6 +284,59 @@ export default function TemplatesPage() {
     }
   }
 
+  // Professional Template Workflow Handlers
+  const handleSelectTemplate = (category: TemplateCategory) => {
+    setSelectedCategory(category)
+  }
+
+  const handleGenerateLayout = async (category: TemplateCategory) => {
+    setSelectedCategory(category)
+    setShowLayoutPopup(true)
+    setIsGeneratingLayout(true)
+
+    try {
+      const response = await fetch('/api/ai/template/layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateCategory: category }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate layout')
+      }
+
+      const data = await response.json()
+      setGeneratedLayout({
+        prompt: data.prompt,
+        layoutStructure: data.layoutStructure,
+      })
+      setShowPromptReview(true)
+    } catch (err: any) {
+      console.error('Layout generation error:', err)
+      setError(err.message || 'Failed to generate layout')
+    } finally {
+      setIsGeneratingLayout(false)
+      setShowLayoutPopup(false)
+    }
+  }
+
+  const handleReviewConfirm = (finalPrompt: string, layoutStructure: any) => {
+    // After review, show agent profile popup
+    setShowPromptReview(false)
+    setShowAgentPopup(true)
+  }
+
+  const handleAgentConfirm = (data: {
+    includeAgent: boolean
+    agentData?: any
+    brand?: any
+  }) => {
+    setShowAgentPopup(false)
+    // For now, show success message - full implementation would continue to image placement
+    setError(null)
+    alert(`Professional template workflow started!\nCategory: ${selectedCategory}\nInclude Agent: ${data.includeAgent}`)
+  }
+
   return (
     <div>
       <Header title="AI Template Builder" subtitle="Create stunning listing templates with AI" />
@@ -304,6 +374,15 @@ export default function TemplatesPage() {
             }`}
           >
             Agent Profile 👤
+          </button>
+          <button
+            onClick={() => setShowTemplateModal(true)}
+            className="ml-auto px-4 py-2 rounded-lg font-medium transition-colors bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            Professional Templates ✨
           </button>
         </div>
 
@@ -847,6 +926,62 @@ export default function TemplatesPage() {
           </div>
         ) : null}
       </div>
+
+      {/* Professional Template Modals */}
+      <TemplateSelectionModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        onSelect={handleSelectTemplate}
+        onGenerateLayout={handleGenerateLayout}
+      />
+
+      {selectedCategory && (
+        <LayoutGenerationPopup
+          isOpen={showLayoutPopup}
+          template={{
+            id: 'temp',
+            name: TEMPLATE_CATEGORIES.find(c => c.value === selectedCategory)?.label || 'Template',
+            category: selectedCategory,
+            icon: TEMPLATE_CATEGORIES.find(c => c.value === selectedCategory)?.icon || '✨',
+          }}
+          onConfirm={() => {}}
+          onCancel={() => {
+            setShowLayoutPopup(false)
+            setSelectedCategory(null)
+          }}
+        />
+      )}
+
+      {generatedLayout && (
+        <PromptReviewInterface
+          isOpen={showPromptReview}
+          category={selectedCategory || 'modern'}
+          generatedPrompt={generatedLayout.prompt}
+          layoutStructure={generatedLayout.layoutStructure.sections}
+          onConfirm={handleReviewConfirm}
+          onRegenerate={() => {
+            setShowPromptReview(false)
+            if (selectedCategory) {
+              handleGenerateLayout(selectedCategory)
+            }
+          }}
+          onCancel={() => {
+            setShowPromptReview(false)
+            setGeneratedLayout(null)
+            setSelectedCategory(null)
+          }}
+        />
+      )}
+
+      <AgentProfilePopup
+        isOpen={showAgentPopup}
+        onConfirm={handleAgentConfirm}
+        onCancel={() => {
+          setShowAgentPopup(false)
+          setSelectedCategory(null)
+          setGeneratedLayout(null)
+        }}
+      />
     </div>
   )
 }
