@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
 import { TemplateSelectionModal } from '@/components/templates/TemplateSelectionModal'
+import { ProfessionalTemplateWizard } from '@/components/templates/ProfessionalTemplateWizard'
 import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPopup'
 import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
 import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
@@ -110,7 +111,24 @@ export default function TemplatesPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
 
-  // Professional Template Modal State
+  // Professional Template Wizard State
+  const [showWizard, setShowWizard] = useState(false)
+  const [wizardData, setWizardData] = useState<{
+    photoFrames: number
+    includeAgent: boolean
+    propertyDetails: {
+      header: string
+      price: string
+      location: string
+      keyFeatures: string
+      bedrooms: string
+      bathrooms: string
+      squareMeters: string
+      propertyType: string
+    }
+  } | null>(null)
+  
+  // Legacy Modal State (kept for backward compatibility)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [showLayoutPopup, setShowLayoutPopup] = useState(false)
   const [showPromptReview, setShowPromptReview] = useState(false)
@@ -397,8 +415,8 @@ export default function TemplatesPage() {
                       key={type.value}
                       onClick={() => {
                         if (type.value === 'professional') {
-                          // Open professional template workflow
-                          setShowTemplateModal(true)
+                          // Open new professional template wizard
+                          setShowWizard(true)
                         } else {
                           setTemplateType(type.value)
                         }
@@ -935,7 +953,26 @@ export default function TemplatesPage() {
         ) : null}
       </div>
 
-      {/* Professional Template Modals */}
+      {/* Professional Template Wizard */}
+      <ProfessionalTemplateWizard
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        onComplete={(data) => {
+          setWizardData(data)
+          setShowWizard(false)
+          // Start the template generation workflow with the collected data
+          console.log('Wizard completed:', data)
+          // TODO: Proceed with template generation
+          alert(`Professional template created!
+- Photo Frames: ${data.photoFrames}
+- Include Agent: ${data.includeAgent}
+- Header: ${data.propertyDetails.header}
+- Price: ${data.propertyDetails.price}
+- Location: ${data.propertyDetails.location}`)
+        }}
+      />
+
+      {/* Legacy Template Selection Modal (kept for backward compatibility) */}
       <TemplateSelectionModal
         isOpen={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}
