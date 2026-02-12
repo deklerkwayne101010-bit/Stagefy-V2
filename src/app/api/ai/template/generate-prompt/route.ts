@@ -152,7 +152,14 @@ Make it unique and different from generic templates!`
       if (!response.ok) {
         const errorText = await response.text()
         console.error('Qwen API error:', errorText)
-        throw new Error(`Qwen API failed: ${errorText}`)
+        
+        // Try to parse as JSON, if not, use raw text
+        try {
+          const errorJson = JSON.parse(errorText)
+          throw new Error(errorJson.detail || errorJson.message || JSON.stringify(errorJson))
+        } catch {
+          throw new Error(`Qwen API failed: ${errorText.substring(0, 200)}`)
+        }
       }
 
       const prediction = await response.json()
