@@ -51,22 +51,23 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get current user
+    // Get current user - allow demo mode without authentication
     let user: any = null
+    let demoMode = isDemoMode
+    
     if (!isDemoMode) {
       user = await getCurrentUser()
+      // If not logged in, treat as demo mode
       if (!user?.id) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        )
+        demoMode = true
+        console.log('User not authenticated, running in demo mode')
       }
     }
 
     const creditCost = CREDIT_COSTS.prompt_generation || 5 // Default to 5 credits if not defined
 
     // Demo mode: return mock response
-    if (isDemoMode) {
+    if (demoMode) {
       // Simulate processing delay
       await new Promise((resolve) => setTimeout(resolve, 3000))
 
@@ -75,26 +76,29 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if user can perform this action
-    const { canPerform, error } = await canPerformAction(user.id, creditCost)
-    if (!canPerform) {
-      return NextResponse.json(
-        { error: error || 'Insufficient credits for prompt generation' },
-        { status: 402 }
-      )
-    }
+    // If user is logged in, check credits and reserve
+    if (user?.id) {
+      // Check if user can perform this action
+      const { canPerform, error } = await canPerformAction(user.id, creditCost)
+      if (!canPerform) {
+        return NextResponse.json(
+          { error: error || 'Insufficient credits for prompt generation' },
+          { status: 402 }
+        )
+      }
 
-    // Reserve credits
-    const reservation = await reserveCredits(
-      user.id,
-      'prompt_generation',
-      `prompt-${Date.now()}`
-    )
-    if (!reservation.success) {
-      return NextResponse.json(
-        { error: reservation.error || 'Failed to reserve credits' },
-        { status: 402 }
+      // Reserve credits
+      const reservation = await reserveCredits(
+        user.id,
+        'prompt_generation',
+        `prompt-${Date.now()}`
       )
+      if (!reservation.success) {
+        return NextResponse.json(
+          { error: reservation.error || 'Failed to reserve credits' },
+          { status: 402 }
+        )
+      }
     }
 
     try {
@@ -210,8 +214,10 @@ Make it unique and different from generic templates!`
     } catch (aiError: any) {
       console.error('AI processing error:', aiError)
 
-      // Refund credits on failure
-      await refundCredits(user.id, 'prompt_generation', `prompt-${Date.now()}`)
+      // Refund credits on failure (only if user was logged in)
+      if (user?.id) {
+        await refundCredits(user.id, 'prompt_generation', `prompt-${Date.now()}`)
+      }
 
       // Return fallback response
       return NextResponse.json(
