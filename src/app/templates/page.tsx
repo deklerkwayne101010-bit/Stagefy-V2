@@ -252,14 +252,28 @@ export default function TemplatesPage() {
         finalPrompt = `${prompt}${agentInfo}`
       }
 
+      // Build images array - include property images + agent photo + agent logo (if agent profile enabled)
+      const imagesToSend = [...selectedImages]
+      
+      // Add agent photo and logo to images if agent profile is enabled
+      // This ensures Nano Banana Pro can use them in the template
+      if (includeAgentProfile) {
+        if (agentPhoto) {
+          imagesToSend.push(agentPhoto)
+        }
+        if (agentLogo) {
+          imagesToSend.push(agentLogo)
+        }
+      }
+
       const requestBody: any = {
-        images: selectedImages,
+        images: imagesToSend,
         type: templateType,
         userId: user?.id,
         prompt: finalPrompt,
       }
       
-      // Add agent profile data if toggle is enabled
+      // Add agent profile data if toggle is enabled (for reference in template)
       if (includeAgentProfile) {
         requestBody.agentProfile = {
           name: agentName,
@@ -960,6 +974,9 @@ export default function TemplatesPage() {
         onComplete={async (data) => {
           setWizardData(data)
           setShowWizard(false)
+          
+          // Sync wizard's includeAgent with the main form's includeAgentProfile toggle
+          setIncludeAgentProfile(data.includeAgent)
           
           // Call the API to generate the prompt using Replicate AI (Qwen)
           setLoading(true)
