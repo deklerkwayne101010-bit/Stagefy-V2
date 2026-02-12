@@ -964,6 +964,7 @@ export default function TemplatesPage() {
           // Call the API to generate the prompt using Replicate AI (Qwen)
           setLoading(true)
           setError(null)
+          setResult(null) // Clear previous result
           
           try {
             const response = await fetch('/api/ai/template/generate-prompt', {
@@ -973,6 +974,7 @@ export default function TemplatesPage() {
                 photoFrames: data.photoFrames,
                 includeAgent: data.includeAgent,
                 propertyDetails: data.propertyDetails,
+                uploadedImagesCount: selectedImages.length,
               }),
             })
             
@@ -983,30 +985,17 @@ export default function TemplatesPage() {
             
             const result = await response.json()
             
-            // Show the generated prompt to the user
-            alert(`🎨 Prompt Generated Successfully!
-
-Your unique Nano Banana Pro prompt has been created:
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${result.prompt}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📋 Layout Suggestions:
-${result.layoutSuggestions?.map((s: string) => `• ${s}`).join('\n') || 'N/A'}
-
-🎨 Style Guidelines:
-${result.styleGuidelines || 'N/A'}
-
-You can now use this prompt with Nano Banana Pro to generate your professional template!`)
-            
-            // Also set the prompt in the main form for potential editing
+            // Set the prompt in the main form textarea for the user to see/edit
             setPrompt(result.prompt)
+            
+            // Show success message briefly
+            alert(`✅ Prompt generated successfully! 
+            
+The prompt has been added to the textbox below. You can edit it if needed, then click "Generate Template" to create your design with Nano Banana Pro.`)
             
           } catch (err: any) {
             console.error('Prompt generation error:', err)
             setError(err.message || 'Failed to generate prompt. Please try again.')
-            alert(`Error generating prompt: ${err.message}`)
           } finally {
             setLoading(false)
           }

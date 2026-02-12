@@ -36,12 +36,13 @@ interface PromptGenerationRequest {
   photoFrames: number
   includeAgent: boolean
   propertyDetails: PropertyDetails
+  uploadedImagesCount?: number
 }
 
 export async function POST(request: Request) {
   try {
     const body: PromptGenerationRequest = await request.json()
-    const { photoFrames, includeAgent, propertyDetails } = body
+    const { photoFrames, includeAgent, propertyDetails, uploadedImagesCount } = body
 
     // Validate input
     if (!propertyDetails?.header) {
@@ -95,8 +96,10 @@ Output ONLY valid JSON format.`
       const userPrompt = `Generate a completely unique and professional Nano Banana Pro prompt for a 
 real estate marketing flyer with the following specifications:
 
-## PHOTO FRAMES CONFIGURATION
+## PHOTO FRAMES AND IMAGES CONFIGURATION
 - Number of photo frames: ${photoFrames}
+- Number of images uploaded by agent: ${uploadedImagesCount || 0}
+- IMPORTANT: The prompt MUST create space for EXACTLY ${uploadedImagesCount || photoFrames} property images in the template layout. These images will be provided by the agent and must be incorporated into the design.
 - Layout suggestion: ${getPhotoLayoutSuggestion(photoFrames)}
 
 ## PROPERTY DETAILS
