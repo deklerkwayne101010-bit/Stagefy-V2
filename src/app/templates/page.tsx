@@ -957,18 +957,59 @@ export default function TemplatesPage() {
       <ProfessionalTemplateWizard
         isOpen={showWizard}
         onClose={() => setShowWizard(false)}
-        onComplete={(data) => {
+        onComplete={async (data) => {
           setWizardData(data)
           setShowWizard(false)
-          // Start the template generation workflow with the collected data
-          console.log('Wizard completed:', data)
-          // TODO: Proceed with template generation
-          alert(`Professional template created!
-- Photo Frames: ${data.photoFrames}
-- Include Agent: ${data.includeAgent}
-- Header: ${data.propertyDetails.header}
-- Price: ${data.propertyDetails.price}
-- Location: ${data.propertyDetails.location}`)
+          
+          // Call the API to generate the prompt using Replicate AI (Qwen)
+          setLoading(true)
+          setError(null)
+          
+          try {
+            const response = await fetch('/api/ai/template/generate-prompt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                photoFrames: data.photoFrames,
+                includeAgent: data.includeAgent,
+                propertyDetails: data.propertyDetails,
+              }),
+            })
+            
+            if (!response.ok) {
+              const errorData = await response.json()
+              throw new Error(errorData.error || 'Failed to generate prompt')
+            }
+            
+            const result = await response.json()
+            
+            // Show the generated prompt to the user
+            alert(`🎨 Prompt Generated Successfully!
+
+Your unique Nano Banana Pro prompt has been created:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${result.prompt}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 Layout Suggestions:
+${result.layoutSuggestions?.map((s: string) => `• ${s}`).join('\n') || 'N/A'}
+
+🎨 Style Guidelines:
+${result.styleGuidelines || 'N/A'}
+
+You can now use this prompt with Nano Banana Pro to generate your professional template!`)
+            
+            // Also set the prompt in the main form for potential editing
+            setPrompt(result.prompt)
+            
+          } catch (err: any) {
+            console.error('Prompt generation error:', err)
+            setError(err.message || 'Failed to generate prompt. Please try again.')
+            alert(`Error generating prompt: ${err.message}`)
+          } finally {
+            setLoading(false)
+          }
         }}
       />
 
