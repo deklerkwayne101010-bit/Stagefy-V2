@@ -165,19 +165,35 @@ Make it unique and different from generic templates!`
       const prediction = await response.json()
       console.log('Qwen prompt generation prediction:', prediction)
 
-      // Parse the output (expecting JSON)
+      // Parse the output - Qwen returns the output directly as a string
       let output = prediction.output
+      
+      // Log the output type for debugging
+      console.log('Output type:', typeof output)
+      console.log('Output:', output)
+      
+      // If output is a string, try to parse it as JSON or use it directly
       if (typeof output === 'string') {
-        try {
-          // Try to extract JSON from the output
-          const jsonMatch = output.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
+        // Try to extract JSON from the string
+        const jsonMatch = output.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          try {
             output = JSON.parse(jsonMatch[0])
-          } else {
-            throw new Error('No JSON found in output')
+          } catch {
+            // If JSON parsing fails, treat the entire string as the prompt
+            output = {
+              prompt: output,
+              layoutSuggestions: [
+                'Modern grid layout with equal-sized photo frames',
+                'Header banner with gradient background',
+                'Property details in clean card design',
+              ],
+              styleGuidelines:
+                'Professional real estate marketing style with clean typography and bold colors',
+            }
           }
-        } catch {
-          // If not valid JSON, create a structured response from the text
+        } else {
+          // No JSON found, use the entire string as the prompt
           output = {
             prompt: output,
             layoutSuggestions: [
@@ -193,10 +209,12 @@ Make it unique and different from generic templates!`
 
       // Ensure all required fields exist
       const result = {
-        prompt: output.prompt || generateMockPrompt(photoFrames, includeAgent, propertyDetails).prompt,
-        layoutSuggestions: output.layoutSuggestions || [],
-        styleGuidelines: output.styleGuidelines || '',
+        prompt: output?.prompt || generateMockPrompt(photoFrames, includeAgent, propertyDetails).prompt,
+        layoutSuggestions: output?.layoutSuggestions || [],
+        styleGuidelines: output?.styleGuidelines || '',
       }
+
+      console.log('Returning result:', result)
 
       // Return successful response
       return NextResponse.json(result)
