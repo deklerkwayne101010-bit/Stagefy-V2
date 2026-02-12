@@ -123,7 +123,7 @@ Generate a JSON response with these fields:
 The prompt must be in English, be highly detailed, and describe a visually stunning flyer. 
 Make it unique and different from generic templates!`
 
-      // Call Qwen model via Replicate
+      // Call Qwen model via Replicate - using correct parameters from the model schema
       const response = await fetch(
         'https://api.replicate.com/v1/models/qwen/qwen3-235b-a22b-instruct-2507/predictions',
         {
@@ -135,10 +135,12 @@ Make it unique and different from generic templates!`
           },
           body: JSON.stringify({
             input: {
-              prompt: userPrompt,
-              system: systemPrompt,
+              prompt: `${systemPrompt}\n\n${userPrompt}`,
               temperature: QWEN_MODEL_CONFIG.temperature,
               max_tokens: QWEN_MODEL_CONFIG.max_tokens,
+              top_p: 1,
+              presence_penalty: 0,
+              frequency_penalty: 0,
             },
           }),
         }
