@@ -51,61 +51,33 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get current user - allow demo mode without authentication
+    // Get current user - but always try to call Replicate AI
     let user: any = null
-    let demoMode = isDemoMode
     
     try {
       if (!isDemoMode) {
         user = await getCurrentUser()
-        // If not logged in or error, treat as demo mode
-        if (!user?.id) {
-          demoMode = true
-          console.log('User not authenticated, running in demo mode')
-        }
       }
     } catch (err) {
       console.error('Error getting user:', err)
-      demoMode = true
     }
 
-    const creditCost = CREDIT_COSTS.prompt_generation || 5 // Default to 5 credits if not defined
+    const creditCost = CREDIT_COSTS.prompt_generation || 5
 
-    // Demo mode: return mock response
-    if (demoMode) {
-      // Simulate processing delay
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-
+    // Check if Replicate API token is configured
+    const replicateToken = process.env.REPLICATE_API_TOKEN
+    if (!replicateToken) {
+      console.error('REPLICATE_API_TOKEN is not set in environment variables')
       return NextResponse.json(
-        generateMockPrompt(photoFrames, includeAgent, propertyDetails)
+        { 
+          error: 'Replicate API not configured. Please add REPLICATE_API_TOKEN to your environment variables.',
+          isConfigured: false 
+        },
+        { status: 500 }
       )
     }
 
-    // If user is logged in, check credits and reserve
-    if (user?.id) {
-      // Check if user can perform this action
-      const { canPerform, error } = await canPerformAction(user.id, creditCost)
-      if (!canPerform) {
-        return NextResponse.json(
-          { error: error || 'Insufficient credits for prompt generation' },
-          { status: 402 }
-        )
-      }
-
-      // Reserve credits
-      const reservation = await reserveCredits(
-        user.id,
-        'prompt_generation',
-        `prompt-${Date.now()}`
-      )
-      if (!reservation.success) {
-        return NextResponse.json(
-          { error: reservation.error || 'Failed to reserve credits' },
-          { status: 402 }
-        )
-      }
-    }
-
+    // Try to call Replicate AI - always attempt the real API call
     try {
       // Build the system prompt for Qwen
       const systemPrompt = `You are an expert real estate marketing designer specializing in creating 
