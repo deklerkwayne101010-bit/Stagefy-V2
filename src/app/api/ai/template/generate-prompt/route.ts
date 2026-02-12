@@ -55,13 +55,18 @@ export async function POST(request: Request) {
     let user: any = null
     let demoMode = isDemoMode
     
-    if (!isDemoMode) {
-      user = await getCurrentUser()
-      // If not logged in, treat as demo mode
-      if (!user?.id) {
-        demoMode = true
-        console.log('User not authenticated, running in demo mode')
+    try {
+      if (!isDemoMode) {
+        user = await getCurrentUser()
+        // If not logged in or error, treat as demo mode
+        if (!user?.id) {
+          demoMode = true
+          console.log('User not authenticated, running in demo mode')
+        }
       }
+    } catch (err) {
+      console.error('Error getting user:', err)
+      demoMode = true
     }
 
     const creditCost = CREDIT_COSTS.prompt_generation || 5 // Default to 5 credits if not defined
