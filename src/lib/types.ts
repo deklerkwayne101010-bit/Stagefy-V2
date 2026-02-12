@@ -262,6 +262,7 @@ export const CREDIT_COSTS = {
   image_to_video_10sec: 15,
   template_generation: 5,
   description_generation: 1,
+  prompt_generation: 3,
 } as const
 
 export type CreditOperation = keyof typeof CREDIT_COSTS

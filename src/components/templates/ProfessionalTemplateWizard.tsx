@@ -1,6 +1,6 @@
 // ProfessionalTemplateWizard Component
 // Multi-step wizard for professional template creation
-// Step 1: Photo Frames → Step 2: Agent Profile → Step 3: Property Details
+// Step 1: Photo Frames → Step 2: Agent Profile → Step 3: Property Details → Generate Prompt
 
 'use client'
 
@@ -20,6 +20,12 @@ interface PropertyDetails {
   propertyType: string
 }
 
+interface GeneratedPrompt {
+  prompt: string
+  layoutSuggestions: string[]
+  styleGuidelines: string
+}
+
 interface ProfessionalTemplateWizardProps {
   isOpen: boolean
   onClose: () => void
@@ -27,6 +33,7 @@ interface ProfessionalTemplateWizardProps {
     photoFrames: number
     includeAgent: boolean
     propertyDetails: PropertyDetails
+    generatedPrompt?: GeneratedPrompt
   }) => void
 }
 
@@ -50,6 +57,8 @@ export function ProfessionalTemplateWizard({
     squareMeters: '',
     propertyType: '',
   })
+  const [isGenerating, setIsGenerating] = useState<boolean>(false)
+  const [generatedPrompt, setGeneratedPrompt] = useState<GeneratedPrompt | null>(null)
 
   if (!isOpen) return null
 
@@ -84,14 +93,53 @@ export function ProfessionalTemplateWizard({
       setStep('agent')
     } else if (step === 'agent') {
       setStep('details')
-    } else if (step === 'details') {
-      // Complete the wizard
+    }
+  }
+
+  const handleGeneratePrompt = async () => {
+    setIsGenerating(true)
+    
+    try {
+      // Call the API to generate the prompt using Replicate AI
+      const response = await fetch('/api/ai/template/generate-prompt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          photoFrames,
+          includeAgent,
+          propertyDetails,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate prompt')
+      }
+
+      const data = await response.json()
+      
+      setGeneratedPrompt(data)
+      
+      // Complete the wizard with the generated prompt
+      onComplete({
+        photoFrames,
+        includeAgent,
+        propertyDetails,
+        generatedPrompt: data,
+      })
+      onClose()
+    } catch (error) {
+      console.error('Error generating prompt:', error)
+      // Still complete with the data, but without the generated prompt
       onComplete({
         photoFrames,
         includeAgent,
         propertyDetails,
       })
       onClose()
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -438,19 +486,41 @@ export function ProfessionalTemplateWizard({
           {/* Footer */}
           <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4">
             <div className="flex justify-between gap-3">
-              <Button 
-                variant="outline" 
+              <button
+                type="button"
                 onClick={handleBack}
                 disabled={step === 'frames'}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Back
-              </Button>
-              <Button 
-                onClick={handleNext}
-                disabled={step === 'details' && !propertyDetails.header.trim()}
+              </button>
+              <button
+                type="button"
+                onClick={step === 'details' ? handleGeneratePrompt : handleNext}
+                disabled={step === 'details' && !propertyDetails.header.trim() || isGenerating}
+                className={`px-6 py-2 rounded-lg text-white font-medium transition-all ${
+                  step === 'details' 
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
               >
-                {step === 'details' ? 'Create Template' : 'Continue'}
-              </Button>
+                {isGenerating ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Generating...
+                  </>
+                ) : step === 'details' ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Generate Prompt
+                  </>
+                ) : 'Continue'}
+              </button>
             </div>
           </div>
         </div>
