@@ -289,16 +289,23 @@ export default function TemplatesPage() {
     setSelectedCategory(category)
   }
 
-  const handleGenerateLayout = async (category: TemplateCategory) => {
+  const handleGenerateLayout = (category: TemplateCategory) => {
+    // Just show the popup - API call happens when user clicks "Generate Layout" in popup
     setSelectedCategory(category)
     setShowLayoutPopup(true)
+  }
+
+  const handleLayoutConfirm = async () => {
+    if (!selectedCategory) return
+    
     setIsGeneratingLayout(true)
+    setError(null)
 
     try {
       const response = await fetch('/api/ai/template/layout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateCategory: category }),
+        body: JSON.stringify({ templateCategory: selectedCategory }),
       })
 
       if (!response.ok) {
@@ -310,13 +317,13 @@ export default function TemplatesPage() {
         prompt: data.prompt,
         layoutStructure: data.layoutStructure,
       })
+      setShowLayoutPopup(false)
       setShowPromptReview(true)
     } catch (err: any) {
       console.error('Layout generation error:', err)
       setError(err.message || 'Failed to generate layout')
     } finally {
       setIsGeneratingLayout(false)
-      setShowLayoutPopup(false)
     }
   }
 
@@ -945,7 +952,8 @@ export default function TemplatesPage() {
             category: selectedCategory,
             icon: TEMPLATE_CATEGORIES.find(c => c.value === selectedCategory)?.icon || '✨',
           }}
-          onConfirm={() => {}}
+          isGenerating={isGeneratingLayout}
+          onConfirm={handleLayoutConfirm}
           onCancel={() => {
             setShowLayoutPopup(false)
             setSelectedCategory(null)

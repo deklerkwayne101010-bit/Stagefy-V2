@@ -3,7 +3,7 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { Button } from '@/components/ui/Button'
 import { TEMPLATE_CATEGORIES, type TemplateCategory } from '@/lib/types'
 
@@ -15,6 +15,7 @@ interface LayoutGenerationPopupProps {
     category: TemplateCategory
     icon: string
   } | null
+  isGenerating: boolean
   onConfirm: () => void
   onCancel: () => void
 }
@@ -22,21 +23,11 @@ interface LayoutGenerationPopupProps {
 export function LayoutGenerationPopup({
   isOpen,
   template,
+  isGenerating,
   onConfirm,
   onCancel,
 }: LayoutGenerationPopupProps) {
-  const [isGenerating, setIsGenerating] = useState(false)
-
   if (!isOpen || !template) return null
-
-  const handleConfirm = async () => {
-    setIsGenerating(true)
-    try {
-      await onConfirm()
-    } finally {
-      setIsGenerating(false)
-    }
-  }
 
   const categoryInfo = TEMPLATE_CATEGORIES.find(c => c.value === template.category)
 
@@ -125,7 +116,7 @@ export function LayoutGenerationPopup({
               Cancel
             </Button>
             <Button 
-              onClick={handleConfirm}
+              onClick={onConfirm}
               loading={isGenerating}
               disabled={isGenerating}
             >
