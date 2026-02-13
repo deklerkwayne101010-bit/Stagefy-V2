@@ -3,10 +3,21 @@
 
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase'
-import { supabase } from '@/lib/supabase'
+
+// Import actual Supabase client for storage
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
+// Create actual supabase client for storage operations
+const getSupabaseClient = () => {
+  if (!supabaseUrl || !supabaseAnonKey) return null
+  return createClient(supabaseUrl, supabaseAnonKey)
+}
 
 // Check if running in demo mode
-const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const isDemoMode = !supabaseUrl || !supabaseAnonKey
 
 export async function POST(request: Request) {
   try {
@@ -80,7 +91,15 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const supabaseClient = getSupabaseClient()
+    if (!supabaseClient) {
+      return NextResponse.json(
+        { error: 'Supabase not configured' },
+        { status: 500 }
+      )
+    }
+
+    const { data, error } = await supabaseClient.storage
       .from('uploads')
       .upload(filename, buffer, {
         contentType: image.type,
@@ -96,7 +115,7 @@ export async function POST(request: Request) {
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = await supabaseClient.storage
       .from('uploads')
       .getPublicUrl(filename)
 
