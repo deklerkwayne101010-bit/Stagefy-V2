@@ -197,15 +197,44 @@ export default function TemplatesPage() {
     }
   }
 
-  // Handle photo upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, setPhoto: React.Dispatch<React.SetStateAction<string | null>>) => {
+  // Handle photo upload - uploads to Supabase Storage
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, setPhoto: React.Dispatch<React.SetStateAction<string | null>>) => {
     const file = e.target.files?.[0]
-    if (file) {
+    if (!file) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Create FormData and append the file
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('type', setPhoto === setAgentPhoto ? 'photo' : 'logo')
+
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upload image')
+      }
+
+      const data = await response.json()
+      
+      // Set the uploaded URL
+      setPhoto(data.url)
+    } catch (err: any) {
+      console.error('Upload error:', err)
+      // Fallback to base64 if upload fails (for demo mode)
       const reader = new FileReader()
       reader.onload = (event) => {
         setPhoto(event.target?.result as string)
       }
       reader.readAsDataURL(file)
+    } finally {
+      setLoading(false)
     }
   }
 

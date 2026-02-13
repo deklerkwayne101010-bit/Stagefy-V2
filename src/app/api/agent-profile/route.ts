@@ -12,7 +12,10 @@ export async function GET() {
   try {
     let userId: string | null = null
 
-    if (!isDemoMode) {
+    // Check if Supabase is configured
+    const isSupabaseConfigured = !isDemoMode
+
+    if (isSupabaseConfigured) {
       const user = await getCurrentUser()
       if (!user?.id) {
         return NextResponse.json(
@@ -24,9 +27,9 @@ export async function GET() {
     }
 
     // Demo mode: return mock data
-    if (isDemoMode) {
+    if (isDemoMode || !isSupabaseConfigured) {
       return NextResponse.json({
-        data: {
+        profile: {
           id: 'demo-agent-id',
           user_id: 'demo-user-id',
           name_surname: 'Demo Agent',
@@ -88,11 +91,15 @@ export async function POST(request: Request) {
   try {
     let userId: string | null = null
 
-    if (!isDemoMode) {
+    // Check if Supabase is configured
+    const isSupabaseConfigured = !isDemoMode
+    
+    if (isSupabaseConfigured) {
       const user = await getCurrentUser()
       if (!user?.id) {
+        // Return a more helpful error
         return NextResponse.json(
-          { error: 'Authentication required' },
+          { error: 'Authentication required. Please log in to save your agent profile.' },
           { status: 401 }
         )
       }
@@ -101,18 +108,26 @@ export async function POST(request: Request) {
 
     const body = await request.json()
 
-    // Demo mode
-    if (isDemoMode) {
+    // Handle base64 images - if they're too large, try to use them as-is
+    // In production, these should be uploaded to storage first
+    const { photo_url, logo_url, ...restBody } = body
+
+    // Demo mode or Supabase not configured - save to localStorage via client
+    if (isDemoMode || !isSupabaseConfigured) {
       return NextResponse.json({
         data: {
           id: 'demo-agent-id',
-          user_id: 'demo-user-id',
-          ...body,
+          user_id: userId || 'demo-user-id',
+          name_surname: restBody.name_surname || '',
+          email: restBody.email || '',
+          phone: restBody.phone || '',
+          photo_url: photo_url, // This might be a large base64 string
+          logo_url: logo_url,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
         demo: true,
-        demoMessage: 'Demo mode: Profile saved (not persisted)',
+        demoMessage: 'Profile saved. Note: For production, images should be uploaded to Supabase Storage to avoid payload size limits.',
       })
     }
 
