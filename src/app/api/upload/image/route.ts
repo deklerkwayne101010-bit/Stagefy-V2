@@ -12,15 +12,16 @@ export async function POST(request: Request) {
   try {
     let userId: string | null = null
 
-    if (!isDemoMode) {
-      const user = await getCurrentUser()
-      if (!user?.id) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        )
+    // Check if Supabase is configured
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (isSupabaseConfigured) {
+      try {
+        const user = await getCurrentUser()
+        userId = user?.id || null
+      } catch (authError) {
+        console.error('Auth error:', authError)
       }
-      userId = user.id
     }
 
     const formData = await request.formData()
@@ -35,17 +36,17 @@ export async function POST(request: Request) {
     }
 
     // Demo mode: return mock URL
-    if (isDemoMode) {
-      // Return the base64 as a data URL for demo mode
-      const buffer = await image.arrayBuffer()
-      const base64 = Buffer.from(buffer).toString('base64')
+    if (!userId || isDemoMode) {
+      // For demo mode, convert to base64 data URL
+      const bytes = await image.arrayBuffer()
+      const base64 = Buffer.from(bytes).toString('base64')
       const mimeType = image.type || 'image/jpeg'
       const dataUrl = `data:${mimeType};base64,${base64}`
       
       return NextResponse.json({
         url: dataUrl,
         demo: true,
-        demoMessage: 'Demo mode: Image not actually uploaded',
+        demoMessage: 'Demo mode: Image stored as data URL',
       })
     }
 
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     const randomId = Math.random().toString(36).substring(2, 8)
     const extension = image.name.split('.').pop() || 'jpg'
     const folder = type === 'photo' ? 'agent-photos' : type === 'logo' ? 'agent-logos' : 'general'
-    const filename = `${folder}/${userId || 'anonymous'}-${timestamp}-${randomId}.${extension}`
+    const filename = `${folder}/${userId}-${timestamp}-${randomId}.${extension}`
 
     // Convert file to buffer
     const arrayBuffer = await image.arrayBuffer()

@@ -13,21 +13,19 @@ export async function GET() {
     let userId: string | null = null
 
     // Check if Supabase is configured
-    const isSupabaseConfigured = !isDemoMode
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (isSupabaseConfigured) {
-      const user = await getCurrentUser()
-      if (!user?.id) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        )
+      try {
+        const user = await getCurrentUser()
+        userId = user?.id || null
+      } catch (authError) {
+        console.error('Auth error:', authError)
       }
-      userId = user.id
     }
 
-    // Demo mode: return mock data
-    if (isDemoMode || !isSupabaseConfigured) {
+    // Demo mode or not authenticated: return mock data
+    if (!userId || isDemoMode) {
       return NextResponse.json({
         profile: {
           id: 'demo-agent-id',
@@ -72,12 +70,12 @@ export async function GET() {
 
     if (!data) {
       return NextResponse.json({
-        data: null,
+        profile: null,
         message: 'No agent profile found. Create one to get started.',
       })
     }
 
-    return NextResponse.json({ data })
+    return NextResponse.json({ profile: data })
   } catch (error) {
     console.error('Agent profile fetch error:', error)
     return NextResponse.json(
@@ -92,45 +90,42 @@ export async function POST(request: Request) {
     let userId: string | null = null
 
     // Check if Supabase is configured
-    const isSupabaseConfigured = !isDemoMode
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
     if (isSupabaseConfigured) {
-      const user = await getCurrentUser()
-      if (!user?.id) {
-        // Return a more helpful error
-        return NextResponse.json(
-          { error: 'Authentication required. Please log in to save your agent profile.' },
-          { status: 401 }
-        )
+      try {
+        const user = await getCurrentUser()
+        userId = user?.id || null
+      } catch (authError) {
+        console.error('Auth error:', authError)
       }
-      userId = user.id
     }
 
     const body = await request.json()
 
-    // Handle base64 images - if they're too large, try to use them as-is
-    // In production, these should be uploaded to storage first
+    // Handle base64 images
     const { photo_url, logo_url, ...restBody } = body
 
-    // Demo mode or Supabase not configured - save to localStorage via client
-    if (isDemoMode || !isSupabaseConfigured) {
+    // If no user ID (not authenticated or demo mode), return demo response
+    if (!userId || isDemoMode) {
       return NextResponse.json({
-        data: {
+        profile: {
           id: 'demo-agent-id',
-          user_id: userId || 'demo-user-id',
+          user_id: 'demo-user-id',
           name_surname: restBody.name_surname || '',
           email: restBody.email || '',
           phone: restBody.phone || '',
-          photo_url: photo_url, // This might be a large base64 string
+          photo_url: photo_url,
           logo_url: logo_url,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
         demo: true,
-        demoMessage: 'Profile saved. Note: For production, images should be uploaded to Supabase Storage to avoid payload size limits.',
+        demoMessage: 'Profile saved (demo mode)',
       })
     }
 
+    // Real mode - save to Supabase
     const adminClient = getAdminClient()
     if (!adminClient) {
       return NextResponse.json(
@@ -153,7 +148,9 @@ export async function POST(request: Request) {
       const { data, error } = await (adminClient.from as any)
         .from('agent_profiles')
         .update({
-          ...body,
+          ...restBody,
+          photo_url,
+          logo_url,
           user_id: userId,
           updated_at: new Date().toISOString(),
         })
@@ -174,7 +171,9 @@ export async function POST(request: Request) {
       const { data, error } = await (adminClient.from as any)
         .from('agent_profiles')
         .insert({
-          ...body,
+          ...restBody,
+          photo_url,
+          logo_url,
           user_id: userId,
         })
         .select()
@@ -191,7 +190,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      data: result,
+      profile: result,
       message: 'Agent profile saved successfully',
     })
   } catch (error) {
@@ -207,15 +206,16 @@ export async function PUT(request: Request) {
   try {
     let userId: string | null = null
 
-    if (!isDemoMode) {
-      const user = await getCurrentUser()
-      if (!user?.id) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        )
+    // Check if Supabase is configured
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (isSupabaseConfigured) {
+      try {
+        const user = await getCurrentUser()
+        userId = user?.id || null
+      } catch (authError) {
+        console.error('Auth error:', authError)
       }
-      userId = user.id
     }
 
     const body = await request.json()
@@ -228,10 +228,10 @@ export async function PUT(request: Request) {
       )
     }
 
-    // Demo mode
-    if (isDemoMode) {
+    // Demo mode or not authenticated
+    if (!userId || isDemoMode) {
       return NextResponse.json({
-        data: {
+        profile: {
           id,
           user_id: 'demo-user-id',
           ...updateData,
@@ -269,7 +269,7 @@ export async function PUT(request: Request) {
     }
 
     return NextResponse.json({
-      data,
+      profile: data,
       message: 'Agent profile updated successfully',
     })
   } catch (error) {
@@ -285,15 +285,16 @@ export async function DELETE(request: Request) {
   try {
     let userId: string | null = null
 
-    if (!isDemoMode) {
-      const user = await getCurrentUser()
-      if (!user?.id) {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        )
+    // Check if Supabase is configured
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (isSupabaseConfigured) {
+      try {
+        const user = await getCurrentUser()
+        userId = user?.id || null
+      } catch (authError) {
+        console.error('Auth error:', authError)
       }
-      userId = user.id
     }
 
     const { searchParams } = new URL(request.url)
@@ -306,8 +307,8 @@ export async function DELETE(request: Request) {
       )
     }
 
-    // Demo mode
-    if (isDemoMode) {
+    // Demo mode or not authenticated
+    if (!userId || isDemoMode) {
       return NextResponse.json({
         success: true,
         demo: true,
