@@ -1014,6 +1014,11 @@ export default function TemplatesPage() {
         isOpen={showWizard}
         onClose={() => setShowWizard(false)}
         onComplete={async (data) => {
+          // Set the uploaded images to selectedImages state
+          if (data.uploadedImages && data.uploadedImages.length > 0) {
+            setSelectedImages(data.uploadedImages)
+          }
+          
           setWizardData(data)
           setShowWizard(false)
           
@@ -1033,7 +1038,7 @@ export default function TemplatesPage() {
                 photoFrames: data.photoFrames,
                 includeAgent: data.includeAgent,
                 propertyDetails: data.propertyDetails,
-                uploadedImagesCount: selectedImages.length,
+                uploadedImagesCount: data.uploadedImages?.length || 0,
               }),
             })
             
@@ -1050,7 +1055,7 @@ export default function TemplatesPage() {
             // Show success message briefly
             alert(`✅ Prompt generated successfully! 
             
-The prompt has been added to the textbox below. You can edit it if needed, then click "Generate Template" to create your design with Nano Banana Pro.`)
+The prompt has been added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design with Nano Banana Pro.`)
             
           } catch (err: any) {
             console.error('Prompt generation error:', err)

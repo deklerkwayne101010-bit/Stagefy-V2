@@ -1,10 +1,10 @@
 // ProfessionalTemplateWizard Component
 // Multi-step wizard for professional template creation
-// Step 1: Photo Frames → Step 2: Agent Profile → Step 3: Property Details → Generate Prompt
+// Step 1: Photo Frames → Step 2: Upload Photos → Step 3: Agent Profile → Step 4: Property Details → Generate Prompt
 
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
@@ -31,13 +31,14 @@ interface ProfessionalTemplateWizardProps {
   onClose: () => void
   onComplete: (data: {
     photoFrames: number
+    uploadedImages: string[]  // URLs from Supabase Storage
     includeAgent: boolean
     propertyDetails: PropertyDetails
     generatedPrompt?: GeneratedPrompt
   }) => void
 }
 
-type WizardStep = 'frames' | 'agent' | 'details'
+type WizardStep = 'frames' | 'upload' | 'agent' | 'details'
 
 export function ProfessionalTemplateWizard({
   isOpen,
@@ -46,6 +47,8 @@ export function ProfessionalTemplateWizard({
 }: ProfessionalTemplateWizardProps) {
   const [step, setStep] = useState<WizardStep>('frames')
   const [photoFrames, setPhotoFrames] = useState<number>(3)
+  const [uploadedImages, setUploadedImages] = useState<string[]>([])
+  const [isUploading, setIsUploading] = useState<boolean>(false)
   const [includeAgent, setIncludeAgent] = useState<boolean>(false)
   const [propertyDetails, setPropertyDetails] = useState<PropertyDetails>({
     header: '',
@@ -59,8 +62,67 @@ export function ProfessionalTemplateWizard({
   })
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
   const [generatedPrompt, setGeneratedPrompt] = useState<GeneratedPrompt | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
+
+  // Upload image to Supabase Storage
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('type', 'property')
+
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        // Fallback to base64 if upload fails
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.readAsDataURL(file)
+        })
+      }
+
+      const data = await response.json()
+      return data.url
+    } catch (error) {
+      console.error('Upload error:', error)
+      // Fallback to base64
+      return new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+    }
+  }
+
+  // Handle file selection
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const remainingSlots = photoFrames - uploadedImages.length
+    const filesToUpload = files.slice(0, remainingSlots)
+
+    setIsUploading(true)
+    try {
+      const uploadedUrls = await Promise.all(filesToUpload.map(file => uploadImage(file)))
+      setUploadedImages(prev => [...prev, ...uploadedUrls.filter(Boolean)])
+    } catch (error) {
+      console.error('Error uploading images:', error)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Remove uploaded image
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index))
+  }
 
   // Header options
   const headerOptions = [
@@ -90,6 +152,8 @@ export function ProfessionalTemplateWizard({
 
   const handleNext = () => {
     if (step === 'frames') {
+      setStep('upload')
+    } else if (step === 'upload') {
       setStep('agent')
     } else if (step === 'agent') {
       setStep('details')
@@ -121,9 +185,10 @@ export function ProfessionalTemplateWizard({
       
       setGeneratedPrompt(data)
       
-      // Complete the wizard with the generated prompt
+      // Complete the wizard with the generated prompt and uploaded images
       onComplete({
         photoFrames,
+        uploadedImages,  // Pass the uploaded image URLs
         includeAgent,
         propertyDetails,
         generatedPrompt: data,
@@ -134,6 +199,7 @@ export function ProfessionalTemplateWizard({
       // Still complete with the data, but without the generated prompt
       onComplete({
         photoFrames,
+        uploadedImages,
         includeAgent,
         propertyDetails,
       })
@@ -144,8 +210,10 @@ export function ProfessionalTemplateWizard({
   }
 
   const handleBack = () => {
-    if (step === 'agent') {
+    if (step === 'upload') {
       setStep('frames')
+    } else if (step === 'agent') {
+      setStep('upload')
     } else if (step === 'details') {
       setStep('agent')
     }
@@ -157,6 +225,7 @@ export function ProfessionalTemplateWizard({
 
   const steps = [
     { key: 'frames', label: 'Photo Frames' },
+    { key: 'upload', label: 'Upload Photos' },
     { key: 'agent', label: 'Agent Profile' },
     { key: 'details', label: 'Property Details' },
   ]
@@ -288,7 +357,96 @@ export function ProfessionalTemplateWizard({
               </div>
             )}
 
-            {/* Step 2: Agent Profile */}
+            {/* Step 2: Upload Photos */}
+            {step === 'upload' && (
+              <div>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mb-4">
+                    <span className="text-3xl">📸</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Upload {photoFrames} Photo{photoFrames > 1 ? 's' : ''}
+                  </h3>
+                  <p className="text-gray-500">
+                    Upload the property photos for your template
+                  </p>
+                </div>
+
+                {/* Uploaded Images Grid */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  {uploadedImages.map((img, index) => (
+                    <div key={index} className="relative group aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                      <img 
+                        src={img} 
+                        alt={`Upload ${index + 1}`} 
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* Upload Button - only show if not all slots filled */}
+                  {uploadedImages.length < photoFrames && (
+                    <label className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center aspect-video cursor-pointer hover:border-orange-500 transition-colors">
+                      {isUploading ? (
+                        <svg className="animate-spin h-6 w-6 text-orange-500" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                      ) : (
+                        <>
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span className="text-xs text-gray-500 mt-2">Add Photo</span>
+                        </>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Progress indicator */}
+                <div className="bg-gray-100 rounded-lg p-4">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">
+                      {uploadedImages.length} of {photoFrames} photos uploaded
+                    </span>
+                    <span className="text-gray-500">
+                      {Math.round((uploadedImages.length / photoFrames) * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-orange-500 h-2 rounded-full transition-all"
+                      style={{ width: `${(uploadedImages.length / photoFrames) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {uploadedImages.length < photoFrames && (
+                  <p className="text-sm text-orange-600 mt-3 text-center">
+                    Please upload {photoFrames - uploadedImages.length} more photo{photoFrames - uploadedImages.length > 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: Agent Profile */}
             {step === 'agent' && (
               <div>
                 <div className="text-center mb-6">
@@ -497,7 +655,11 @@ export function ProfessionalTemplateWizard({
               <button
                 type="button"
                 onClick={step === 'details' ? handleGeneratePrompt : handleNext}
-                disabled={step === 'details' && !propertyDetails.header.trim() || isGenerating}
+                disabled={
+                  (step === 'upload' && uploadedImages.length < photoFrames) ||
+                  (step === 'details' && !propertyDetails.header.trim()) ||
+                  isGenerating
+                }
                 className={`px-6 py-2 rounded-lg text-white font-medium transition-all ${
                   step === 'details' 
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700' 
@@ -519,6 +681,10 @@ export function ProfessionalTemplateWizard({
                     </svg>
                     Generate Prompt
                   </>
+                ) : step === 'upload' ? (
+                  uploadedImages.length < photoFrames 
+                    ? `Upload ${photoFrames - uploadedImages.length} more` 
+                    : 'Continue'
                 ) : 'Continue'}
               </button>
             </div>
