@@ -171,6 +171,19 @@ export default function TemplatesPage() {
     setError(null)
 
     try {
+      // Only include photo/logo if they are URLs (not base64 to avoid 413 payload too large)
+      // Base64 images are too large to send in JSON - need to upload to storage first
+      let photoUrlToSave = null
+      let logoUrlToSave = null
+
+      // Only include URLs that are actual URLs (not base64 data URIs)
+      if (agentPhoto && agentPhoto.startsWith('http')) {
+        photoUrlToSave = agentPhoto
+      }
+      if (agentLogo && agentLogo.startsWith('http')) {
+        logoUrlToSave = agentLogo
+      }
+
       const response = await fetch('/api/agent-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,8 +191,8 @@ export default function TemplatesPage() {
           name_surname: agentName,
           email: agentEmail,
           phone: agentPhone,
-          photo_url: agentPhoto,
-          logo_url: agentLogo,
+          photo_url: photoUrlToSave,
+          logo_url: logoUrlToSave,
         }),
       })
 

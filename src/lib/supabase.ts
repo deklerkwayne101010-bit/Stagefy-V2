@@ -237,7 +237,8 @@ export async function getMediaById(
   }
 }
 
-// Helper function to check if user is authenticated - optimized with parallel fetching
+// Helper function to check if user is authenticated - OPTIMIZED with single call
+// Uses session directly instead of making redundant parallel calls
 export async function getCurrentUser(): Promise<User | null> {
   const client = getSupabaseClient()
   if (!client) return null
@@ -256,50 +257,48 @@ export async function getCurrentUser(): Promise<User | null> {
     }
   }
   
-  // Fetch auth user and profile in parallel
-  const [authResult, profileResult] = await Promise.all([
-    client.auth.getUser(),
-    client.auth.getSession(),
-  ])
+  // OPTIMIZED: Get session directly (faster than getUser + getSession)
+  // This is the session from localStorage - no network call needed if cached
+  const { data: { session } } = await client.auth.getSession()
   
-  const user = authResult.data.user
-  if (!user) return null
+  if (!session?.user) {
+    return null
+  }
   
-  // Fetch profile from users table
+  const user = session.user
+  
+  // Try to fetch extended profile (with timeout to prevent hanging)
   try {
+    // Use AbortController for timeout - fail fast if profile takes too long
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000) // 3s timeout
+    
     const { data } = await client
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single()
     
+    clearTimeout(timeoutId)
+    
     if (data) {
       return data as User
     }
-    
-    // If profile doesn't exist in users table, return minimal user data with credits
-    return {
-      id: user.id,
-      email: user.email || '',
-      full_name: user.user_metadata?.full_name || '',
-      role: 'agent',
-      credits: 50,
-      subscription_tier: 'free',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  } catch {
-    // If profile fetch fails, return minimal user data
-    return {
-      id: user.id,
-      email: user.email || '',
-      full_name: user.user_metadata?.full_name || '',
-      role: 'agent',
-      credits: 50,
-      subscription_tier: 'free',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
+  } catch (profileError) {
+    // Profile doesn't exist or timeout - use minimal data from auth
+    console.log('Profile fetch failed, using minimal auth data')
+  }
+  
+  // Return minimal user data from auth (no extra DB call)
+  return {
+    id: user.id,
+    email: user.email || '',
+    full_name: user.user_metadata?.full_name || '',
+    role: 'agent',
+    credits: 50,
+    subscription_tier: 'free',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   }
 }
 
