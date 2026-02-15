@@ -145,7 +145,7 @@ export async function POST(request: Request) {
 
     if (existing) {
       // Update existing profile
-      const { data, error } = await (adminClient.from as any)
+      const { data, error } = await (adminClient as any)
         .from('agent_profiles')
         .update({
           ...restBody,
@@ -161,14 +161,14 @@ export async function POST(request: Request) {
       if (error) {
         console.error('Error updating agent profile:', error)
         return NextResponse.json(
-          { error: 'Failed to update agent profile' },
+          { error: 'Failed to update agent profile: ' + error.message },
           { status: 500 }
         )
       }
       result = data
     } else {
       // Create new profile
-      const { data, error } = await (adminClient.from as any)
+      const { data, error } = await (adminClient as any)
         .from('agent_profiles')
         .insert({
           ...restBody,
@@ -182,7 +182,7 @@ export async function POST(request: Request) {
       if (error) {
         console.error('Error creating agent profile:', error)
         return NextResponse.json(
-          { error: 'Failed to create agent profile' },
+          { error: 'Failed to create agent profile: ' + error.message },
           { status: 500 }
         )
       }
@@ -249,7 +249,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { data, error } = await (adminClient.from as any)
+    const { data, error } = await (adminClient as any)
       .from('agent_profiles')
       .update({
         ...updateData,
@@ -324,7 +324,7 @@ export async function DELETE(request: Request) {
       )
     }
 
-    const { error } = await (adminClient.from as any)
+    const { error } = await (adminClient as any)
       .from('agent_profiles')
       .delete()
       .eq('id', id)
