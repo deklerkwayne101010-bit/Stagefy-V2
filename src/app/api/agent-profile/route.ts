@@ -2,13 +2,43 @@
 // Phase 2: Agent Profile CRUD operations
 
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { supabase, getAdminClient } from '@/lib/supabase'
 
 // Check if running in demo mode
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export async function GET() {
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(authHeader: string | null): Promise<{ id: string; email: string } | null> {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+  
+  const token = authHeader.replace('Bearer ', '')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null
+  }
+  
+  // Create a temporary client to verify the token
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+  
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) {
+      console.error('Token verification error:', error)
+      return null
+    }
+    return { id: user.id, email: user.email || '' }
+  } catch (err) {
+    console.error('Auth header verification error:', err)
+    return null
+  }
+}
+
+export async function GET(request: Request) {
   try {
     let userId: string | null = null
 
@@ -16,11 +46,21 @@ export async function GET() {
     const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (isSupabaseConfigured) {
-      try {
-        const user = await getCurrentUser()
-        userId = user?.id || null
-      } catch (authError) {
-        console.error('Auth error:', authError)
+      // Try to get user from Authorization header first
+      const authHeader = request.headers.get('Authorization')
+      const userFromHeader = await getUserFromAuthHeader(authHeader)
+      
+      if (userFromHeader) {
+        userId = userFromHeader.id
+      } else {
+        // Fallback to getCurrentUser (for backward compatibility)
+        try {
+          const { getCurrentUser } = await import('@/lib/supabase')
+          const user = await getCurrentUser()
+          userId = user?.id || null
+        } catch (authError) {
+          console.error('Auth error:', authError)
+        }
       }
     }
 
@@ -93,11 +133,21 @@ export async function POST(request: Request) {
     const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
     if (isSupabaseConfigured) {
-      try {
-        const user = await getCurrentUser()
-        userId = user?.id || null
-      } catch (authError) {
-        console.error('Auth error:', authError)
+      // Try to get user from Authorization header first
+      const authHeader = request.headers.get('Authorization')
+      const userFromHeader = await getUserFromAuthHeader(authHeader)
+      
+      if (userFromHeader) {
+        userId = userFromHeader.id
+      } else {
+        // Fallback to getCurrentUser (for backward compatibility)
+        try {
+          const { getCurrentUser } = await import('@/lib/supabase')
+          const user = await getCurrentUser()
+          userId = user?.id || null
+        } catch (authError) {
+          console.error('Auth error:', authError)
+        }
       }
     }
 
@@ -210,11 +260,21 @@ export async function PUT(request: Request) {
     const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (isSupabaseConfigured) {
-      try {
-        const user = await getCurrentUser()
-        userId = user?.id || null
-      } catch (authError) {
-        console.error('Auth error:', authError)
+      // Try to get user from Authorization header first
+      const authHeader = request.headers.get('Authorization')
+      const userFromHeader = await getUserFromAuthHeader(authHeader)
+      
+      if (userFromHeader) {
+        userId = userFromHeader.id
+      } else {
+        // Fallback to getCurrentUser (for backward compatibility)
+        try {
+          const { getCurrentUser } = await import('@/lib/supabase')
+          const user = await getCurrentUser()
+          userId = user?.id || null
+        } catch (authError) {
+          console.error('Auth error:', authError)
+        }
       }
     }
 
@@ -289,11 +349,21 @@ export async function DELETE(request: Request) {
     const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (isSupabaseConfigured) {
-      try {
-        const user = await getCurrentUser()
-        userId = user?.id || null
-      } catch (authError) {
-        console.error('Auth error:', authError)
+      // Try to get user from Authorization header first
+      const authHeader = request.headers.get('Authorization')
+      const userFromHeader = await getUserFromAuthHeader(authHeader)
+      
+      if (userFromHeader) {
+        userId = userFromHeader.id
+      } else {
+        // Fallback to getCurrentUser (for backward compatibility)
+        try {
+          const { getCurrentUser } = await import('@/lib/supabase')
+          const user = await getCurrentUser()
+          userId = user?.id || null
+        } catch (authError) {
+          console.error('Auth error:', authError)
+        }
       }
     }
 

@@ -184,9 +184,22 @@ export default function TemplatesPage() {
         logoUrlToSave = agentLogo
       }
 
+      // Get the session token from Supabase for server-side authentication
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add authorization header if we have a session
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       const response = await fetch('/api/agent-profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           name_surname: agentName,
           email: agentEmail,
