@@ -326,16 +326,47 @@ export default function TemplatesPage() {
     }
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     
-    files.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setSelectedImages(prev => [...prev, event.target?.result as string])
+    for (const file of files) {
+      try {
+        // Compress the image
+        const compressedFile = await compressImage(file, 1200, 0.85)
+        console.log(`Property image compressed: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB`)
+        
+        // Upload to storage
+        const formData = new FormData()
+        formData.append('image', compressedFile)
+        formData.append('type', 'property')
+        
+        const response = await fetch('/api/upload/image', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setSelectedImages(prev => [...prev, data.url])
+        } else {
+          console.error('Failed to upload image, falling back to base64')
+          // Fallback to base64 if upload fails
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            setSelectedImages(prev => [...prev, event.target?.result as string])
+          }
+          reader.readAsDataURL(file)
+        }
+      } catch (err) {
+        console.error('Image upload error:', err)
+        // Fallback to base64
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          setSelectedImages(prev => [...prev, event.target?.result as string])
+        }
+        reader.readAsDataURL(file)
       }
-      reader.readAsDataURL(file)
-    })
+    }
   }
 
   const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
