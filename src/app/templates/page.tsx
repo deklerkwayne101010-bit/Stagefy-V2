@@ -210,6 +210,52 @@ export default function TemplatesPage() {
     }
   }
 
+  // Compress image before upload to avoid Vercel's 4.5MB body limit
+  const compressImage = async (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const img = new Image()
+      
+      img.onload = () => {
+        // Calculate new dimensions while maintaining aspect ratio
+        let width = img.width
+        let height = img.height
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        // Draw the resized image
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        // Convert to blob with compression
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              })
+              resolve(compressedFile)
+            } else {
+              reject(new Error('Failed to compress image'))
+            }
+          },
+          'image/jpeg',
+          quality
+        )
+      }
+      
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   // Handle photo upload - uploads to Supabase Storage
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, setPhoto: React.Dispatch<React.SetStateAction<string | null>>) => {
     const file = e.target.files?.[0]
@@ -219,9 +265,17 @@ export default function TemplatesPage() {
     setError(null)
 
     try {
-      // Create FormData and append the file
+      // Compress the image to avoid Vercel's 4.5MB body limit
+      // For photos, use 800px max width and 80% quality
+      // For logos, use 600px max width and 90% quality (higher quality for logos)
+      const isLogo = setPhoto === setAgentLogo
+      const compressedFile = await compressImage(file, isLogo ? 600 : 800, isLogo ? 0.9 : 0.8)
+      
+      console.log(`Image compressed: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB`)
+      
+      // Create FormData and append the compressed file
       const formData = new FormData()
-      formData.append('image', file)
+      formData.append('image', compressedFile)
       formData.append('type', setPhoto === setAgentPhoto ? 'photo' : 'logo')
 
       const response = await fetch('/api/upload/image', {
@@ -240,12 +294,7 @@ export default function TemplatesPage() {
       setPhoto(data.url)
     } catch (err: any) {
       console.error('Upload error:', err)
-      // Fallback to base64 if upload fails (for demo mode)
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setPhoto(event.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+      setError(err.message || 'Failed to upload image. Please try a smaller image.')
     } finally {
       setLoading(false)
     }
