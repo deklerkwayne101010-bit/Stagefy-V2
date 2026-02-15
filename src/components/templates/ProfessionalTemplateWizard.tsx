@@ -111,7 +111,8 @@ export function ProfessionalTemplateWizard({
     setIsUploading(true)
     try {
       const uploadedUrls = await Promise.all(filesToUpload.map(file => uploadImage(file)))
-      setUploadedImages(prev => [...prev, ...uploadedUrls.filter(Boolean)])
+      const validUrls = uploadedUrls.filter((url): url is string => url !== null)
+      setUploadedImages(prev => [...prev, ...validUrls])
     } catch (error) {
       console.error('Error uploading images:', error)
     } finally {
