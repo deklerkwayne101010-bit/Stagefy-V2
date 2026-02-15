@@ -193,12 +193,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if profile exists
-    const { data: existing } = await supabase
+    // Check if profile exists - use admin client to bypass RLS
+    const { data: existing, error: checkError } = await (adminClient as any)
       .from('agent_profiles')
       .select('id')
       .eq('user_id', userId)
       .maybeSingle()
+    
+    console.log('POST /api/agent-profile - Existing profile check:', { existing, checkError })
 
     let result
 
