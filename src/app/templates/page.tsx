@@ -188,6 +188,12 @@ export default function TemplatesPage() {
       const { supabase } = await import('@/lib/supabase')
       const { data: { session } } = await supabase.auth.getSession()
       
+      console.log('Session check:', { 
+        hasSession: !!session, 
+        hasToken: !!session?.access_token,
+        userId: session?.user?.id 
+      })
+      
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       }
@@ -197,19 +203,25 @@ export default function TemplatesPage() {
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
+      const requestBody = {
+        name_surname: agentName,
+        email: agentEmail,
+        phone: agentPhone,
+        photo_url: photoUrlToSave,
+        logo_url: logoUrlToSave,
+      }
+      
+      console.log('Sending request with body:', requestBody)
+
       const response = await fetch('/api/agent-profile', {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          name_surname: agentName,
-          email: agentEmail,
-          phone: agentPhone,
-          photo_url: photoUrlToSave,
-          logo_url: logoUrlToSave,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await response.json()
+      console.log('API response:', data)
+      
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save profile')
       }
@@ -217,6 +229,7 @@ export default function TemplatesPage() {
       setProfileSaved(true)
       setTimeout(() => setProfileSaved(false), 3000)
     } catch (err: any) {
+      console.error('Save profile error:', err)
       setError(err.message || 'Failed to save agent profile')
     } finally {
       setSavingProfile(false)

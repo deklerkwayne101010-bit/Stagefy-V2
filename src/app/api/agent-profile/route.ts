@@ -132,10 +132,16 @@ export async function POST(request: Request) {
     // Check if Supabase is configured
     const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
+    console.log('POST /api/agent-profile - Supabase configured:', !!isSupabaseConfigured)
+    console.log('POST /api/agent-profile - Demo mode:', isDemoMode)
+    
     if (isSupabaseConfigured) {
       // Try to get user from Authorization header first
       const authHeader = request.headers.get('Authorization')
+      console.log('POST /api/agent-profile - Has auth header:', !!authHeader)
+      
       const userFromHeader = await getUserFromAuthHeader(authHeader)
+      console.log('POST /api/agent-profile - User from header:', userFromHeader?.id || 'null')
       
       if (userFromHeader) {
         userId = userFromHeader.id
@@ -145,6 +151,7 @@ export async function POST(request: Request) {
           const { getCurrentUser } = await import('@/lib/supabase')
           const user = await getCurrentUser()
           userId = user?.id || null
+          console.log('POST /api/agent-profile - User from getCurrentUser:', userId || 'null')
         } catch (authError) {
           console.error('Auth error:', authError)
         }
@@ -152,6 +159,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    console.log('POST /api/agent-profile - Request body:', body)
+    console.log('POST /api/agent-profile - Final userId:', userId || 'null')
 
     // Handle base64 images
     const { photo_url, logo_url, ...restBody } = body
