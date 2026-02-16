@@ -105,11 +105,15 @@ export default function TemplatesPage() {
   const [agentName, setAgentName] = useState('')
   const [agentEmail, setAgentEmail] = useState('')
   const [agentPhone, setAgentPhone] = useState('')
+  const [agentAgency, setAgentAgency] = useState('')
   const [agentPhoto, setAgentPhoto] = useState<string | null>(null)
   const [agentLogo, setAgentLogo] = useState<string | null>(null)
   const [includeAgentProfile, setIncludeAgentProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
+  
+  // Agency brands for dropdown
+  const [agencyBrands, setAgencyBrands] = useState<{ id: string; name: string; slug: string }[]>([])
 
   // Professional Template Wizard State
   const [showWizard, setShowWizard] = useState(false)
@@ -140,16 +144,26 @@ export default function TemplatesPage() {
   } | null>(null)
   const [isGeneratingLayout, setIsGeneratingLayout] = useState(false)
 
-  // Load agent profile on mount
+  // Load agent profile and agency brands on mount
   useEffect(() => {
     const loadAgentProfile = async () => {
       try {
-        const response = await fetch('/api/agent-profile')
+        // Get session token for authentication
+        const { supabase } = await import('@/lib/supabase')
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        const headers: Record<string, string> = {}
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`
+        }
+        
+        const response = await fetch('/api/agent-profile', { headers })
         const data = await response.json()
         if (data.profile) {
           setAgentName(data.profile.name_surname || '')
           setAgentEmail(data.profile.email || '')
           setAgentPhone(data.profile.phone || '')
+          setAgentAgency(data.profile.agency_brand || '')
           setAgentPhoto(data.profile.photo_url || null)
           setAgentLogo(data.profile.logo_url || null)
         }
@@ -157,7 +171,22 @@ export default function TemplatesPage() {
         console.error('Error loading agent profile:', err)
       }
     }
+    
+    // Load agency brands
+    const loadAgencyBrands = async () => {
+      try {
+        const response = await fetch('/api/brands?active=true')
+        const data = await response.json()
+        if (data.brands && data.brands.length > 0) {
+          setAgencyBrands(data.brands)
+        }
+      } catch (err) {
+        console.error('Error loading agency brands:', err)
+      }
+    }
+    
     loadAgentProfile()
+    loadAgencyBrands()
   }, [])
 
   // Save agent profile
@@ -207,6 +236,7 @@ export default function TemplatesPage() {
         name_surname: agentName,
         email: agentEmail,
         phone: agentPhone,
+        agency_brand: agentAgency,
         photo_url: photoUrlToSave,
         logo_url: logoUrlToSave,
       }
@@ -427,6 +457,7 @@ export default function TemplatesPage() {
           name: agentName,
           email: agentEmail,
           phone: agentPhone,
+          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : null,
           photoUrl: agentPhoto,
           logoUrl: agentLogo,
         }
@@ -695,6 +726,11 @@ export default function TemplatesPage() {
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{agentName}</p>
                           <p className="text-sm text-gray-500">{agentPhone} • {agentEmail}</p>
+                          {agentAgency && (
+                            <p className="text-xs text-green-600 mt-0.5">
+                              {agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency}
+                            </p>
+                          )}
                         </div>
                         {agentLogo && (
                           <img src={agentLogo} alt="Agency Logo" className="h-8 object-contain" />
@@ -1047,6 +1083,37 @@ export default function TemplatesPage() {
                 />
               </div>
 
+              {/* Agency */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Agency</label>
+                <select
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={agentAgency}
+                  onChange={(e: any) => setAgentAgency(e.target.value)}
+                >
+                  <option value="">Select your agency...</option>
+                  {agencyBrands.map((brand) => (
+                    <option key={brand.id} value={brand.slug}>
+                      {brand.name}
+                    </option>
+                  ))}
+                  {agencyBrands.length === 0 && (
+                    <>
+                      <option value="remax">RE/MAX</option>
+                      <option value="pam-golding">Pam Golding Properties</option>
+                      <option value="seeff">Seeff</option>
+                      <option value="era">ERA South Africa</option>
+                      <option value="harcourts">Harcourts South Africa</option>
+                      <option value="sothebys">Lew Geffen Sotheby's International Realty</option>
+                      <option value="century-21">Century 21 South Africa</option>
+                      <option value="rawson">Rawson Properties</option>
+                      <option value="chas-everitt">Chas Everitt</option>
+                      <option value="other">Other / Independent</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
               {/* Save Button */}
               <div className="flex items-center gap-4">
                 <Button 
@@ -1095,6 +1162,11 @@ export default function TemplatesPage() {
                         <h4 className="text-xl font-bold">{agentName || 'Your Name'}</h4>
                         <p className="text-white/80">{agentEmail || 'email@example.com'}</p>
                         <p className="text-white/80">{agentPhone || '+27 00 000 0000'}</p>
+                        {agentAgency && (
+                          <p className="text-white/60 text-sm mt-1">
+                            {agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency}
+                          </p>
+                        )}
                       </div>
                       {agentLogo && (
                         <img 

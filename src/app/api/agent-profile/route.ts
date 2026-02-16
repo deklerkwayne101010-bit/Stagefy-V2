@@ -45,10 +45,16 @@ export async function GET(request: Request) {
     // Check if Supabase is configured
     const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+    console.log('GET /api/agent-profile - Supabase configured:', !!isSupabaseConfigured)
+    console.log('GET /api/agent-profile - Demo mode:', isDemoMode)
+
     if (isSupabaseConfigured) {
       // Try to get user from Authorization header first
       const authHeader = request.headers.get('Authorization')
+      console.log('GET /api/agent-profile - Has auth header:', !!authHeader)
+      
       const userFromHeader = await getUserFromAuthHeader(authHeader)
+      console.log('GET /api/agent-profile - User from header:', userFromHeader?.id || 'null')
       
       if (userFromHeader) {
         userId = userFromHeader.id
@@ -58,14 +64,16 @@ export async function GET(request: Request) {
           const { getCurrentUser } = await import('@/lib/supabase')
           const user = await getCurrentUser()
           userId = user?.id || null
+          console.log('GET /api/agent-profile - User from getCurrentUser:', userId || 'null')
         } catch (authError) {
-          console.error('Auth error:', authError)
+          console.error('GET /api/agent-profile - Auth error:', authError)
         }
       }
     }
 
     // Demo mode or not authenticated: return mock data
     if (!userId || isDemoMode) {
+      console.log('GET /api/agent-profile - Returning demo data (no userId or demo mode)')
       return NextResponse.json({
         profile: {
           id: 'demo-agent-id',
@@ -94,6 +102,7 @@ export async function GET(request: Request) {
     }
 
     // Real mode: fetch from Supabase
+    console.log('GET /api/agent-profile - Fetching profile for userId:', userId)
     const { data, error } = await supabase
       .from('agent_profiles')
       .select('*')
@@ -109,12 +118,14 @@ export async function GET(request: Request) {
     }
 
     if (!data) {
+      console.log('GET /api/agent-profile - No profile found for userId:', userId)
       return NextResponse.json({
         profile: null,
         message: 'No agent profile found. Create one to get started.',
       })
     }
 
+    console.log('GET /api/agent-profile - Profile found:', data)
     return NextResponse.json({ profile: data })
   } catch (error) {
     console.error('Agent profile fetch error:', error)
