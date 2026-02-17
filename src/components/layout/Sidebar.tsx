@@ -66,6 +66,7 @@ const navigation = [
       { name: 'Contacts', href: '/crm/contacts' },
       { name: 'Listings', href: '/crm/listings' },
       { name: 'Media', href: '/crm/media' },
+      { name: 'Calendar', href: '/crm/calendar' },
     ],
   },
   {
