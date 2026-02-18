@@ -1191,6 +1191,7 @@ export default function TemplatesPage() {
       <ProfessionalTemplateWizard
         isOpen={showWizard}
         onClose={() => setShowWizard(false)}
+        hasAgentProfile={!!agentName.trim()}
         onComplete={async (data) => {
           // Set the uploaded images to selectedImages state
           if (data.uploadedImages && data.uploadedImages.length > 0) {

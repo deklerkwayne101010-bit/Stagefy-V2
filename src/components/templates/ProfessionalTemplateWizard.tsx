@@ -36,6 +36,7 @@ interface ProfessionalTemplateWizardProps {
     propertyDetails: PropertyDetails
     generatedPrompt?: GeneratedPrompt
   }) => void
+  hasAgentProfile?: boolean  // Whether user has a saved agent profile
 }
 
 type WizardStep = 'frames' | 'upload' | 'agent' | 'details'
@@ -44,12 +45,13 @@ export function ProfessionalTemplateWizard({
   isOpen,
   onClose,
   onComplete,
+  hasAgentProfile = false,
 }: ProfessionalTemplateWizardProps) {
   const [step, setStep] = useState<WizardStep>('frames')
   const [photoFrames, setPhotoFrames] = useState<number>(3)
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState<boolean>(false)
-  const [includeAgent, setIncludeAgent] = useState<boolean>(false)
+  const [includeAgent, setIncludeAgent] = useState<boolean>(hasAgentProfile)
   const [propertyDetails, setPropertyDetails] = useState<PropertyDetails>({
     header: '',
     price: '',
