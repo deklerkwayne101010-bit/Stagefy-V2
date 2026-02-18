@@ -31,7 +31,7 @@ async function getUserFromAuthHeader(authHeader: string | null): Promise<{ id: s
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Get user from auth header
     const authHeader = request.headers.get('Authorization')
@@ -41,7 +41,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const eventId = params.id
+    const { id: eventId } = await params
     const body = await request.json()
 
     const {
@@ -107,7 +107,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Get user from auth header
     const authHeader = request.headers.get('Authorization')
@@ -117,7 +117,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const eventId = params.id
+    const { id: eventId } = await params
 
     // Delete the event (reminders will be deleted automatically due to CASCADE)
     const { error } = await supabase
