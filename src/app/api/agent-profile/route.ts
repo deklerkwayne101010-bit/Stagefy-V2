@@ -101,9 +101,40 @@ export async function GET(request: Request) {
       })
     }
 
-    // Real mode: fetch from Supabase
+    // Real mode: fetch from Supabase - use admin client to bypass RLS
     console.log('GET /api/agent-profile - Fetching profile for userId:', userId)
-    const { data, error } = await supabase
+    const adminClient = getAdminClient()
+    
+    if (!adminClient) {
+      // Fallback to regular client
+      const { data, error } = await supabase
+        .from('agent_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error fetching agent profile:', error)
+        return NextResponse.json(
+          { error: 'Failed to fetch agent profile' },
+          { status: 500 }
+        )
+      }
+
+      if (!data) {
+        console.log('GET /api/agent-profile - No profile found for userId:', userId)
+        return NextResponse.json({
+          profile: null,
+          message: 'No agent profile found. Create one to get started.',
+        })
+      }
+
+      console.log('GET /api/agent-profile - Profile found:', data)
+      return NextResponse.json({ profile: data })
+    }
+    
+    // Use admin client to bypass RLS
+    const { data, error } = await (adminClient as any)
       .from('agent_profiles')
       .select('*')
       .eq('user_id', userId)
