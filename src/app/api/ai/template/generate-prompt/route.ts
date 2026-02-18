@@ -10,6 +10,88 @@ import {
 } from '@/lib/credits'
 import { createClient } from '@supabase/supabase-js'
 
+// Agency brand information mapping
+interface AgencyBrandInfo {
+  name: string
+  colors: string
+  style: string
+}
+
+function getAgencyInfo(agencySlug: string | null): AgencyBrandInfo | null {
+  if (!agencySlug) return null
+  
+  const agencyMap: Record<string, AgencyBrandInfo> = {
+    'remax': {
+      name: 'RE/MAX',
+      colors: 'RE/MAX Red (#E41E26) and White (#FFFFFF)',
+      style: 'Professional, bold, with signature red accents'
+    },
+    'pam-golding': {
+      name: 'Pam Golding Properties',
+      colors: 'Gold (#C9A227) and Navy Blue (#1E3A5F)',
+      style: 'Luxurious, elegant, with gold accents'
+    },
+    'seeff': {
+      name: 'Seeff',
+      colors: 'Seeff Green (#00A651) and White (#FFFFFF)',
+      style: 'Fresh, professional, with green branding'
+    },
+    'era': {
+      name: 'ERA',
+      colors: 'ERA Blue (#005DAA) and White (#FFFFFF)',
+      style: 'Modern, trustworthy, blue accents'
+    },
+    'century-21': {
+      name: 'Century 21',
+      colors: 'Century 21 Gold (#FFB400) and Black (#000000)',
+      style: 'Premium, bold, gold and black combination'
+    },
+    'sothebys': {
+      name: "Sotheby's International Realty",
+      colors: 'Sotheby\'s Navy (#0C2340) and Gold (#C9A227)',
+      style: 'Luxury, sophisticated, navy and gold'
+    },
+    'chesterton': {
+      name: 'Chestertons',
+      colors: 'Chestertons Teal (#008080) and Gold (#D4AF37)',
+      style: 'Elegant, heritage, teal and gold'
+    },
+    'harvey': {
+      name: 'Harvey Wilson Mattinson',
+      colors: 'HWM Navy (#1B365D) and Burgundy (#800020)',
+      style: 'Classic, prestigious, navy and burgundy'
+    },
+    'rawson': {
+      name: 'Rawson Property Group',
+      colors: 'Rawson Blue (#0066CC) and Orange (#FF6600)',
+      style: 'Dynamic, modern, blue and orange'
+    },
+    'leapfrog': {
+      name: 'Leapfrog Property Group',
+      colors: 'Leapfrog Green (#7AB800) and White (#FFFFFF)',
+      style: 'Friendly, fresh, green and white'
+    },
+    'engel-volkers': {
+      name: 'Engel & Völkers',
+      colors: 'E&V Navy (#002C5F) and White (#FFFFFF)',
+      style: 'Premium, international, navy white'
+    },
+    'prop': {
+      name: 'Prop',
+      colors: 'Prop Red (#EE2537) and White (#FFFFFF)',
+      style: 'Modern, vibrant, red accents'
+    },
+    'property-buddy': {
+      name: 'Property Buddy',
+      colors: 'Buddy Blue (#4A90D9) and Orange (#F5A623)',
+      style: 'Friendly, modern, blue and orange'
+    }
+  }
+  
+  const slug = agencySlug.toLowerCase().replace(/\s+/g, '-')
+  return agencyMap[slug] || null
+}
+
 // Check if running in demo mode
 const isDemoMode =
   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -33,12 +115,14 @@ interface AgentProfile {
   agent_name: string
   phone: string
   email: string
+  agency_brand?: string  // Agency brand name
 }
 
 interface PromptGenerationRequest {
   photoFrames: number
   includeAgent: boolean
   propertyDetails: PropertyDetails
+  agencyBrand?: string  // Agency brand for styling
 }
 
 // Helper to get agent profile
@@ -62,7 +146,7 @@ async function getAgentProfile(userId: string): Promise<AgentProfile | null> {
 
   const { data, error } = await supabase
     .from('agent_profiles')
-    .select('agent_name, phone, email')
+    .select('agent_name, phone, email, agency_brand')
     .eq('user_id', userId)
     .single()
 
@@ -103,6 +187,12 @@ export async function POST(request: Request) {
     if (includeAgent && user?.id) {
       agentProfile = await getAgentProfile(user.id)
     }
+
+    // Get agency brand info
+    const agencyBrand = agentProfile?.agency_brand || null
+    
+    // Map agency slug to full name and brand colors
+    const agencyInfo = getAgencyInfo(agencyBrand)
 
     // Check if Replicate API token is configured
     const replicateToken = process.env.REPLICATE_API_TOKEN
@@ -149,6 +239,10 @@ real estate marketing flyer with the following specifications:
 
 ${includeAgent && agentProfile ? `## AGENT PROFILE
 - Include agent profile: Yes - include agent photo placeholder, name (${agentProfile.agent_name || 'Not specified'}), phone (${agentProfile.phone || 'Not specified'}), email (${agentProfile.email || 'Not specified'})` : '## AGENT PROFILE\n- Include agent profile: No'}
+
+${agencyInfo ? `## AGENCY BRAND STYLING
+- Agency: ${agencyInfo.name}
+- IMPORTANT: The template MUST follow ${agencyInfo.name}'s brand colors (${agencyInfo.colors}) and professional styling guidelines. Use their logo style and color scheme throughout the design.` : ''}
 
 ## REQUIREMENTS
 Generate a JSON response with these fields:
