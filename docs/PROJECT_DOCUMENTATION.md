@@ -546,6 +546,12 @@ await supabase.from('credit_usage').insert({
 - **Output:** Professional property description
 - **Cost:** 1 credit
 
+### Template Generator (Professional)
+- **Model:** Replicate `openai/gpt-4.1-nano`
+- **Inputs:** Property details, photo frames, agent info
+- **Output:** Creative marketing prompt for Nano Banana Pro
+- **Cost:** 3 credits
+
 ### Template Generator
 - **Styles:** Multiple template options
 - **Custom Prompts:** User-defined descriptions
@@ -599,6 +605,7 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
+# Replicate API Token (for GPT-4.1-nano, Qwen, Flux, etc.)
 REPLICATE_API_TOKEN=your_replicate_token
 
 NEXT_PUBLIC_APP_URL=http://localhost:3000

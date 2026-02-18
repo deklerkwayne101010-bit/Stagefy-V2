@@ -1,5 +1,5 @@
 // API route for Professional Template Prompt Generation
-// Uses Replicate AI (Qwen model) to generate a unique prompt for Nano Banana Pro
+// Uses Replicate AI (GPT-4.1-nano model) to generate a unique prompt for Nano Banana Pro
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/supabase'
 import {
@@ -14,12 +14,8 @@ const isDemoMode =
   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Qwen model configuration for prompt generation
-const QWEN_MODEL_CONFIG = {
-  model: 'qwen/qwen3-235b-a22b-instruct-2507',
-  temperature: 0.8, // Higher temperature for more creative prompts
-  max_tokens: 6000, // More tokens for detailed prompts
-}
+// Replicate model configuration for GPT-4.1-nano
+const REPLICATE_MODEL = 'openai/gpt-4.1-nano'
 
 interface PropertyDetails {
   header: string
@@ -52,7 +48,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get current user - but always try to call Replicate AI
+    // Get current user - but always try to call Replicate
     let user: any = null
     
     try {
@@ -62,8 +58,6 @@ export async function POST(request: Request) {
     } catch (err) {
       console.error('Error getting user:', err)
     }
-
-    const creditCost = CREDIT_COSTS.prompt_generation || 5
 
     // Check if Replicate API token is configured
     const replicateToken = process.env.REPLICATE_API_TOKEN
@@ -78,10 +72,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Try to call Replicate AI - always attempt the real API call
-    try {
-      // Build the system prompt for Qwen
-      const systemPrompt = `You are an expert real estate marketing designer specializing in creating 
+    // Build the system prompt for GPT-4.1-nano
+    const systemPrompt = `You are an expert real estate marketing designer specializing in creating 
 stunning property listing templates. Your goal is to generate a UNIQUE, CREATIVE, and DETAILED 
 prompt that can be used with Nano Banana Pro (AI image generation) to create a professional 
 property marketing flyer.
@@ -92,8 +84,8 @@ format twice.
 
 Output ONLY valid JSON format.`
 
-      // Build the user prompt with all the property details
-      const userPrompt = `Generate a completely unique and professional Nano Banana Pro prompt for a 
+    // Build the user prompt with all the property details
+    const userPrompt = `Generate a completely unique and professional Nano Banana Pro prompt for a 
 real estate marketing flyer with the following specifications:
 
 ## PHOTO FRAMES AND IMAGES CONFIGURATION
@@ -126,9 +118,10 @@ Generate a JSON response with these fields:
 The prompt must be in English, be highly detailed, and describe a visually stunning flyer. 
 Make it unique and different from generic templates!`
 
-      // Call Qwen model via Replicate - using correct parameters from the model schema
+    // Try to call Replicate AI with GPT-4.1-nano
+    try {
       const response = await fetch(
-        'https://api.replicate.com/v1/models/qwen/qwen3-235b-a22b-instruct-2507/predictions',
+        'https://api.replicate.com/v1/models/openai/gpt-4.1-nano/predictions',
         {
           method: 'POST',
           headers: {
@@ -138,12 +131,15 @@ Make it unique and different from generic templates!`
           },
           body: JSON.stringify({
             input: {
-              prompt: `${systemPrompt}\n\n${userPrompt}`,
-              temperature: QWEN_MODEL_CONFIG.temperature,
-              max_tokens: QWEN_MODEL_CONFIG.max_tokens,
               top_p: 1,
+              prompt: userPrompt,
+              messages: [],
+              image_input: [],
+              temperature: 0.8,
+              system_prompt: systemPrompt,
               presence_penalty: 0,
               frequency_penalty: 0,
+              max_completion_tokens: 4096,
             },
           }),
         }
@@ -151,28 +147,26 @@ Make it unique and different from generic templates!`
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Qwen API error:', errorText)
-        
-        // Try to parse as JSON, if not, use raw text
+        console.error('Replicate API error:', errorText)
         try {
           const errorJson = JSON.parse(errorText)
           throw new Error(errorJson.detail || errorJson.message || JSON.stringify(errorJson))
         } catch {
-          throw new Error(`Qwen API failed: ${errorText.substring(0, 200)}`)
+          throw new Error(`Replicate API failed: ${errorText.substring(0, 200)}`)
         }
       }
 
       const prediction = await response.json()
-      console.log('Qwen prompt generation prediction:', prediction)
+      console.log('Replicate GPT-4.1-nano prediction:', prediction)
 
-      // Parse the output - Qwen returns the output directly as a string
+      // Parse the output from GPT-4.1-nano
       let output = prediction.output
       
-      // Log the output type for debugging
+      // Log the output for debugging
       console.log('Output type:', typeof output)
       console.log('Output:', output)
       
-      // If output is a string, try to parse it as JSON or use it directly
+      // Parse the output - handle various response formats
       if (typeof output === 'string') {
         // Try to extract JSON from the string
         const jsonMatch = output.match(/\{[\s\S]*\}/)
@@ -205,6 +199,9 @@ Make it unique and different from generic templates!`
               'Professional real estate marketing style with clean typography and bold colors',
           }
         }
+      } else if (Array.isArray(output)) {
+        // Sometimes the output is an array - take the last element
+        output = output[output.length - 1]
       }
 
       // Ensure all required fields exist
