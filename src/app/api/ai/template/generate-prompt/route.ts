@@ -8,6 +8,7 @@ import {
   refundCredits,
   CREDIT_COSTS,
 } from '@/lib/credits'
+import { createClient } from '@supabase/supabase-js'
 
 // Check if running in demo mode
 const isDemoMode =
@@ -28,17 +29,55 @@ interface PropertyDetails {
   propertyType: string
 }
 
+interface AgentProfile {
+  agent_name: string
+  phone: string
+  email: string
+}
+
 interface PromptGenerationRequest {
   photoFrames: number
   includeAgent: boolean
   propertyDetails: PropertyDetails
-  uploadedImagesCount?: number
+}
+
+// Helper to get agent profile
+async function getAgentProfile(userId: string): Promise<AgentProfile | null> {
+  if (isDemoMode) {
+    return {
+      agent_name: 'John Doe',
+      phone: '+27 82 123 4567',
+      email: 'john@example.com'
+    }
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  const { data, error } = await supabase
+    .from('agent_profiles')
+    .select('agent_name, phone, email')
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !data) {
+    console.log('No agent profile found:', error)
+    return null
+  }
+
+  return data
 }
 
 export async function POST(request: Request) {
   try {
     const body: PromptGenerationRequest = await request.json()
-    const { photoFrames, includeAgent, propertyDetails, uploadedImagesCount } = body
+    const { photoFrames, includeAgent, propertyDetails } = body
 
     // Validate input
     if (!propertyDetails?.header) {
@@ -48,7 +87,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get current user - but always try to call Replicate
+    // Get current user
     let user: any = null
     
     try {
@@ -57,6 +96,12 @@ export async function POST(request: Request) {
       }
     } catch (err) {
       console.error('Error getting user:', err)
+    }
+
+    // Get agent profile if needed
+    let agentProfile: AgentProfile | null = null
+    if (includeAgent && user?.id) {
+      agentProfile = await getAgentProfile(user.id)
     }
 
     // Check if Replicate API token is configured
@@ -84,19 +129,17 @@ format twice.
 
 Output ONLY valid JSON format.`
 
-    // Build the user prompt with all the property details
+    // Build the user prompt with the new simplified structure
     const userPrompt = `Generate a completely unique and professional Nano Banana Pro prompt for a 
 real estate marketing flyer with the following specifications:
 
 ## PHOTO FRAMES AND IMAGES CONFIGURATION
-- Number of photo frames: ${photoFrames}
-- Number of images uploaded by agent: ${uploadedImagesCount || 0}
-- IMPORTANT: The prompt MUST create space for EXACTLY ${uploadedImagesCount || photoFrames} property images in the template layout. These images will be provided by the agent and must be incorporated into the design.
-- Layout suggestion: ${getPhotoLayoutSuggestion(photoFrames)}
+- ${photoFrames} photo frames
+- IMPORTANT: The prompt MUST create space for EXACTLY ${photoFrames} property images in the template layout.
 
 ## PROPERTY DETAILS
 - Header/Tagline: ${propertyDetails.header}
-- Price: ${propertyDetails.price || 'Not specified'}
+- Price: ${propertyDetails.price || 'Not specified'} must be in Rand
 - Location: ${propertyDetails.location || 'Not specified'}
 - Property Type: ${propertyDetails.propertyType || 'Property'}
 - Bedrooms: ${propertyDetails.bedrooms || 'Not specified'}
@@ -104,8 +147,8 @@ real estate marketing flyer with the following specifications:
 - Square Meters: ${propertyDetails.squareMeters || 'Not specified'}
 - Key Features: ${propertyDetails.keyFeatures || 'Not specified'}
 
-## AGENT PROFILE
-- Include agent profile: ${includeAgent ? 'Yes - include agent photo placeholder, name, phone, email' : 'No'}
+${includeAgent && agentProfile ? `## AGENT PROFILE
+- Include agent profile: Yes - include agent photo placeholder, name (${agentProfile.agent_name || 'Not specified'}), phone (${agentProfile.phone || 'Not specified'}), email (${agentProfile.email || 'Not specified'})` : '## AGENT PROFILE\n- Include agent profile: No'}
 
 ## REQUIREMENTS
 Generate a JSON response with these fields:
@@ -234,8 +277,12 @@ Make it unique and different from generic templates!`
   }
 }
 
-// Helper function to get photo layout suggestion based on number of frames
-function getPhotoLayoutSuggestion(frames: number): string {
+// Helper function to generate mock prompt (fallback)
+function generateMockPrompt(
+  photoFrames: number,
+  includeAgent: boolean,
+  propertyDetails: PropertyDetails
+) {
   const layouts: Record<number, string> = {
     1: 'Single large hero image with full-width banner',
     2: 'Two equal columns side by side',
@@ -244,16 +291,7 @@ function getPhotoLayoutSuggestion(frames: number): string {
     5: 'One large featured image with 4 smaller in grid',
     6: '2x3 grid with uniform rectangle images',
   }
-  return layouts[frames] || 'Custom grid layout'
-}
-
-// Helper function to generate mock prompt (fallback)
-function generateMockPrompt(
-  photoFrames: number,
-  includeAgent: boolean,
-  propertyDetails: PropertyDetails
-) {
-  const layoutSuggestion = getPhotoLayoutSuggestion(photoFrames)
+  const layoutSuggestion = layouts[photoFrames] || 'Custom grid layout'
 
   const prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
