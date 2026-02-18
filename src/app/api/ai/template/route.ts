@@ -72,28 +72,29 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Build input for Replicate API
-      const replicateInput: any = {
-        images: images,
-        template_type: type,
+      // Build input for Replicate API - Nano Banana Pro format
+      const replicateInput = {
         prompt: prompt || 'Create a professional listing template',
+        resolution: '2K',
+        image_input: images && images.length > 0 ? images : [],
+        aspect_ratio: '4:3',
+        output_format: 'png',
+        safety_filter_level: 'block_only_high'
       }
 
       // Add custom template options if provided
       if (type === 'custom' && customOptions) {
-        replicateInput.color_theme = customOptions.colorTheme
-        replicateInput.aspect_ratio = customOptions.aspectRatio
-        replicateInput.text_style = customOptions.textStyle
-        if (customOptions.title) {
-          replicateInput.title_text = customOptions.title
+        if (customOptions.colorTheme) {
+          replicateInput.prompt += ` Use color theme: ${customOptions.colorTheme}`
         }
-        if (customOptions.subtitle) {
-          replicateInput.subtitle_text = customOptions.subtitle
+        if (customOptions.aspectRatio) {
+          replicateInput.aspect_ratio = customOptions.aspectRatio
         }
       }
 
-      // Call Replicate API for template generation
-      const response = await fetch('https://api.replicate.com/v1/predictions', {
+      // Call Replicate API for Nano Banana Pro template generation
+      // Using the correct endpoint format per user's curl example
+      const response = await fetch('https://api.replicate.com/v1/models/google/nano-banana-pro/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -101,7 +102,6 @@ export async function POST(request: Request) {
           'Prefer': 'wait',
         },
         body: JSON.stringify({
-          version: 'google/nanobanana-pro',
           input: replicateInput,
         }),
       })
@@ -111,10 +111,14 @@ export async function POST(request: Request) {
       }
 
       const prediction = await response.json()
+      console.log('Nano Banana Pro response:', prediction)
 
       // Success! Return response
+      // Nano Banana Pro returns output as an array with the image URL
+      const outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
+      
       return NextResponse.json({
-        outputUrl: prediction.output,
+        outputUrl: outputUrl,
         jobId: prediction.id,
         creditsUsed: creditCost,
         remainingCredits: await checkUserCredits(userIdStr),
