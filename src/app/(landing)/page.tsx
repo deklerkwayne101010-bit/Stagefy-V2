@@ -344,7 +344,9 @@ export default function LandingPage() {
               <h4 className="text-white font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+                <li><a href="mailto:admin@stagefy.co.za" className="hover:text-white transition-colors">Contact</a></li>
+                <li><a href="tel:+27626967151" className="hover:text-white transition-colors">+27 62 696 7151</a></li>
+                <li><a href="mailto:admin@stagefy.co.za" className="hover:text-white transition-colors">admin@stagefy.co.za</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
               </ul>
             </div>
