@@ -38,6 +38,7 @@ export default function PhotoEditPage() {
   const [uploadHistory, setUploadHistory] = useState<Array<{ id: string; url: string; created_at: string }>>([])
   const [uploading, setUploading] = useState(false)
   const [useReference, setUseReference] = useState(false)
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
 
   // Check if user has enough credits
   const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
@@ -352,30 +353,50 @@ export default function PhotoEditPage() {
               <Card>
                 <CardHeader 
                   title="Result" 
-                  subtitle="Your edited image is ready"
+                  subtitle="Your edited image is ready - click to enlarge"
                   action={
                       <Button size="sm" onClick={handleDownload}>
                         Download
                       </Button>
                     }
                 />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <p className="text-sm text-gray-500 mb-2">Before</p>
-                    <img
-                      src={targetImage!}
-                      alt="Before"
-                      className="w-full rounded-lg"
-                    />
+                    <p className="text-sm text-gray-500 mb-2 font-medium">Before</p>
+                    <div 
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                      onClick={() => setFullscreenImage(targetImage!)}
+                    >
+                      <img
+                        src={targetImage!}
+                        alt="Before"
+                        className="w-full h-auto rounded-lg object-cover transition-transform duration-300 group-hover:scale-105"
+                        style={{ minHeight: '300px' }}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 bg-black/50 text-white px-4 py-2 rounded-lg text-sm">
+                          Click to enlarge
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 mb-2">After</p>
-                    <div className="relative">
+                    <p className="text-sm text-gray-500 mb-2 font-medium">After</p>
+                    <div 
+                      className="relative group cursor-pointer rounded-lg overflow-hidden"
+                      onClick={() => setFullscreenImage(processedImage)}
+                    >
                       <img
                         src={processedImage}
                         alt="After"
-                        className="w-full rounded-lg"
+                        className="w-full h-auto rounded-lg object-cover transition-transform duration-300 group-hover:scale-105"
+                        style={{ minHeight: '300px' }}
                       />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 bg-black/50 text-white px-4 py-2 rounded-lg text-sm">
+                          Click to enlarge
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -474,6 +495,29 @@ export default function PhotoEditPage() {
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Image Modal */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+            onClick={() => setFullscreenImage(null)}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={fullscreenImage}
+            alt="Fullscreen"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }
