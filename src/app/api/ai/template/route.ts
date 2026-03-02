@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 
       // Call Replicate API for Nano Banana Pro template generation
       // Using the correct endpoint format per user's curl example
-      const response = await fetch('https://api.replicate.com/v1/models/google/nano-banana-pro/predictions', {
+      const response = await fetch('https://api.replicate.com/v1/models/google/nano-banana-2/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
