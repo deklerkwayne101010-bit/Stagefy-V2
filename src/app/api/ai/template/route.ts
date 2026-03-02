@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       // Build input for Replicate API - Nano Banana 2 format
       const replicateInput = {
         prompt: prompt || 'Create a professional listing template',
-        resolution: '2K',
+        resolution: '1K',
         image_input: images && images.length > 0 ? images : [],
         aspect_ratio: '4:3',
         output_format: 'png',
