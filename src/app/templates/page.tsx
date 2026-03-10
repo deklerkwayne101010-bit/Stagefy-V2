@@ -1204,44 +1204,58 @@ export default function TemplatesPage() {
           // Sync wizard's includeAgent with the main form's includeAgentProfile toggle
           setIncludeAgentProfile(data.includeAgent)
           
-          // Call the API to generate the prompt using Replicate AI (Qwen)
-          setLoading(true)
-          setError(null)
-          setResult(null) // Clear previous result
-          
-          try {
-            const response = await fetch('/api/ai/template/generate-prompt', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                photoFrames: data.photoFrames,
-                includeAgent: data.includeAgent,
-                propertyDetails: data.propertyDetails,
-                uploadedImagesCount: data.uploadedImages?.length || 0,
-              }),
-            })
-            
-            if (!response.ok) {
-              const errorData = await response.json()
-              throw new Error(errorData.error || 'Failed to generate prompt')
-            }
-            
-            const result = await response.json()
-            
-            // Set the prompt in the main form textarea for the user to see/edit
-            setPrompt(result.prompt)
-            
-            // Show success message briefly
-            alert(`✅ Prompt generated successfully! 
-            
-The prompt has been added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design with Nano Banana Pro.`)
-            
-          } catch (err: any) {
-            console.error('Prompt generation error:', err)
-            setError(err.message || 'Failed to generate prompt. Please try again.')
-          } finally {
-            setLoading(false)
+          // Build prompt directly from wizard data (skip GPT-4.1-nano)
+          const layouts: Record<number, string> = {
+            1: 'Single large hero image with full-width banner',
+            2: 'Two equal columns side by side',
+            3: 'One large main image with two smaller below',
+            4: '2x2 grid with equal square images',
+            5: 'One large featured image with 4 smaller in grid',
+            6: '2x3 grid with uniform rectangle images',
           }
+          const layoutSuggestion = layouts[data.photoFrames] || 'Custom grid layout'
+          
+          // Get agency brand info
+          const agencyInfo = agencyBrands.find(b => b.slug === agentAgency)
+          const agencyColors = agencyInfo ? `${agencyInfo.name} brand colors` : 'premium real estate brand colors (deep blue to teal)'
+          
+          // Build the prompt
+          let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
+
+HEADER: A bold header banner with "${data.propertyDetails.header}" text in modern sans-serif typography, gradient background using ${agencyColors}, with subtle geometric patterns.
+
+PHOTO LAYOUT: ${layoutSuggestion}. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing ${data.photoFrames > 3 ? 'asymmetric' : 'symmetric'} grid.
+
+PROPERTY INFO SECTION:
+- Price prominently displayed: ${data.propertyDetails.price || 'R[PRICE]'} in large bold typography
+- Location: ${data.propertyDetails.location || '[LOCATION]'}
+- Property type badge: ${data.propertyDetails.propertyType || 'Property'}
+- Stats row showing ${data.propertyDetails.bedrooms || 'X'} beds, ${data.propertyDetails.bathrooms || 'X'} baths, ${data.propertyDetails.squareMeters || 'XXX'}m²
+- Key features list: ${data.propertyDetails.keyFeatures || 'Feature 1, Feature 2, Feature 3'}
+
+`
+          
+          if (data.includeAgent && agentName.trim()) {
+            prompt += `AGENT PROFILE SECTION: Include a circular agent photo placeholder, agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card.`
+          } else {
+            prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
+          }
+          
+          prompt += `
+
+STYLE: Modern, luxurious real estate marketing aesthetic. Use a clean white/light gray background with bold accent colors. Include subtle shadows, rounded corners, and professional typography. The overall look should be premium, trustworthy, and eye-catching.
+
+DIMENSIONS: Standard A4 flyer proportions (210mm x 297mm), print-ready with 3mm bleed.
+
+AGENCY: ${agencyInfo ? agencyInfo.name : 'Standard real estate agency'} branding`
+          
+          // Set the prompt in the textarea
+          setPrompt(prompt)
+          
+          // Show success message
+          alert(`✅ Wizard completed! 
+
+Your prompt has been generated and added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design with Nano Banana Pro.`)
         }}
       />
 
