@@ -1205,6 +1205,7 @@ export default function TemplatesPage() {
           setIncludeAgentProfile(data.includeAgent)
           
           // Build prompt directly from wizard data (skip GPT-4.1-nano)
+          // Use the exact format the user provided
           const layouts: Record<number, string> = {
             1: 'Single large hero image with full-width banner',
             2: 'Two equal columns side by side',
@@ -1213,41 +1214,45 @@ export default function TemplatesPage() {
             5: 'One large featured image with 4 smaller in grid',
             6: '2x3 grid with uniform rectangle images',
           }
-          const layoutSuggestion = layouts[data.photoFrames] || 'Custom grid layout'
+          const layoutSuggestion = layouts[data.photoFrames] || 'One large main image with two smaller below'
           
           // Get agency brand info
           const agencyInfo = agencyBrands.find(b => b.slug === agentAgency)
-          const agencyColors = agencyInfo ? `${agencyInfo.name} brand colors` : 'premium real estate brand colors (deep blue to teal)'
+          const agencyName = agencyInfo ? agencyInfo.name : 'RE/MAX'
           
-          // Build the prompt
+          // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
-HEADER: A bold header banner with "${data.propertyDetails.header}" text in modern sans-serif typography, gradient background using ${agencyColors}, with subtle geometric patterns.
+HEADER: A bold header banner with "New Listing" text in modern sans-serif typography, gradient background using ${agencyName} brand colors, with subtle geometric patterns.`
+          
+          // Add logo instruction if logo is uploaded
+          if (agentLogo) {
+            prompt += ` Use the exact image uploaded in reference image 2 as the logo picture, do not alter, change at all, just use it exactly as is.`
+          }
+          
+          prompt += `
 
-PHOTO LAYOUT: ${layoutSuggestion}. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing ${data.photoFrames > 3 ? 'asymmetric' : 'symmetric'} grid.
+PHOTO LAYOUT: ${layoutSuggestion}. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid.
 
 PROPERTY INFO SECTION:
-- Price prominently displayed: ${data.propertyDetails.price || 'R[PRICE]'} in large bold typography
+- Price prominently displayed: ${data.propertyDetails.price || '300000'} in large bold typography
 - Location: ${data.propertyDetails.location || '[LOCATION]'}
-- Property type badge: ${data.propertyDetails.propertyType || 'Property'}
-- Stats row showing ${data.propertyDetails.bedrooms || 'X'} beds, ${data.propertyDetails.bathrooms || 'X'} baths, ${data.propertyDetails.squareMeters || 'XXX'}m²
-- Key features list: ${data.propertyDetails.keyFeatures || 'Feature 1, Feature 2, Feature 3'}
+- Property type badge: ${data.propertyDetails.propertyType || 'Apartment'}
+- Stats row showing ${data.propertyDetails.bedrooms || '4'} beds, ${data.propertyDetails.bathrooms || '2'} baths, ${data.propertyDetails.squareMeters || '250'}m²
+- Key features list: ${data.propertyDetails.keyFeatures || 'Big pool\nSolar panels'}
 
 `
           
+          // Add agent profile section
           if (data.includeAgent && agentName.trim()) {
-            prompt += `AGENT PROFILE SECTION: Include a circular agent photo placeholder, agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card.`
+            prompt += `AGENT PROFILE SECTION: Use image 1 as the exact reference image for the agent, do not alter, change, enhance or beautify the picture at all, just use exactly as is. Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card.`
           } else {
             prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
           }
           
           prompt += `
 
-STYLE: Modern, luxurious real estate marketing aesthetic. Use a clean white/light gray background with bold accent colors. Include subtle shadows, rounded corners, and professional typography. The overall look should be premium, trustworthy, and eye-catching.
-
-DIMENSIONS: Standard A4 flyer proportions (210mm x 297mm), print-ready with 3mm bleed.
-
-AGENCY: ${agencyInfo ? agencyInfo.name : 'Standard real estate agency'} branding`
+STYLE: Modern, luxurious real estate marketing aesthetic. Use a clean white/light gray background with bold accent colors. Include subtle shadows, rounded corners, and professional typography. The overall look should be premium, trustworthy, and eye-catching.`
           
           // Set the prompt in the textarea
           setPrompt(prompt)
