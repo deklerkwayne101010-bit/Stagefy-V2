@@ -758,22 +758,105 @@ export default function TemplatesPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden relative">
-                    <img
-                      src={result.outputUrl}
-                      alt="Generated template"
-                      className="w-full h-full object-cover"
-                    />
-                    {result.isWatermarked && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="bg-black/50 text-white px-4 py-2 rounded-lg text-sm font-medium transform -rotate-12">
-                          Stagefy Free
+                  <div className="relative">
+                    <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden relative">
+                      <img
+                        src={result.outputUrl}
+                        alt="Generated template"
+                        className="w-full h-full object-contain cursor-pointer"
+                        onClick={() => (document.getElementById('template-fullscreen-modal') as HTMLDialogElement)?.showModal()}
+                      />
+                      {result.isWatermarked && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="bg-black/50 text-white px-4 py-2 rounded-lg text-sm font-medium transform -rotate-12">
+                            Stagefy Free
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    {/* View Fullscreen and Download buttons */}
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        fullWidth
+                        onClick={() => (document.getElementById('template-fullscreen-modal') as HTMLDialogElement)?.showModal()}
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                        View Fullscreen
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        fullWidth
+                        onClick={() => {
+                          const link = document.createElement('a')
+                          link.href = result.outputUrl
+                          link.download = 'stagefy-template.jpg'
+                          link.click()
+                        }}
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                      </Button>
+                    </div>
                   </div>
                 )}
               </Card>
+
+              {/* Fullscreen Modal */}
+              {result && (
+                <dialog id="template-fullscreen-modal" className="modal">
+                  <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+                    <div className="relative max-w-4xl w-full max-h-[90vh] overflow-auto">
+                      <button
+                        onClick={() => (document.getElementById('template-fullscreen-modal') as HTMLDialogElement)?.close()}
+                        className="absolute top-0 right-0 -mt-10 text-white hover:text-gray-300"
+                      >
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      <img
+                        src={result.outputUrl}
+                        alt="Generated template fullscreen"
+                        className="w-full h-auto rounded-lg"
+                      />
+                      <div className="flex gap-2 mt-4 justify-center">
+                        <Button 
+                          variant="outline"
+                          className="bg-white text-gray-900 hover:bg-gray-100"
+                          onClick={() => {
+                            const link = document.createElement('a')
+                            link.href = result.outputUrl
+                            link.download = 'stagefy-template.jpg'
+                            link.click()
+                          }}
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          className="bg-white text-gray-900 hover:bg-gray-100"
+                          onClick={() => window.open(result.outputUrl, '_blank')}
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          Open in New Tab
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </dialog>
+              )}
 
               {/* Submit */}
               <Card className="bg-gray-900 text-white border-0">
