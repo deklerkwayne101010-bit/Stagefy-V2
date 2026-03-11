@@ -1250,9 +1250,7 @@ PROPERTY INFO SECTION:
             prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
           }
           
-          prompt += `
-
-STYLE: Modern, luxurious real estate marketing aesthetic. Use a clean white/light gray background with bold accent colors. Include subtle shadows, rounded corners, and professional typography. The overall look should be premium, trustworthy, and eye-catching.`
+          prompt += ``
           
           // Set the prompt in the textarea
           setPrompt(prompt)
