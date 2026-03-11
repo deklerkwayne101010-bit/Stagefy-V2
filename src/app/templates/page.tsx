@@ -1223,7 +1223,7 @@ export default function TemplatesPage() {
           // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
-HEADER: A bold header banner with "New Listing" text in modern sans-serif typography, gradient background using ${agencyName} brand colors, with subtle geometric patterns.`
+HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using ${agencyName} brand colors, with subtle geometric patterns.`
           
           // Add logo instruction if logo is uploaded
           if (agentLogo) {
