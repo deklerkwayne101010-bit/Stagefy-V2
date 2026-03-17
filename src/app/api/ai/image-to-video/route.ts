@@ -34,8 +34,7 @@ export async function POST(request: Request) {
     }
 
     const userIdStr = user.id
-    const durationKey = `${duration}sec` as '3sec' | '5sec' | '10sec'
-    const creditCost = CREDIT_COSTS[`image_to_video_${durationKey}`]
+    const creditCost = CREDIT_COSTS[`image_to_video_${duration}sec` as keyof typeof CREDIT_COSTS] || 8
 
     // Demo mode: skip credit check and return demo response
     if (isDemoMode) {
@@ -64,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     // Reserve credits for the operation
-    const reservation = await reserveCredits(userIdStr, `image_to_video_${durationKey}` as any, `video-${Date.now()}`)
+    const reservation = await reserveCredits(userIdStr, `image_to_video_${duration}sec` as any, `video-${Date.now()}`)
     if (!reservation.success) {
       return NextResponse.json(
         { error: reservation.error || 'Failed to reserve credits' },
@@ -73,31 +72,60 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Call Replicate API for video generation
-      const response = await fetch('https://api.replicate.com/v1/predictions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'wait',
-        },
-        body: JSON.stringify({
-          version: 'anotherjesse/zeroscope-v2-xl-9c',
-          input: {
-            images: images,
-            prompt: prompt || 'smooth camera movement',
-            num_frames: duration * 8, // 8 fps
-            width: 1024,
-            height: 576,
+      let prediction;
+      
+      if (mode === 'frames') {
+        // Use kling-v3-omni-video for image sequence (start + end frame)
+        const response = await fetch('https://api.replicate.com/v1/models/kwaivgi/kling-v3-omni-video/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'wait',
           },
-        }),
-      })
+          body: JSON.stringify({
+            input: {
+              mode: 'standard',
+              prompt: prompt || 'Smooth video transition',
+              duration: parseInt(duration),
+              aspect_ratio: '16:9',
+              generate_audio: false,
+              keep_original_sound: true,
+              video_reference_type: 'feature',
+            },
+          }),
+        })
 
-      if (!response.ok) {
-        throw new Error('Failed to create video')
+        if (!response.ok) {
+          throw new Error('Failed to create video with kling-v3-omni-video')
+        }
+
+        prediction = await response.json()
+      } else {
+        // Use xai/grok-imagine-video for single image
+        const response = await fetch('https://api.replicate.com/v1/models/xai/grok-imagine-video/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'wait',
+          },
+          body: JSON.stringify({
+            input: {
+              prompt: prompt || 'smooth camera movement',
+              duration: parseInt(duration),
+              resolution: '720p',
+              aspect_ratio: '16:9',
+            },
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to create video with grok-imagine-video')
+        }
+
+        prediction = await response.json()
       }
-
-      const prediction = await response.json()
 
       // Success! Return response
       return NextResponse.json({
@@ -109,7 +137,7 @@ export async function POST(request: Request) {
       })
     } catch (aiError) {
       // Refund credits on failure
-      await refundCredits(userIdStr, `image_to_video_${durationKey}` as any, `video-${Date.now()}`)
+      await refundCredits(userIdStr, `image_to_video_${duration}sec` as any, `video-${Date.now()}`)
       
       // Return mock response for demo
       return NextResponse.json({

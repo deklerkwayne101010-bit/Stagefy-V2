@@ -12,15 +12,17 @@ import { Badge } from '@/components/ui/Badge'
 import { canPerformAction, checkUserCredits } from '@/lib/credits'
 
 const videoDurations = [
-  { value: '3', label: '3 seconds', credits: 5, description: 'Quick social media clip' },
-  { value: '5', label: '5 seconds', credits: 8, description: 'Standard listing preview' },
-  { value: '10', label: '10 seconds', credits: 15, description: 'Full property walkthrough' },
+  { value: '3', label: '3 seconds', credits: 3, description: 'Quick social media clip' },
+  { value: '5', label: '5 seconds', credits: 5, description: 'Standard listing preview' },
+  { value: '10', label: '10 seconds', credits: 10, description: 'Full property walkthrough' },
+  { value: '15', label: '15 seconds', credits: 15, description: 'Extended property showcase' },
 ]
 
 const CREDIT_COSTS = {
-  '3': 5,
-  '5': 8,
-  '10': 15,
+  '3': 3,
+  '5': 5,
+  '10': 10,
+  '15': 15,
 }
 
 export default function ImageToVideoPage() {
