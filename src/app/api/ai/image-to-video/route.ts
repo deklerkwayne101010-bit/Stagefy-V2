@@ -8,6 +8,7 @@ import {
   canPerformAction 
 } from '@/lib/credits'
 import { getCurrentUser } from '@/lib/supabase'
+import { createNotification } from '@/lib/notifications'
 
 // Check if running in demo mode (no Supabase configured)
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -128,6 +129,16 @@ export async function POST(request: Request) {
       }
 
       // Success! Return response
+      // Create notification for the user
+      const modeLabel = mode === 'frames' ? 'Image Sequence' : 'Single Image'
+      await createNotification({
+        userId: userIdStr,
+        type: 'job_completed',
+        title: 'Video Creation Complete',
+        message: `Your ${duration} second ${modeLabel} video is ready!`,
+        data: { jobId: prediction.id, mode, duration }
+      })
+
       return NextResponse.json({
         outputUrl: prediction.output,
         jobId: prediction.id,

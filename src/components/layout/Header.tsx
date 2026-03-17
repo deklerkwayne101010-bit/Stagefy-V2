@@ -1,10 +1,19 @@
 // Premium Header component
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { CreditBadge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
+
+interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string | null
+  is_read: boolean
+  created_at: string
+}
 
 interface HeaderProps {
   title?: string
@@ -15,15 +24,71 @@ export function Header({ title, subtitle }: HeaderProps) {
   const { user } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
 
-  // Mock notifications for demo
-  const notifications = [
-    { id: 1, title: 'Photo edit completed', message: 'Your virtual staging is ready', time: '5m ago', read: false },
-    { id: 2, title: 'Low credits warning', message: 'You have 5 credits remaining', time: '1h ago', read: false },
-    { id: 3, title: 'Payment successful', message: 'Your subscription is active', time: '1d ago', read: true },
-  ]
+  // Fetch real notifications from API
+  const fetchNotifications = async () => {
+    if (!user?.id) return
+    
+    setIsLoadingNotifications(true)
+    try {
+      const response = await fetch('/api/notifications')
+      if (response.ok) {
+        const data = await response.json()
+        setNotifications(data.notifications || [])
+        setUnreadCount(data.unreadCount || 0)
+      }
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error)
+    } finally {
+      setIsLoadingNotifications(false)
+    }
+  }
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  // Fetch notifications when user logs in
+  useEffect(() => {
+    if (user?.id) {
+      fetchNotifications()
+    }
+  }, [user?.id])
+
+  // Mark notifications as read when dropdown opens
+  const handleNotificationsOpen = async () => {
+    setShowNotifications(!showNotifications)
+    if (!showNotifications && unreadCount > 0) {
+      // Mark all as read
+      try {
+        await fetch('/api/notifications/read', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markAllRead: true })
+        })
+        // Update local state
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+        setUnreadCount(0)
+      } catch (error) {
+        console.error('Failed to mark notifications as read:', error)
+      }
+    }
+  }
+
+  // Format relative time
+  const formatRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString()
+  }
 
   return (
     <header className="bg-white px-8 py-6">
@@ -46,7 +111,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* Notifications */}
           <div className="relative">
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={handleNotificationsOpen}
               className="relative p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,18 +136,18 @@ export function Header({ title, subtitle }: HeaderProps) {
                       key={notification.id}
                       className={cn(
                         'p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors',
-                        !notification.read && 'bg-blue-50/50'
+                        !notification.is_read && 'bg-blue-50/50'
                       )}
                     >
                       <div className="flex items-start gap-3">
                         <div className={cn(
                           'w-2 h-2 mt-2.5 rounded-full',
-                          notification.read ? 'bg-slate-300' : 'bg-blue-500'
+                          notification.is_read ? 'bg-slate-300' : 'bg-blue-500'
                         )} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-900">{notification.title}</p>
                           <p className="text-sm text-slate-500 mt-0.5">{notification.message}</p>
-                          <p className="text-xs text-slate-400 mt-1">{notification.time}</p>
+                          <p className="text-xs text-slate-400 mt-1">{formatRelativeTime(notification.created_at)}</p>
                         </div>
                       </div>
                     </div>
