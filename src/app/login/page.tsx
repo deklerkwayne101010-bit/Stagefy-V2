@@ -119,6 +119,12 @@ export default function LoginPage() {
               required
             />
 
+            <div className="flex items-center justify-end">
+              <Link href="/forgot-password" className="text-sm text-[#1A1A2E] hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+
             <Button type="submit" fullWidth loading={loading}>
               Sign in
             </Button>

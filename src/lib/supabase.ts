@@ -67,6 +67,16 @@ export const supabase = {
       if (!client) return { error: new Error('Supabase not configured') }
       return client.auth.signOut()
     },
+    resetPasswordEmail: async (email: string, options?: { redirectTo?: string }) => {
+      const client = getSupabaseClient()
+      if (!client) return { error: new Error('Supabase not configured') }
+      return client.auth.resetPasswordForEmail(email, options)
+    },
+    updateUser: async (attributes: { password?: string }) => {
+      const client = getSupabaseClient()
+      if (!client) return { data: { user: null }, error: new Error('Supabase not configured') }
+      return client.auth.updateUser(attributes)
+    },
     onAuthStateChange: (callback: (event: string, session: unknown) => void) => {
       const client = getSupabaseClient()
       if (!client) {
