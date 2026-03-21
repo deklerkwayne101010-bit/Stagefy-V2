@@ -226,6 +226,22 @@ export default function CalendarPage() {
         ? `${formData.end_date}T23:59:59`
         : `${formData.end_date}T${formData.end_time}:00`
 
+      const requestBody = {
+        title: formData.title,
+        description: formData.description,
+        event_type: formData.event_type,
+        start_time: startTime,
+        end_time: endTime,
+        all_day: formData.all_day,
+        location: formData.location,
+        status: formData.status,
+        priority: formData.priority
+      }
+
+      console.log('=== CALENDAR EVENT CREATION DEBUG ===')
+      console.log('Request body:', JSON.stringify(requestBody, null, 2))
+      console.log('Auth token exists:', !!session?.access_token)
+
       const response = await fetch('/api/calendar/events', {
         method: 'POST',
         headers: {
@@ -245,15 +261,23 @@ export default function CalendarPage() {
         })
       })
 
+      console.log('Response status:', response.status)
+      const data = await response.json()
+      console.log('Response data:', data)
+      
       if (response.ok) {
-        const data = await response.json()
         setEvents(prev => [...prev, data.event])
         setShowEventModal(false)
         setSelectedEvent(null)
         setFormData(getDefaultFormData())
       } else {
-        const data = await response.json()
-        setError(data.error || 'Failed to create event')
+        // More detailed error message
+        let errorMsg = data.error || `Failed to create event (Error: ${response.status})`
+        if (data.details) {
+          errorMsg += ` - ${data.details}`
+        }
+        console.error('Event creation failed:', errorMsg, data)
+        setError(errorMsg)
       }
     } catch (err) {
       console.error('Error creating event:', err)
