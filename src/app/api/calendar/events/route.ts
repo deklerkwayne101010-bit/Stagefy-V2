@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         listing_id,
         task_id,
         status: status || 'scheduled',
-        priority: priority || 'medium',
+        priority: priority || 'normal',
         reminder_minutes_before,
         reminder_sent: reminder_sent || false
       })
