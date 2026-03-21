@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize isDemo from environment - no need for useEffect
   const [isDemo] = useState(() => isDemoMode())
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (retryCount = 0) => {
     if (isDemoMode()) {
       // In demo mode, check localStorage for logged in user
       const storedUser = typeof window !== 'undefined' ? localStorage.getItem('demoUser') : null
@@ -35,17 +35,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return
     }
-    // Add timeout to prevent hanging
+    // Add timeout to prevent hanging - with retry logic
     try {
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('User refresh timeout')), 10000)
+        setTimeout(() => reject(new Error('User refresh timeout')), 15000)
       )
       const userPromise = getCurrentUser()
       const currentUser = await Promise.race([userPromise, timeoutPromise]) as any
-      setUser(currentUser)
-    } catch (error) {
-      console.error('Error refreshing user:', error)
-      setUser(null)
+      
+      if (currentUser) {
+        setUser(currentUser)
+      } else if (retryCount < 2) {
+        // Retry up to 2 times if user is null
+        console.log('Retrying user refresh, attempt:', retryCount + 1)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await refreshUser(retryCount + 1)
+      }
+    } catch (error: any) {
+      console.error('Error refreshing user:', error?.message || error)
+      // Only set user to null after multiple failures
+      if (retryCount >= 2) {
+        console.log('Max retries reached, setting user to null')
+        setUser(null)
+      } else {
+        // Retry after a delay
+        console.log('Retrying after error, attempt:', retryCount + 1)
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        await refreshUser(retryCount + 1)
+      }
     }
   }, [])
 

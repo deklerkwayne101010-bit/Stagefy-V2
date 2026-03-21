@@ -267,9 +267,24 @@ export async function getCurrentUser(): Promise<User | null> {
     }
   }
   
-  // OPTIMIZED: Get session directly (faster than getUser + getSession)
-  // This is the session from localStorage - no network call needed if cached
-  const { data: { session } } = await client.auth.getSession()
+  // Try to get session without triggering a refresh (use cached session)
+  // This avoids the timeout issue with token refresh
+  let session = null
+  try {
+    const { data } = await client.auth.getSession()
+    session = data?.session
+  } catch (sessionError) {
+    console.error('Error getting session:', sessionError)
+    // Try to get user from client directly (might work with cached token)
+    try {
+      const { data: userData } = await client.auth.getUser()
+      if (userData?.user) {
+        session = { user: userData.user } as any
+      }
+    } catch (getUserError) {
+      console.error('Error getting user:', getUserError)
+    }
+  }
   
   if (!session?.user) {
     return null
