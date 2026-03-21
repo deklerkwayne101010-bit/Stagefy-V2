@@ -35,8 +35,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return
     }
-    const currentUser = await getCurrentUser()
-    setUser(currentUser)
+    // Add timeout to prevent hanging
+    try {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('User refresh timeout')), 10000)
+      )
+      const userPromise = getCurrentUser()
+      const currentUser = await Promise.race([userPromise, timeoutPromise]) as any
+      setUser(currentUser)
+    } catch (error) {
+      console.error('Error refreshing user:', error)
+      setUser(null)
+    }
   }, [])
 
   useEffect(() => {

@@ -30,13 +30,26 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const { error: authError } = await signIn(email, password)
-    
-    if (authError) {
-      setError(authError.message)
+    // Add timeout to prevent getting stuck
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Login request timed out. Please try again.')), 15000)
+    )
+
+    try {
+      const { error: authError } = await Promise.race([
+        signIn(email, password),
+        timeoutPromise
+      ]) as any
+      
+      if (authError) {
+        setError(authError.message || 'Login failed. Please try again.')
+      } else {
+        router.push('/dashboard')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during login. Please try again.')
+    } finally {
       setLoading(false)
-    } else {
-      router.push('/dashboard')
     }
   }
 
