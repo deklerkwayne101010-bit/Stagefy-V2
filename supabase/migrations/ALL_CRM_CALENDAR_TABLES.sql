@@ -229,13 +229,19 @@ ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_settings ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for calendar_events
+-- RLS Policies for calendar_events (drop first if exists)
+DROP POLICY IF EXISTS "Users can view their own calendar events" ON calendar_events;
+DROP POLICY IF EXISTS "Users can insert their own calendar events" ON calendar_events;
+DROP POLICY IF EXISTS "Users can update their own calendar events" ON calendar_events;
+DROP POLICY IF EXISTS "Users can delete their own calendar events" ON calendar_events;
 CREATE POLICY "Users can view their own calendar events" ON calendar_events FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own calendar events" ON calendar_events FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own calendar events" ON calendar_events FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own calendar events" ON calendar_events FOR DELETE USING (auth.uid() = user_id);
 
 -- RLS Policies for event_reminders
+DROP POLICY IF EXISTS "Users can view reminders for their events" ON event_reminders;
+DROP POLICY IF EXISTS "Users can manage reminders for their events" ON event_reminders;
 CREATE POLICY "Users can view reminders for their events" ON event_reminders FOR SELECT USING (
   EXISTS (SELECT 1 FROM calendar_events WHERE calendar_events.id = event_reminders.event_id AND calendar_events.user_id = auth.uid())
 );
@@ -244,6 +250,8 @@ CREATE POLICY "Users can manage reminders for their events" ON event_reminders F
 );
 
 -- RLS Policies for calendar_settings
+DROP POLICY IF EXISTS "Users can view their own calendar settings" ON calendar_settings;
+DROP POLICY IF EXISTS "Users can manage their own calendar settings" ON calendar_settings;
 CREATE POLICY "Users can view their own calendar settings" ON calendar_settings FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage their own calendar settings" ON calendar_settings FOR ALL USING (auth.uid() = user_id);
 
