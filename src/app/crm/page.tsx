@@ -1,33 +1,90 @@
-// Main CRM page - Overview
+// Main CRM page - Overview with real data
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { useAuth } from '@/lib/auth-context'
 
-const stats = [
-  { label: 'Total Contacts', value: '48', change: '+3 this week' },
-  { label: 'Active Listings', value: '12', change: '2 pending' },
-  { label: 'Media Files', value: '156', change: '+23 this month' },
-  { label: 'Deals Closed', value: '8', change: 'R43M total' },
-]
+interface Contact {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  type: string
+  status: string
+  created_at: string
+}
 
-const recentContacts = [
-  { id: 1, name: 'Sarah Johnson', type: 'buyer', email: 'sarah@email.com', status: 'active' },
-  { id: 2, name: 'Mike Chen', type: 'seller', email: 'mike@email.com', status: 'lead' },
-  { id: 3, name: 'Emily Davis', type: 'investor', email: 'emily@email.com', status: 'active' },
-]
+interface Listing {
+  id: string
+  title: string
+  address: string
+  price: number
+  status: string
+  bedrooms?: number
+  bathrooms?: number
+  property_type?: string
+}
 
-const recentListings = [
-  { id: 1, address: '123 Main St, Los Angeles, CA', price: 'R15.3M', status: 'active', bedrooms: 3, bathrooms: 2 },
-  { id: 2, address: '456 Oak Ave, Beverly Hills, CA', price: 'R43.2M', status: 'pending', bedrooms: 5, bathrooms: 4 },
-  { id: 3, address: '789 Pine Rd, Santa Monica, CA', price: 'R21.6M', status: 'active', bedrooms: 4, bathrooms: 3 },
-]
+interface Stats {
+  contacts: number
+  listings: number
+  pendingListings: number
+}
 
 export default function CRMPage() {
+  const { user } = useAuth()
+  const [stats, setStats] = useState<Stats>({ contacts: 0, listings: 0, pendingListings: 0 })
+  const [recentContacts, setRecentContacts] = useState<Contact[]>([])
+  const [recentListings, setRecentListings] = useState<Listing[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const fetchData = useCallback(async () => {
+    if (!user?.id) return
+    
+    setIsLoading(true)
+    try {
+      // Fetch contacts
+      const contactsRes = await fetch('/api/crm/contacts?limit=5')
+      if (contactsRes.ok) {
+        const contactsData = await contactsRes.json()
+        setRecentContacts(contactsData.contacts || [])
+        setStats(prev => ({ ...prev, contacts: contactsData.total || contactsData.contacts?.length || 0 }))
+      }
+
+      // Fetch listings
+      const listingsRes = await fetch('/api/crm/listings?limit=5')
+      if (listingsRes.ok) {
+        const listingsData = await listingsRes.json()
+        const listings = listingsData.listings || []
+        setRecentListings(listings)
+        setStats(prev => ({ 
+          ...prev, 
+          listings: listingsData.total || listings.length || 0,
+          pendingListings: listings.filter((l: Listing) => l.status === 'pending').length
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching CRM data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const formatPrice = (price: number | string) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    if (!numPrice) return 'Price on request'
+    return 'R ' + new Intl.NumberFormat('en-ZA').format(numPrice)
+  }
+
   return (
     <div>
       <Header title="CRM" subtitle="Manage your contacts, listings, and media" />
@@ -82,16 +139,44 @@ export default function CRMPage() {
           </Link>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {stats.map((stat) => (
-            <Card key={stat.label}>
-              <p className="text-sm text-gray-500">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-              <p className="text-sm text-green-600 mt-1">{stat.change}</p>
+        {/* Stats - Real Data */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-16"></div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <p className="text-sm text-gray-500">Total Contacts</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.contacts}</p>
+              <p className="text-sm text-blue-600 mt-1">{recentContacts.length} recent</p>
             </Card>
-          ))}
-        </div>
+            <Card>
+              <p className="text-sm text-gray-500">Active Listings</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.listings}</p>
+              {stats.pendingListings > 0 && (
+                <p className="text-sm text-yellow-600 mt-1">{stats.pendingListings} pending</p>
+              )}
+            </Card>
+            <Card>
+              <p className="text-sm text-gray-500">Media Files</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">-</p>
+              <p className="text-sm text-gray-500 mt-1">Coming soon</p>
+            </Card>
+            <Card>
+              <p className="text-sm text-gray-500">Deals Closed</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">-</p>
+              <p className="text-sm text-gray-500 mt-1">Track in activities</p>
+            </Card>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Contacts */}
@@ -104,27 +189,45 @@ export default function CRMPage() {
                 </Link>
               }
             />
-            <div className="space-y-3">
-              {recentContacts.map((contact) => (
-                <div key={contact.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-blue-600">
-                      {contact.name.charAt(0)}
-                    </span>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+            ) : recentContacts.length > 0 ? (
+              <div className="space-y-3">
+                {recentContacts.map((contact) => (
+                  <div key={contact.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium text-blue-600">
+                        {contact.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900">{contact.name}</p>
+                      <p className="text-sm text-gray-500">{contact.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <Badge 
+                        variant={contact.status === 'active' ? 'success' : contact.status === 'lead' ? 'warning' : 'info'}
+                        size="sm"
+                      >
+                        {contact.status}
+                      </Badge>
+                      <p className="text-xs text-gray-400 mt-1">{contact.type}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{contact.name}</p>
-                    <p className="text-sm text-gray-500">{contact.email}</p>
-                  </div>
-                  <Badge 
-                    variant={contact.status === 'active' ? 'success' : 'warning'}
-                    size="sm"
-                  >
-                    {contact.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No contacts yet</p>
+                <Link href="/crm/contacts">
+                  <Button size="sm" className="mt-2">Add your first contact</Button>
+                </Link>
+              </div>
+            )}
           </Card>
 
           {/* Recent Listings */}
@@ -137,29 +240,47 @@ export default function CRMPage() {
                 </Link>
               }
             />
-            <div className="space-y-3">
-              {recentListings.map((listing) => (
-                <div key={listing.id} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">{listing.address}</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {listing.bedrooms} bed • {listing.bathrooms} bath
-                      </p>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+            ) : recentListings.length > 0 ? (
+              <div className="space-y-3">
+                {recentListings.map((listing) => (
+                  <div key={listing.id} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{listing.title || listing.address}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {listing.bedrooms && `${listing.bedrooms} bed`}
+                          {listing.bedrooms && listing.bathrooms && ' • '}
+                          {listing.bathrooms && `${listing.bathrooms} bath`}
+                          {listing.property_type && ` • ${listing.property_type}`}
+                        </p>
+                      </div>
+                      <p className="font-semibold text-gray-900">{formatPrice(listing.price)}</p>
                     </div>
-                    <p className="font-semibold text-gray-900">{listing.price}</p>
+                    <div className="mt-2">
+                      <Badge 
+                        variant={listing.status === 'active' ? 'success' : listing.status === 'pending' ? 'warning' : 'info'}
+                        size="sm"
+                      >
+                        {listing.status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="mt-2">
-                    <Badge 
-                      variant={listing.status === 'active' ? 'success' : 'warning'}
-                      size="sm"
-                    >
-                      {listing.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No listings yet</p>
+                <Link href="/crm/listings">
+                  <Button size="sm" className="mt-2">Add your first listing</Button>
+                </Link>
+              </div>
+            )}
           </Card>
         </div>
       </div>

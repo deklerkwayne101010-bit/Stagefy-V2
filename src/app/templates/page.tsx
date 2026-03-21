@@ -32,13 +32,6 @@ const marketplaceTemplates: { id: number; name: string; type: string; thumbnail:
     description: 'Engaging brand narrative template'
   },
   {
-    id: 103,
-    name: 'Neon Dreams',
-    type: 'wacky',
-    thumbnail: '/templates/neon-dreams.jpg',
-    description: 'Vibrant cyberpunk-style template'
-  },
-  {
     id: 104,
     name: 'Market Stats',
     type: 'infographic',
@@ -53,34 +46,18 @@ const marketplaceTemplates: { id: number; name: string; type: string; thumbnail:
     description: 'Elegant high-end property template'
   },
   {
-    id: 106,
-    name: 'Quick Sale',
-    type: 'marketing',
-    thumbnail: '/templates/quick-sale.jpg',
-    description: 'Fast-paced promotional template'
-  },
-  {
     id: 107,
     name: 'Neighborhood Tour',
     type: 'infographic',
     thumbnail: '/templates/neighborhood.jpg',
     description: 'Community highlights template'
-  },
-  {
-    id: 108,
-    name: 'Open House',
-    type: 'marketing',
-    thumbnail: '/templates/open-house.jpg',
-    description: 'Event promotion template'
   }
 ]
 
 // Marketplace Template Types
 const marketplaceTypes: { value: string; label: string; icon: string; description: string }[] = [
   { value: 'professional', label: 'Professional', icon: '👔', description: 'Clean and corporate' },
-  { value: 'wacky', label: 'Wacky', icon: '🎨', description: 'Creative and fun' },
   { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visuals' },
-  { value: 'marketing', label: 'Marketing', icon: '📢', description: 'Promotional content' },
   { value: 'custom', label: 'Custom', icon: '✨', description: 'Enter your own custom prompt' },
 ]
 
