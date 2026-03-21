@@ -92,6 +92,7 @@ export async function POST(request: Request) {
         go_fast: true,
         output_format: 'jpg',
         output_quality: 90,
+        aspect_ratio: 'match_input_image',
       }
 
       const response = await fetch('https://api.replicate.com/v1/models/qwen/qwen-image-edit-2511/predictions', {
