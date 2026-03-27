@@ -116,15 +116,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes (only if not in demo mode)
     if (!isDemoMode()) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string) => {
-        if (event === 'SIGNED_IN') {
-          // Small delay to ensure Supabase has fully processed the sign-in
-          await new Promise(resolve => setTimeout(resolve, 500))
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Only refresh if we have an actual session with a user
+          // This prevents cascading refresh calls after failed login attempts
           await refreshUser()
         } else if (event === 'SIGNED_OUT') {
           hadSuccessfulAuth.current = false
           setUser(null)
         }
+        // Ignore TOKEN_REFRESHED, INITIAL_SESSION, PASSWORD_RECOVERY, etc.
+        // to avoid unnecessary refreshUser() calls that trigger timeout cascades
       })
 
       return () => subscription.unsubscribe()

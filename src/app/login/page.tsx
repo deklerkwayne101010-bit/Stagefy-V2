@@ -42,7 +42,17 @@ export default function LoginPage() {
       ]) as any
       
       if (authError) {
-        setError(authError.message || 'Login failed. Please try again.')
+        // Provide clear, user-friendly error messages
+        const msg = authError.message || ''
+        if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+          setError('Incorrect email or password. Please check your credentials and try again.')
+        } else if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+          setError('Please verify your email address before signing in. Check your inbox for a confirmation link.')
+        } else if (msg.includes('Too many requests') || msg.includes('rate_limit')) {
+          setError('Too many login attempts. Please wait a few minutes and try again.')
+        } else {
+          setError(msg || 'Login failed. Please try again.')
+        }
       } else {
         router.push('/dashboard')
       }
