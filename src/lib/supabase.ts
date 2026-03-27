@@ -19,9 +19,9 @@ function getSupabaseClient() {
   if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
+        autoRefreshToken: false, // Don't auto-refresh on init - prevents _recoverAndRefresh timeout cascade
+        persistSession: true,    // Still save session to localStorage
+        detectSessionInUrl: false, // Don't parse URL for auth tokens on every page load
       },
     })
   }

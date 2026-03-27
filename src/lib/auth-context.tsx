@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Track if we've had a successful auth at least once in this session
   const hadSuccessfulAuth = React.useRef(false)
 
-  const refreshUser = useCallback(async (retryCount = 0) => {
+  const refreshUser = useCallback(async () => {
     // Prevent concurrent refresh calls from colliding
     if (refreshInProgress.current) {
       return
@@ -49,54 +49,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshInProgress.current = true
 
     try {
-      // getCurrentUser already has internal timeouts (8s auth + 5s profile)
-      // No need for an additional outer timeout that races against it
       const currentUser = await getCurrentUser()
 
       if (currentUser) {
         hadSuccessfulAuth.current = true
         setUser(currentUser)
-      } else {
-        // getCurrentUser returned null - this means no valid session
-        // Only clear the user if we haven't had a successful auth yet this session,
-        // OR if we've retried enough times. This prevents random logouts from
-        // transient network issues.
-        if (!hadSuccessfulAuth.current) {
-          // First load and no session - user is not logged in
-          setUser(null)
-        } else if (retryCount < 2) {
-          // We had a session before but got null - might be transient
-          // Retry with backoff before giving up
-          await new Promise(resolve => setTimeout(resolve, 1500 * (retryCount + 1)))
-          refreshInProgress.current = false
-          await refreshUser(retryCount + 1)
-          return
-        }
-        // If hadSuccessfulAuth is true and retries exhausted with null,
-        // keep the existing user state rather than logging them out.
-        // A SIGNED_OUT event from Supabase will handle actual logout.
-      }
-    } catch (error: any) {
-      console.error('Error refreshing user:', error?.message || error)
-
-      if (retryCount < 2) {
-        // Retry on error with exponential backoff
-        const delay = 2000 * Math.pow(2, retryCount) // 2s, 4s
-        await new Promise(resolve => setTimeout(resolve, delay))
-        refreshInProgress.current = false
-        await refreshUser(retryCount + 1)
-        return
-      }
-
-      // Retries exhausted. Only log out if we never had a successful auth.
-      // If we had a session before, keep it - the user will see stale data
-      // rather than being randomly logged out. Next navigation/page load
-      // will re-attempt auth.
-      if (!hadSuccessfulAuth.current) {
-        console.log('Max retries reached, no previous auth - setting user to null')
+      } else if (!hadSuccessfulAuth.current) {
+        // First load and no session - user is not logged in
         setUser(null)
-      } else {
-        console.log('Max retries reached, but preserving existing session to prevent random logout')
+      }
+      // If hadSuccessfulAuth is true but currentUser is null,
+      // keep the existing user state rather than logging them out.
+      // A SIGNED_OUT event from Supabase will handle actual logout.
+    } catch (error: any) {
+      console.warn('Auth refresh failed:', error?.message)
+      // On error, only clear user if we never authenticated
+      if (!hadSuccessfulAuth.current) {
+        setUser(null)
       }
     } finally {
       refreshInProgress.current = false
