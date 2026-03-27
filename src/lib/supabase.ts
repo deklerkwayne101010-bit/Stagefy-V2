@@ -13,6 +13,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 // Lazy initialization to avoid errors when env vars are missing
 let supabaseClient: ReturnType<typeof createClient> | null = null
 let supabaseAdminClient: ReturnType<typeof createClient> | null = null
+let supabaseAuthWarned = false // Only log auth warnings once per session
 
 function getSupabaseClient() {
   if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
@@ -267,8 +268,74 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
   })
 }
 
-// Helper function to check if user is authenticated - OPTIMIZED with single call
-// Uses session directly instead of making redundant parallel calls
+// Read the Supabase session directly from localStorage (no network call)
+// This is the fastest way to get the session when auth server is slow/unreachable
+function getSessionFromStorage(): { user: any } | null {
+  try {
+    if (typeof window === 'undefined') return null
+
+    // Supabase JS v2 stores session under multiple possible key formats
+    // Try to find it by scanning localStorage for auth tokens
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key) continue
+
+      // Match keys like: sb-<ref>-auth-token, sb-<project>-auth-token, or supabase.auth.token
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        try {
+          const stored = localStorage.getItem(key)
+          if (stored) {
+            const parsed = JSON.parse(stored)
+            if (parsed?.user?.id) {
+              return { user: parsed.user }
+            }
+          }
+        } catch {
+          // Try next key
+        }
+      }
+    }
+
+    // Fallback: try the old Supabase v1 key format
+    const legacyKey = localStorage.getItem('supabase.auth.token')
+    if (legacyKey) {
+      try {
+        const parsed = JSON.parse(legacyKey)
+        if (parsed?.user?.id) {
+          return { user: parsed.user }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Fallback: try direct access with known URL pattern
+    if (supabaseUrl) {
+      const ref = supabaseUrl.match(/https:\/\/([^.]+)\./)?.[1]
+      if (ref) {
+        const key = `sb-${ref}-auth-token`
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            if (parsed?.user?.id) {
+              return { user: parsed.user }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+// Helper function to check if user is authenticated
+// Reads cached session from localStorage first (instant), then tries network as fallback
 export async function getCurrentUser(): Promise<User | null> {
   const client = getSupabaseClient()
   if (!client) return null
@@ -287,32 +354,37 @@ export async function getCurrentUser(): Promise<User | null> {
     }
   }
 
-  // Try to get session with timeout protection
-  // getSession() can hang when Supabase attempts to refresh an expired token
-  let session = null
-  try {
-    const { data } = await withTimeout(
-      client.auth.getSession(),
-      8000,
-      'getSession'
-    )
-    session = data?.session
-  } catch (sessionError: any) {
-    console.error('getSession failed or timed out:', sessionError?.message || sessionError)
-    // Fallback: try getUser() which uses a different auth flow
+  // Step 1: Try reading session from localStorage first (instant, no network)
+  // This avoids the common case where getSession() hangs trying to refresh a token
+  let session = getSessionFromStorage()
+
+  // Step 2: If no cached session, try the network-authenticated methods
+  if (!session) {
     try {
-      const { data: userData } = await withTimeout(
-        client.auth.getUser(),
+      const { data } = await withTimeout(
+        client.auth.getSession(),
         8000,
-        'getUser'
+        'getSession'
       )
-      if (userData?.user) {
-        session = { user: userData.user } as any
+      session = data?.session as any
+    } catch (sessionError: any) {
+      if (!supabaseAuthWarned) {
+        supabaseAuthWarned = true
+        console.warn('Supabase auth server is slow or unreachable. Using cached session.')
       }
-    } catch (getUserError: any) {
-      console.error('getUser also failed:', getUserError?.message || getUserError)
-      // Both auth methods failed - likely no valid session exists
-      return null
+      try {
+        const { data: userData } = await withTimeout(
+          client.auth.getUser(),
+          8000,
+          'getUser'
+        )
+        if (userData?.user) {
+          session = { user: userData.user } as any
+        }
+      } catch {
+        // Both failed and no cached session - not logged in
+        return null
+      }
     }
   }
 
@@ -322,7 +394,22 @@ export async function getCurrentUser(): Promise<User | null> {
 
   const user = session.user
 
-  // Try to fetch extended profile (with timeout to prevent hanging)
+  // Check if we have a cached profile for this user (avoids network call entirely)
+  // The cache is valid for 10 minutes to balance freshness vs performance
+  const profileCacheKey = `stagefy-profile-${user.id}`
+  try {
+    const cachedProfile = localStorage.getItem(profileCacheKey)
+    if (cachedProfile) {
+      const { data: cachedUser, cachedAt } = JSON.parse(cachedProfile)
+      if (cachedUser?.id && cachedAt && (Date.now() - cachedAt < 10 * 60 * 1000)) {
+        return cachedUser as User
+      }
+    }
+  } catch {
+    // ignore cache errors
+  }
+
+  // Step 3: Try to fetch extended profile (with timeout)
   try {
     const profileQuery = client
       .from('users')
@@ -339,15 +426,33 @@ export async function getCurrentUser(): Promise<User | null> {
     )
 
     if (data) {
+      // Cache the profile for future loads
+      try {
+        localStorage.setItem(profileCacheKey, JSON.stringify({ data, cachedAt: Date.now() }))
+      } catch {
+        // localStorage full or unavailable - ignore
+      }
       return data as User
     }
   } catch (profileError: any) {
-    // Profile doesn't exist or timeout - use minimal data from auth
+    // Profile fetch timed out - try using stale cache as fallback
+    try {
+      const cachedProfile = localStorage.getItem(profileCacheKey)
+      if (cachedProfile) {
+        const { data: cachedUser } = JSON.parse(cachedProfile)
+        if (cachedUser?.id) {
+          console.log('Profile fetch timed out, using stale cached profile')
+          return cachedUser as User
+        }
+      }
+    } catch {
+      // ignore
+    }
     console.log('Profile fetch failed, using minimal auth data:', profileError?.message)
   }
 
-  // Return minimal user data from auth (no extra DB call)
-  return {
+  // Build minimal user data from auth session
+  const minimalUser: User = {
     id: user.id,
     email: user.email || '',
     full_name: user.user_metadata?.full_name || '',
@@ -357,6 +462,15 @@ export async function getCurrentUser(): Promise<User | null> {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
+
+  // Cache the minimal data too so we don't keep failing
+  try {
+    localStorage.setItem(profileCacheKey, JSON.stringify({ data: minimalUser, cachedAt: Date.now() }))
+  } catch {
+    // ignore
+  }
+
+  return minimalUser
 }
 
 // Helper function to check if user is admin
