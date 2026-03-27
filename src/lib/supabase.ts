@@ -247,12 +247,32 @@ export async function getMediaById(
   }
 }
 
+// Helper to race a promise against a timeout
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (err) => {
+        clearTimeout(timer)
+        reject(err)
+      }
+    )
+  })
+}
+
 // Helper function to check if user is authenticated - OPTIMIZED with single call
 // Uses session directly instead of making redundant parallel calls
 export async function getCurrentUser(): Promise<User | null> {
   const client = getSupabaseClient()
   if (!client) return null
-  
+
   // For demo purposes, return a mock user if Supabase is not configured
   if (!supabaseUrl || !supabaseAnonKey) {
     return {
@@ -266,54 +286,66 @@ export async function getCurrentUser(): Promise<User | null> {
       updated_at: new Date().toISOString(),
     }
   }
-  
-  // Try to get session without triggering a refresh (use cached session)
-  // This avoids the timeout issue with token refresh
+
+  // Try to get session with timeout protection
+  // getSession() can hang when Supabase attempts to refresh an expired token
   let session = null
   try {
-    const { data } = await client.auth.getSession()
+    const { data } = await withTimeout(
+      client.auth.getSession(),
+      8000,
+      'getSession'
+    )
     session = data?.session
-  } catch (sessionError) {
-    console.error('Error getting session:', sessionError)
-    // Try to get user from client directly (might work with cached token)
+  } catch (sessionError: any) {
+    console.error('getSession failed or timed out:', sessionError?.message || sessionError)
+    // Fallback: try getUser() which uses a different auth flow
     try {
-      const { data: userData } = await client.auth.getUser()
+      const { data: userData } = await withTimeout(
+        client.auth.getUser(),
+        8000,
+        'getUser'
+      )
       if (userData?.user) {
         session = { user: userData.user } as any
       }
-    } catch (getUserError) {
-      console.error('Error getting user:', getUserError)
+    } catch (getUserError: any) {
+      console.error('getUser also failed:', getUserError?.message || getUserError)
+      // Both auth methods failed - likely no valid session exists
+      return null
     }
   }
-  
+
   if (!session?.user) {
     return null
   }
-  
+
   const user = session.user
-  
+
   // Try to fetch extended profile (with timeout to prevent hanging)
   try {
-    // Use AbortController for timeout - fail fast if profile takes too long
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 3000) // 3s timeout
-    
-    const { data } = await client
+    const profileQuery = client
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single()
-    
-    clearTimeout(timeoutId)
-    
+
+    const { data } = await withTimeout(
+      new Promise<{ data: any; error: any }>((resolve, reject) => {
+        profileQuery.then(resolve, reject)
+      }),
+      5000,
+      'profile fetch'
+    )
+
     if (data) {
       return data as User
     }
-  } catch (profileError) {
+  } catch (profileError: any) {
     // Profile doesn't exist or timeout - use minimal data from auth
-    console.log('Profile fetch failed, using minimal auth data')
+    console.log('Profile fetch failed, using minimal auth data:', profileError?.message)
   }
-  
+
   // Return minimal user data from auth (no extra DB call)
   return {
     id: user.id,
