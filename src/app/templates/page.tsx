@@ -10,6 +10,7 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
 import { TemplateSelectionModal } from '@/components/templates/TemplateSelectionModal'
 import { ProfessionalTemplateWizard } from '@/components/templates/ProfessionalTemplateWizard'
+import { InfographicWizard } from '@/components/templates/InfographicWizard'
 import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPopup'
 import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
 import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
@@ -94,6 +95,8 @@ export default function TemplatesPage() {
 
   // Professional Template Wizard State
   const [showWizard, setShowWizard] = useState(false)
+  // Infographic Wizard State
+  const [showInfographicWizard, setShowInfographicWizard] = useState(false)
   const [wizardData, setWizardData] = useState<{
     photoFrames: number
     includeAgent: boolean
@@ -587,6 +590,9 @@ export default function TemplatesPage() {
                         if (type.value === 'professional') {
                           // Open new professional template wizard
                           setShowWizard(true)
+                        } else if (type.value === 'infographic') {
+                          // Open infographic wizard
+                          setShowInfographicWizard(true)
                         } else {
                           setTemplateType(type.value)
                         }
@@ -601,6 +607,9 @@ export default function TemplatesPage() {
                       <p className="font-medium text-gray-900 mt-2 text-sm">{type.label}</p>
                       <p className="text-xs text-gray-500 mt-1">{type.description}</p>
                       {type.value === 'professional' && (
+                        <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
+                      )}
+                      {type.value === 'infographic' && (
                         <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
                       )}
                     </button>
@@ -1321,6 +1330,28 @@ PROPERTY INFO SECTION:
           alert(`✅ Wizard completed! 
 
 Your prompt has been generated and added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design with Nano Banana Pro.`)
+        }}
+      />
+
+      {/* Infographic Wizard */}
+      <InfographicWizard
+        isOpen={showInfographicWizard}
+        onClose={() => setShowInfographicWizard(false)}
+        agentProfile={agentName.trim() ? {
+          name: agentName,
+          email: agentEmail,
+          phone: agentPhone,
+          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
+          photoUrl: agentPhoto,
+          logoUrl: agentLogo,
+        } : null}
+        onComplete={(data) => {
+          setShowInfographicWizard(false)
+          setTemplateType('infographic')
+          setIncludeAgentProfile(data.includeAgent)
+          setPrompt(data.generatedPrompt)
+
+          alert(`✅ Infographic wizard completed!\n\nYour prompt has been generated. Click "Generate Template" to create your infographic.`)
         }}
       />
 
