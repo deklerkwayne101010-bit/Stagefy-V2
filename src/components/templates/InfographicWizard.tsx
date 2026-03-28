@@ -9,7 +9,20 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 
-type InfographicType = 'market-stats' | 'property-comparison' | 'neighborhood-guide' | 'investment-analysis' | 'custom'
+type InfographicType =
+  | 'market-stats'
+  | 'property-comparison'
+  | 'neighborhood-guide'
+  | 'investment-analysis'
+  | 'buyers-guide'
+  | 'sellers-guide'
+  | 'property-features'
+  | 'area-comparison'
+  | 'open-house'
+  | 'seasonal-trends'
+  | 'mortgage-info'
+  | 'rental-yields'
+  | 'custom'
 
 interface InfographicWizardProps {
   isOpen: boolean
@@ -46,30 +59,100 @@ const infographicTypes = [
     label: 'Market Stats',
     icon: '📊',
     description: 'Average price, days on market, price trends',
+    searchable: true,
+    searchQuery: 'Search for current property market statistics and trends in the area',
   },
   {
     id: 'property-comparison' as const,
     label: 'Property Comparison',
     icon: '🏘️',
     description: 'Compare 2-3 properties side by side',
+    searchable: false,
   },
   {
     id: 'neighborhood-guide' as const,
     label: 'Neighborhood Guide',
     icon: '📍',
     description: 'Area highlights, schools, amenities, lifestyle',
+    searchable: true,
+    searchQuery: 'Search for neighborhood information including schools, amenities, lifestyle, and highlights',
   },
   {
     id: 'investment-analysis' as const,
     label: 'Investment Analysis',
     icon: '💰',
     description: 'ROI, rental yield, capital growth potential',
+    searchable: true,
+    searchQuery: 'Search for investment data including rental yields, capital growth, and ROI for the area',
+  },
+  {
+    id: 'buyers-guide' as const,
+    label: 'Buyer\'s Guide',
+    icon: '🔑',
+    description: 'Step-by-step guide for buying property',
+    searchable: true,
+    searchQuery: 'Search for current property buying tips, steps, and market conditions for buyers',
+  },
+  {
+    id: 'sellers-guide' as const,
+    label: 'Seller\'s Guide',
+    icon: '🏷️',
+    description: 'Tips for selling your property faster',
+    searchable: true,
+    searchQuery: 'Search for current property selling tips, staging advice, and market timing',
+  },
+  {
+    id: 'property-features' as const,
+    label: 'Property Features',
+    icon: '✨',
+    description: 'Highlight a listing\'s best features',
+    searchable: false,
+  },
+  {
+    id: 'area-comparison' as const,
+    label: 'Area Comparison',
+    icon: '🗺️',
+    description: 'Compare two suburbs or areas',
+    searchable: true,
+    searchQuery: 'Search for comparison data between two areas including prices, amenities, and lifestyle',
+  },
+  {
+    id: 'open-house' as const,
+    label: 'Open House',
+    icon: '🏠',
+    description: 'Promote an upcoming open house event',
+    searchable: false,
+  },
+  {
+    id: 'seasonal-trends' as const,
+    label: 'Seasonal Trends',
+    icon: '📈',
+    description: 'Property market seasonal patterns',
+    searchable: true,
+    searchQuery: 'Search for current property market seasonal trends and patterns',
+  },
+  {
+    id: 'mortgage-info' as const,
+    label: 'Mortgage & Finance',
+    icon: '🏦',
+    description: 'Bond info, interest rates, affordability',
+    searchable: true,
+    searchQuery: 'Search for current mortgage interest rates, bond affordability tips, and finance information',
+  },
+  {
+    id: 'rental-yields' as const,
+    label: 'Rental Yields',
+    icon: '💵',
+    description: 'Rental income vs property value analysis',
+    searchable: true,
+    searchQuery: 'Search for rental yield data, average rents, and rental market conditions',
   },
   {
     id: 'custom' as const,
     label: 'Custom',
     icon: '✨',
     description: 'Build your own infographic from scratch',
+    searchable: false,
   },
 ]
 
@@ -113,6 +196,10 @@ export function InfographicWizard({
 }: InfographicWizardProps) {
   const [step, setStep] = useState<WizardStep>('type')
   const [infographicType, setInfographicType] = useState<InfographicType | null>(null)
+
+  // Auto-fill from web option
+  const [autoFill, setAutoFill] = useState(false)
+  const [autoFillArea, setAutoFillArea] = useState('')
 
   // Data fields per type
   const [marketArea, setMarketArea] = useState('')
@@ -171,7 +258,49 @@ export function InfographicWizard({
     'Location Score', 'Features', 'Price per m²',
   ]
 
+  const getTypeInfo = () => infographicTypes.find(t => t.id === infographicType)
+
   const buildPrompt = (): string => {
+    const typeInfo = getTypeInfo()
+
+    // If auto-fill is enabled, tell Nano Banana 2 to search for the data
+    if (autoFill && typeInfo?.searchable) {
+      let prompt = `Create a professional real estate infographic. `
+      prompt += `Type: ${typeInfo.label}. `
+      prompt += `Search the web for the most current, accurate data about ${autoFillArea || 'the area'}. `
+      prompt += `${typeInfo.searchQuery} in ${autoFillArea || 'the area'}. `
+      prompt += `Populate the infographic with real, up-to-date statistics and information you find. `
+
+      // Style
+      if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
+        prompt += `Color palette: ${agencyBrandColors.join(', ')}. Style: ${agencyBrandName || 'Agency'} branded. `
+      } else {
+        const scheme = colorSchemes.find(c => c.id === colorScheme)
+        if (scheme) {
+          if ('colors' in scheme && scheme.colors) {
+            prompt += `Color palette: ${(scheme.colors as string[]).join(', ')}. Style: ${scheme.label}. `
+          } else {
+            prompt += `Style: ${scheme.label}. `
+          }
+        }
+      }
+      prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. `
+
+      // Agent
+      if (includeAgent && agentProfile) {
+        prompt += `Include agent branding in a ${agentPlacement.replace('-', ' ')} layout. `
+        prompt += `Agent: ${agentProfile.name}. `
+        if (agentProfile.phone) prompt += `Phone: ${agentProfile.phone}. `
+        if (agentProfile.email) prompt += `Email: ${agentProfile.email}. `
+        if (agentProfile.agency) prompt += `Agency: ${agentProfile.agency}. `
+        if (agentProfile.logoUrl) prompt += `Use the provided logo image. `
+      }
+
+      prompt += 'Make it look polished, professional, and shareable on social media.'
+      return prompt
+    }
+
+    // Manual data entry mode
     let prompt = 'Create a professional real estate infographic. '
 
     // Type-specific content
@@ -203,6 +332,33 @@ export function InfographicWizard({
       if (capitalGrowth) prompt += `Capital growth: ${capitalGrowth}. `
       if (avgRentalIncome) prompt += `Average rental income: ${avgRentalIncome}. `
       if (investmentHighlights) prompt += `Highlights: ${investmentHighlights}. `
+    } else if (infographicType === 'buyers-guide') {
+      prompt += `Type: Buyer's Guide Infographic. `
+      prompt += `Area: ${autoFillArea}. `
+      if (customContent) prompt += `Additional content: ${customContent}. `
+    } else if (infographicType === 'sellers-guide') {
+      prompt += `Type: Seller's Guide Infographic. `
+      prompt += `Area: ${autoFillArea}. `
+      if (customContent) prompt += `Additional content: ${customContent}. `
+    } else if (infographicType === 'property-features') {
+      prompt += `Type: Property Features Infographic. `
+      if (customContent) prompt += `Features to highlight: ${customContent}. `
+    } else if (infographicType === 'area-comparison') {
+      prompt += `Type: Area Comparison Infographic. `
+      prompt += `Areas to compare: ${autoFillArea}. `
+      if (customContent) prompt += `Additional content: ${customContent}. `
+    } else if (infographicType === 'open-house') {
+      prompt += `Type: Open House Promotion Infographic. `
+      if (customContent) prompt += `Event details: ${customContent}. `
+    } else if (infographicType === 'seasonal-trends') {
+      prompt += `Type: Seasonal Trends Infographic. `
+      prompt += `Area: ${autoFillArea}. `
+    } else if (infographicType === 'mortgage-info') {
+      prompt += `Type: Mortgage & Finance Infographic. `
+      prompt += `Area: ${autoFillArea}. `
+    } else if (infographicType === 'rental-yields') {
+      prompt += `Type: Rental Yields Infographic. `
+      prompt += `Area: ${autoFillArea}. `
     } else if (infographicType === 'custom') {
       prompt += `Content: ${customContent}. `
     }
@@ -291,11 +447,25 @@ export function InfographicWizard({
   const canProceed = () => {
     if (step === 'type') return infographicType !== null
     if (step === 'data') {
+      const typeInfo = getTypeInfo()
+      // Auto-fill mode - just need the area
+      if (autoFill && typeInfo?.searchable) return !!autoFillArea.trim()
+
+      // Manual mode - type-specific requirements
       if (infographicType === 'market-stats') return !!marketArea
       if (infographicType === 'property-comparison') return !!property1 && !!property2
       if (infographicType === 'neighborhood-guide') return !!neighborhoodName
       if (infographicType === 'investment-analysis') return !!investmentArea
       if (infographicType === 'custom') return !!customContent.trim()
+
+      // New searchable types need area or content
+      if (['buyers-guide', 'sellers-guide', 'area-comparison', 'seasonal-trends', 'mortgage-info', 'rental-yields'].includes(infographicType || '')) {
+        return !!autoFillArea.trim()
+      }
+      if (['property-features', 'open-house'].includes(infographicType || '')) {
+        return !!customContent.trim()
+      }
+
       return true
     }
     return true
@@ -406,8 +576,63 @@ export function InfographicWizard({
             {/* Step 2: Data */}
             {step === 'data' && infographicType && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900">Enter your data</h3>
-                <p className="text-sm text-gray-500">Fill in the details you want to show on the infographic.</p>
+                {(() => {
+                  const typeInfo = getTypeInfo()
+                  const isSearchable = typeInfo?.searchable
+
+                  return (
+                    <>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {isSearchable ? 'Choose how to populate your data' : 'Enter your data'}
+                      </h3>
+
+                      {/* Auto-fill toggle for searchable types */}
+                      {isSearchable && (
+                        <div className="p-4 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900">Auto-fill from web</p>
+                              <p className="text-sm text-gray-500 mt-0.5">
+                                Let AI search for the latest data — just enter the area name
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setAutoFill(!autoFill)}
+                              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                                autoFill ? 'bg-blue-600' : 'bg-gray-300'
+                              }`}
+                            >
+                              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                                autoFill ? 'translate-x-6' : 'translate-x-1'
+                              }`} />
+                            </button>
+                          </div>
+
+                          {autoFill && (
+                            <div className="mt-4">
+                              <Input
+                                label="Area / Suburb *"
+                                placeholder="e.g., Sandton, Johannesburg or Gauteng"
+                                value={autoFillArea}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAutoFillArea(e.target.value)}
+                              />
+                              <p className="text-xs text-blue-600 mt-2">
+                                Nano Banana 2 will search the web for current {typeInfo.label.toLowerCase()} data in this area
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Manual data entry (when auto-fill is off or type isn't searchable) */}
+                      {(!isSearchable || !autoFill) && (
+                        <div>
+                          {isSearchable && (
+                            <p className="text-sm text-gray-500 mb-4">Or fill in the details manually:</p>
+                          )}
+                          {!isSearchable && (
+                            <p className="text-sm text-gray-500">Fill in the details you want to show on the infographic.</p>
+                          )}
 
                 {infographicType === 'market-stats' && (
                   <div className="space-y-4">
@@ -597,6 +822,39 @@ export function InfographicWizard({
                   </div>
                 )}
 
+                {/* New searchable types - simple area + optional notes */}
+                {['buyers-guide', 'sellers-guide', 'area-comparison', 'seasonal-trends', 'mortgage-info', 'rental-yields'].includes(infographicType || '') && (
+                  <div className="space-y-4">
+                    <Input
+                      label="Area / Suburb *"
+                      placeholder="e.g., Sandton, Johannesburg or Gauteng"
+                      value={autoFillArea}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAutoFillArea(e.target.value)}
+                    />
+                    <Textarea
+                      label="Additional notes (optional)"
+                      placeholder="Any specific points you want included on the infographic"
+                      value={customContent}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomContent(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                )}
+
+                {['property-features', 'open-house'].includes(infographicType || '') && (
+                  <div className="space-y-4">
+                    <Textarea
+                      label={infographicType === 'open-house' ? 'Open House Details *' : 'Property Features *'}
+                      placeholder={infographicType === 'open-house'
+                        ? 'e.g., 45 Oak Avenue, Sandton\nSaturday 23 March, 10am-2pm\n4 bed, 3 bath, pool, garden'
+                        : 'e.g., 4 bedrooms, 3 bathrooms, open-plan living, swimming pool, double garage, mountain views'}
+                      value={customContent}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomContent(e.target.value)}
+                      rows={5}
+                    />
+                  </div>
+                )}
+
                 {infographicType === 'custom' && (
                   <div className="space-y-4">
                     <Textarea
@@ -607,7 +865,15 @@ export function InfographicWizard({
                       rows={6}
                     />
                   </div>
-                )}
+                        )}
+
+                        {/* End of manual data entry wrapper */}
+                      </div>
+                      )}
+
+                    </>
+                  )
+                })()}
               </div>
             )}
 
