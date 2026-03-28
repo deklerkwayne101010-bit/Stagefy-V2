@@ -15,7 +15,7 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Image
-        src="https://images.squarespace-cdn.com/content/v1/6639598e07b0a31d4e7592da/0a032d6f-035d-40d5-a489-7a9a539003e3/stagefylogo-removebg-preview.png?format=1000w"
+        src="/logo.png"
         alt="Stagefy Logo"
         width={dimensions[size].width}
         height={dimensions[size].height}
