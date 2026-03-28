@@ -557,9 +557,19 @@ export default function CalendarPage() {
 
       {/* Event Modal with Full Form */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <CardHeader title={selectedEvent ? 'Edit Event' : 'New Event'} />
+        <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEventModal(false)}>
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 pt-6">
+              <h2 className="text-lg font-semibold text-gray-900">{selectedEvent ? 'Edit Event' : 'New Event'}</h2>
+              <button
+                onClick={() => setShowEventModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <div className="p-4 space-y-4">
               {/* Error message */}
               {error && (
