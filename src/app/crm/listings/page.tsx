@@ -156,7 +156,7 @@ export default function ListingsPage() {
         headers,
         body: JSON.stringify({
           ...formData,
-          price: formData.price ? parseFloat(formData.price) : null,
+          price: formData.price ? parseFloat(formData.price.replace(/[^0-9.]/g, '')) : null,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
           bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null
         })
@@ -345,10 +345,10 @@ export default function ListingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="Price (ZAR)"
-                    type="number"
+                    type="text"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="e.g., 1500000"
+                    placeholder="e.g., 1,500,000"
                   />
                   <Select
                     label="Listing Type"
