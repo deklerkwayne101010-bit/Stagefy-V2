@@ -44,6 +44,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { id: eventId } = await params
     const body = await request.json()
 
+    // Use client with auth token for RLS
+    const token = authHeader!.replace('Bearer ', '')
+    const supabaseWithAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+
     const {
       title,
       description,
@@ -62,7 +68,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     } = body
 
     // Update the event
-    const { data: event, error } = await supabase
+    const { data: event, error } = await supabaseWithAuth
       .from('calendar_events')
       .update({
         title,
@@ -86,7 +92,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       .select(`
         *,
         contact:crm_contacts(id, name, email, phone),
-        listing:crm_listings(id, title, address),
+        listing:crm_listings(id, address, price),
         task:crm_tasks(id, title, status)
       `)
       .single()
@@ -119,8 +125,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     const { id: eventId } = await params
 
+    // Use client with auth token for RLS
+    const token = authHeader!.replace('Bearer ', '')
+    const supabaseWithAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+
     // Delete the event (reminders will be deleted automatically due to CASCADE)
-    const { error } = await supabase
+    const { error } = await supabaseWithAuth
       .from('calendar_events')
       .delete()
       .eq('id', eventId)
