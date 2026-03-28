@@ -81,9 +81,16 @@ export default function BillingPage() {
   const handleBuyCredits = async (packageId: string) => {
     setLoading(true)
     try {
+      // Get auth token
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
       const response = await fetch('/api/payments/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ type: 'credits', packageId }),
       })
 
