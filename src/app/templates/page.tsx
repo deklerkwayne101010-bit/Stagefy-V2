@@ -93,7 +93,7 @@ export default function TemplatesPage() {
   const [profileSaved, setProfileSaved] = useState(false)
   
   // Agency brands for dropdown
-  const [agencyBrands, setAgencyBrands] = useState<{ id: string; name: string; slug: string }[]>([])
+  const [agencyBrands, setAgencyBrands] = useState<{ id: string; name: string; slug: string; primary_color?: string; secondary_color?: string; accent_color?: string }[]>([])
 
   // Professional Template Wizard State
   const [showWizard, setShowWizard] = useState(false)
@@ -1355,6 +1355,11 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
           photoUrl: agentPhoto,
           logoUrl: agentLogo,
         } : null}
+        agencyBrandColors={agentAgency ? (() => {
+          const brand = agencyBrands.find(b => b.slug === agentAgency)
+          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+        })() : null}
+        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
         onComplete={(data) => {
           setShowInfographicWizard(false)
           setTemplateType('infographic')
@@ -1377,6 +1382,11 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
           photoUrl: agentPhoto,
           logoUrl: agentLogo,
         } : null}
+        agencyBrandColors={agentAgency ? (() => {
+          const brand = agencyBrands.find(b => b.slug === agentAgency)
+          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+        })() : null}
+        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
         onComplete={(data) => {
           setShowHolidayWizard(false)
           setTemplateType('custom')

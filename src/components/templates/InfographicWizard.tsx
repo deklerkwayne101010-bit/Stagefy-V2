@@ -34,6 +34,8 @@ interface InfographicWizardProps {
     photoUrl?: string | null
     logoUrl?: string | null
   } | null
+  agencyBrandColors?: string[] | null
+  agencyBrandName?: string | null
 }
 
 type WizardStep = 'type' | 'data' | 'agent' | 'style' | 'review'
@@ -73,6 +75,7 @@ const infographicTypes = [
 
 const colorSchemes = [
   { id: 'professional', label: 'Professional', colors: ['#1A1A2E', '#16213E', '#0F3460', '#E94560'] },
+  { id: 'agency', label: 'Agency Colours', description: 'Match your agency branding' },
   { id: 'modern', label: 'Modern', colors: ['#2D3436', '#636E72', '#0984E3', '#00CEC9'] },
   { id: 'warm', label: 'Warm & Inviting', colors: ['#D35400', '#E67E22', '#F39C12', '#F1C40F'] },
   { id: 'luxury', label: 'Luxury', colors: ['#1A1A1A', '#2C2C2C', '#C9A96E', '#D4AF37'] },
@@ -105,6 +108,8 @@ export function InfographicWizard({
   onClose,
   onComplete,
   agentProfile,
+  agencyBrandColors,
+  agencyBrandName,
 }: InfographicWizardProps) {
   const [step, setStep] = useState<WizardStep>('type')
   const [infographicType, setInfographicType] = useState<InfographicType | null>(null)
@@ -203,9 +208,17 @@ export function InfographicWizard({
     }
 
     // Style
-    const scheme = colorSchemes.find(c => c.id === colorScheme)
-    if (scheme) {
-      prompt += `Color palette: ${scheme.colors.join(', ')}. Style: ${scheme.label}. `
+    if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
+      prompt += `Color palette: ${agencyBrandColors.join(', ')}. Style: ${agencyBrandName || 'Agency'} branded. `
+    } else {
+      const scheme = colorSchemes.find(c => c.id === colorScheme)
+      if (scheme) {
+        if ('colors' in scheme && scheme.colors) {
+          prompt += `Color palette: ${(scheme.colors as string[]).join(', ')}. Style: ${scheme.label}. `
+        } else {
+          prompt += `Style: ${scheme.label}. `
+        }
+      }
     }
     prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. `
 
@@ -685,14 +698,30 @@ export function InfographicWizard({
                           colorScheme === scheme.id
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                        } ${scheme.id === 'agency' && !agencyBrandColors?.length ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={scheme.id === 'agency' && !agencyBrandColors?.length}
                       >
-                        <div className="flex gap-1 justify-center mb-2">
-                          {scheme.colors.map((c, i) => (
-                            <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
+                        {scheme.id === 'agency' && agencyBrandColors?.length ? (
+                          <div className="flex gap-1 justify-center mb-2">
+                            {agencyBrandColors.map((c, i) => (
+                              <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                        ) : 'colors' in scheme && (scheme.colors as string[]).length ? (
+                          <div className="flex gap-1 justify-center mb-2">
+                            {(scheme.colors as string[]).map((c, i) => (
+                              <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-lg">
+                            🏢
+                          </div>
+                        )}
                         <p className="text-xs font-medium text-gray-900">{scheme.label}</p>
+                        <p className="text-xs text-gray-500">
+                          {scheme.id === 'agency' && !agencyBrandColors?.length ? 'No agency set' : (scheme.description || '')}
+                        </p>
                       </button>
                     ))}
                   </div>
