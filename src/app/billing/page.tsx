@@ -240,17 +240,25 @@ export default function BillingPage() {
                     onClick={() => handleBuyCredits(pack.id)}
                     disabled={loading}
                     className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                      pack.id === '250_credits'
+                      pack.badge === 'Most Popular'
                         ? 'border-blue-500 bg-blue-50'
+                        : pack.badge === 'Best Value'
+                        ? 'border-green-500 bg-green-50'
                         : 'border-slate-100 hover:border-blue-500'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-slate-900">{pack.credits} credits</p>
-                        <p className="text-sm text-slate-400">R{pack.price}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-slate-900">{pack.credits} credits</p>
+                          {pack.badge && (
+                            <Badge variant={pack.badge === 'Most Popular' ? 'info' : 'success'} size="sm">
+                              {pack.badge === 'Most Popular' ? '⭐' : '🔥'} {pack.badge}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-500">R{pack.price} &middot; R{(pack.price / pack.credits).toFixed(2)}/credit</p>
                       </div>
-                      {pack.id === '250_credits' && <Badge variant="info" size="sm">Popular</Badge>}
                     </div>
                   </button>
                 ))}
