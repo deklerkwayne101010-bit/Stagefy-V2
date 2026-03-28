@@ -81,6 +81,53 @@ export default function TemplatesPage() {
   const [result, setResult] = useState<{ outputUrl: string; isWatermarked?: boolean } | null>(null)
   const [savedTemplates, setSavedTemplates] = useState<{ id: number; name: string; type: string; thumbnail: string }[]>([])
 
+  // Recent generations - auto-saved, keeps last 5
+  const [recentGenerations, setRecentGenerations] = useState<{
+    id: number
+    type: string
+    typeName: string
+    thumbnail: string
+    prompt: string
+    timestamp: number
+  }[]>([])
+
+  // Load recent generations from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('stagefy-recent-generations')
+      if (stored) {
+        setRecentGenerations(JSON.parse(stored))
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  // Auto-save a generation to recent list (keeps last 5)
+  const autoSaveGeneration = (outputUrl: string, type: string, prompt: string) => {
+    if (!outputUrl || outputUrl.includes('example.com')) return // Don't save demo/placeholder URLs
+
+    const typeName = marketplaceTypes.find(t => t.value === type)?.label || type
+    const entry = {
+      id: Date.now(),
+      type,
+      typeName,
+      thumbnail: outputUrl,
+      prompt,
+      timestamp: Date.now(),
+    }
+
+    setRecentGenerations(prev => {
+      const updated = [entry, ...prev].slice(0, 5)
+      try {
+        localStorage.setItem('stagefy-recent-generations', JSON.stringify(updated))
+      } catch {
+        // localStorage full - ignore
+      }
+      return updated
+    })
+  }
+
   // Agent profile state
   const [agentName, setAgentName] = useState('')
   const [agentEmail, setAgentEmail] = useState('')
@@ -460,6 +507,7 @@ export default function TemplatesPage() {
 
       const data = await response.json()
       setResult({ outputUrl: data.outputUrl, isWatermarked: data.isWatermarked || false })
+      autoSaveGeneration(data.outputUrl, templateType, prompt)
     } catch (err: any) {
       setError(err.message || 'Failed to create template. Please try again.')
       setResult({ outputUrl: 'https://example.com/template.jpg', isWatermarked: true })
@@ -583,6 +631,64 @@ export default function TemplatesPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Settings */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Recent Generations */}
+              {recentGenerations.length > 0 && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Recent Generations</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Your last {recentGenerations.length} created templates</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setRecentGenerations([])
+                        localStorage.removeItem('stagefy-recent-generations')
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="flex gap-3 mt-3 overflow-x-auto pb-1">
+                    {recentGenerations.map((gen) => (
+                      <div key={gen.id} className="flex-shrink-0 group relative">
+                        <div
+                          className="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-blue-400 transition-colors"
+                          onClick={() => window.open(gen.thumbnail, '_blank')}
+                        >
+                          <img
+                            src={gen.thumbnail}
+                            alt={gen.typeName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1 truncate w-24">{gen.typeName}</p>
+                        <p className="text-xs text-gray-400 truncate w-24">
+                          {new Date(gen.timestamp).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
+                        </p>
+                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const link = document.createElement('a')
+                              link.href = gen.thumbnail
+                              link.download = `stagefy-${gen.typeName.toLowerCase()}-${Date.now()}.jpg`
+                              link.click()
+                            }}
+                            className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center hover:bg-blue-700"
+                            title="Download"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
               {/* Template Type */}
               <Card>
                 <CardHeader title="Template Type" subtitle="Choose what kind of template to create" />
