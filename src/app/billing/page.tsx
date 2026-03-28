@@ -1,14 +1,13 @@
-// Premium Billing & Credits page
+// Billing & Credits page - One-time purchases only
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { CreditBadge } from '@/components/ui/Badge'
-import { Badge } from '@/components/ui/Badge'
-import { SUBSCRIPTION_PLANS, CREDIT_PACKAGES } from '@/lib/payfast'
+import { CreditBadge, Badge } from '@/components/ui/Badge'
+import { CREDIT_PACKAGES } from '@/lib/payfast'
 
 interface Transaction {
   id: string
@@ -18,61 +17,66 @@ interface Transaction {
   type: 'purchase' | 'subscription' | 'usage' | 'refund'
 }
 
+interface MonthlyStats {
+  creditsUsed: number
+  creditsPurchased: number
+}
+
 export default function BillingPage() {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'history' | 'help'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'help'>('overview')
   const [loading, setLoading] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [currentPlan, setCurrentPlan] = useState<string>(user?.subscription_tier || 'free')
-  const [subscriptionId, setSubscriptionId] = useState<string>('')
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('inactive')
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ creditsUsed: 0, creditsPurchased: 0 })
 
-  // Fetch transactions and subscription on mount
-  useEffect(() => {
-    if (user?.id) {
-      fetchTransactions()
-      fetchSubscription()
-    }
-  }, [user])
+  // Fetch transactions and monthly stats on mount
+  const fetchData = useCallback(async () => {
+    if (!user?.id) return
 
-  const fetchSubscription = async () => {
-    try {
-      const { supabase } = await import('@/lib/supabase')
-      const { data } = await (supabase.from as any)('subscriptions')
-        .select('id, status')
-        .eq('user_id', user?.id)
-        .in('status', ['active', 'cancelled'])
-        .order('created_at', { ascending: false })
-        .single()
-      
-      if (data) {
-        setSubscriptionId(data.id)
-        setSubscriptionStatus(data.status)
-      }
-    } catch (error) {
-      console.error('Failed to fetch subscription:', error)
-    }
-  }
-
-  const fetchTransactions = async () => {
     try {
       const { getCreditHistory } = await import('@/lib/credits')
-      const { data } = await getCreditHistory(user?.id || '')
-      
-      // Transform transactions for display
+      const { data } = await getCreditHistory(user.id, 100)
+
+      // Format all transactions for display
       const formatted: Transaction[] = (data || []).map((tx: any) => ({
         id: tx.id,
-        date: new Date(tx.created_at).toLocaleDateString(),
+        date: new Date(tx.created_at).toLocaleDateString('en-ZA', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }),
         description: tx.description,
         amount: tx.amount,
         type: tx.type,
       }))
-      
+
       setTransactions(formatted)
+
+      // Calculate this month's stats
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+      const thisMonthTx = (data || []).filter((tx: any) => tx.created_at >= startOfMonth)
+
+      const creditsUsed = Math.abs(
+        thisMonthTx
+          .filter((tx: any) => tx.type === 'usage')
+          .reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0)
+      )
+
+      const creditsPurchased = thisMonthTx
+        .filter((tx: any) => tx.type === 'purchase')
+        .reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0)
+
+      setMonthlyStats({ creditsUsed, creditsPurchased })
     } catch (error) {
-      console.error('Failed to fetch transactions:', error)
+      console.error('Failed to fetch billing data:', error)
     }
-  }
+  }, [user?.id])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleBuyCredits = async (packageId: string) => {
     setLoading(true)
@@ -82,11 +86,10 @@ export default function BillingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'credits', packageId }),
       })
-      
+
       const data = await response.json()
-      
+
       if (data.paymentUrl) {
-        // Redirect to PayFast
         window.location.href = data.paymentUrl
       } else {
         alert(data.error || 'Failed to initiate payment')
@@ -99,80 +102,16 @@ export default function BillingPage() {
     }
   }
 
-  const handleSelectPlan = async (planId: string) => {
-    if (planId === currentPlan) return
-    
-    setLoading(true)
-    try {
-      const response = await fetch('/api/payments/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'subscription', planId }),
-      })
-      
-      const data = await response.json()
-      
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl
-      } else {
-        alert(data.error || 'Failed to initiate subscription')
-      }
-    } catch (error) {
-      console.error('Subscription error:', error)
-      alert('Failed to start subscription. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCancelSubscription = async () => {
-    if (!subscriptionId) return
-    if (!confirm('Are you sure you want to cancel your subscription? You will lose access to AI features at the end of your billing period.')) return
-    
-    setLoading(true)
-    try {
-      const response = await fetch('/api/payments/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscriptionId }),
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        setSubscriptionStatus('cancelled')
-        alert('Your subscription has been cancelled. You will retain access until the end of your billing period.')
-      } else {
-        alert(data.error || 'Failed to cancel subscription')
-      }
-    } catch (error) {
-      console.error('Cancel subscription error:', error)
-      alert('Failed to cancel subscription. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const plan = SUBSCRIPTION_PLANS[currentPlan as keyof typeof SUBSCRIPTION_PLANS] || {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    monthlyCredits: 50,
-    features: ['50 one-time credits', 'Basic editing', 'Standard support'],
-    description: 'Try it out',
-  } as typeof SUBSCRIPTION_PLANS.basic
-  const monthlyCredits = plan.monthlyCredits
-  const creditsUsed = 156 // This would come from the API
   const creditsRemaining = user?.credits || 0
 
   return (
     <div>
-      <Header title="Billing & Credits" subtitle="Manage your subscription and credits" />
+      <Header title="Billing & Credits" subtitle="Manage your credits and view transactions" />
 
       <div className="p-8">
         {/* Tabs */}
         <div className="flex gap-2 mb-8">
-          {['overview', 'plans', 'history', 'help'].map((tab) => (
+          {['overview', 'history', 'help'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
@@ -189,42 +128,37 @@ export default function BillingPage() {
 
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Current Plan */}
+            {/* Credit Balance & This Month's Usage */}
             <Card className="lg:col-span-2">
-              <CardHeader title="Current Plan" subtitle="Your active subscription" />
-              <div className="flex items-center justify-between p-5 bg-blue-50 rounded-2xl">
-                <div>
-                  <p className="text-3xl font-bold text-slate-900">{plan.name} Plan</p>
-                  <p className="text-slate-600">R{plan.price}/month</p>
-                  {subscriptionStatus === 'cancelled' && (
-                    <Badge variant="warning" className="mt-2">Cancelled</Badge>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {subscriptionStatus === 'active' && (
-                    <Button variant="outline" onClick={handleCancelSubscription} loading={loading}>
-                      Cancel Subscription
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={() => setActiveTab('plans')}>
-                    {subscriptionStatus === 'cancelled' ? 'Resubscribe' : 'Change Plan'}
-                  </Button>
-                </div>
-              </div>
-              <div className="mt-6">
-                <p className="text-sm text-slate-400 mb-3">This month&apos;s usage</p>
+              <CardHeader title="Your Credits" subtitle="This month's usage" />
+              <div className="mt-4">
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="p-5 bg-slate-50 rounded-xl">
-                    <p className="text-3xl font-bold text-slate-900">{creditsUsed}</p>
-                    <p className="text-sm text-slate-400 mt-1">Credits used</p>
+                  <div className="p-5 bg-blue-50 rounded-xl">
+                    <p className="text-3xl font-bold text-blue-600">{creditsRemaining}</p>
+                    <p className="text-sm text-slate-500 mt-1">Credits Balance</p>
                   </div>
                   <div className="p-5 bg-slate-50 rounded-xl">
-                    <p className="text-3xl font-bold text-slate-900">{creditsRemaining}</p>
-                    <p className="text-sm text-slate-400 mt-1">Credits remaining</p>
+                    <p className="text-3xl font-bold text-slate-900">{monthlyStats.creditsUsed}</p>
+                    <p className="text-sm text-slate-400 mt-1">Used this month</p>
                   </div>
                   <div className="p-5 bg-slate-50 rounded-xl">
-                    <p className="text-3xl font-bold text-slate-900">{monthlyCredits}</p>
-                    <p className="text-sm text-slate-400 mt-1">Monthly allocation</p>
+                    <p className="text-3xl font-bold text-emerald-600">{monthlyStats.creditsPurchased}</p>
+                    <p className="text-sm text-slate-400 mt-1">Purchased this month</p>
+                  </div>
+                </div>
+                {/* Usage bar */}
+                <div className="mt-6">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-slate-500">Monthly usage</span>
+                    <span className="text-slate-700 font-medium">{monthlyStats.creditsUsed} credits used</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, (monthlyStats.creditsUsed / Math.max(creditsRemaining + monthlyStats.creditsUsed, 1)) * 100)}%`,
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -232,7 +166,7 @@ export default function BillingPage() {
 
             {/* Quick Buy */}
             <Card>
-              <CardHeader title="Quick Buy Credits" subtitle="Top up anytime" />
+              <CardHeader title="Buy Credits" subtitle="One-time purchases" />
               <div className="space-y-3">
                 {CREDIT_PACKAGES.map((pack) => (
                   <button
@@ -257,28 +191,26 @@ export default function BillingPage() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-slate-500">R{pack.price} &middot; R{(pack.price / pack.credits).toFixed(2)}/credit</p>
+                        <p className="text-sm text-slate-500">
+                          R{pack.price} &middot; R{(pack.price / pack.credits).toFixed(2)}/credit
+                        </p>
                       </div>
                     </div>
                   </button>
                 ))}
-                <Button 
-                  fullWidth 
-                  onClick={() => handleBuyCredits(CREDIT_PACKAGES[0].id)}
-                  loading={loading}
-                >
-                  Buy Credits
-                </Button>
               </div>
             </Card>
 
             {/* Recent Transactions */}
             <Card className="lg:col-span-3">
-              <CardHeader title="Recent Transactions" action={
-                <Button size="sm" variant="ghost" onClick={() => setActiveTab('history')}>
-                  View All
-                </Button>
-              } />
+              <CardHeader
+                title="Recent Transactions"
+                action={
+                  <Button size="sm" variant="ghost" onClick={() => setActiveTab('history')}>
+                    View All
+                  </Button>
+                }
+              />
               {transactions.length === 0 ? (
                 <div className="py-12 text-center">
                   <p className="text-slate-400">No transactions yet</p>
@@ -292,7 +224,7 @@ export default function BillingPage() {
                         <p className="font-medium text-slate-900">{tx.description}</p>
                         <p className="text-sm text-slate-400">{tx.date}</p>
                       </div>
-                      <p className={`font-semibold ${tx.amount > 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      <p className={`font-semibold ${tx.amount > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                         {tx.amount > 0 ? '+' : ''}{tx.amount} credits
                       </p>
                     </div>
@@ -303,56 +235,9 @@ export default function BillingPage() {
           </div>
         )}
 
-        {activeTab === 'plans' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Object.values(SUBSCRIPTION_PLANS).map((plan) => (
-              <Card 
-                key={plan.id} 
-                className={`relative ${currentPlan === plan.id ? 'ring-2 ring-blue-500' : ''}`}
-                hover={currentPlan !== plan.id}
-              >
-                {currentPlan === plan.id && (
-                  <Badge variant="success" className="absolute -top-3 left-1/2 -translate-x-1/2">Current</Badge>
-                )}
-                <div className="text-center">
-                  <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
-                  <p className="text-slate-400 text-sm mt-1">{plan.description}</p>
-                  <div className="mt-4">
-                    <span className="text-5xl font-bold text-slate-900">R{plan.price}</span>
-                    <span className="text-slate-400">/month</span>
-                  </div>
-                  <div className="mt-3">
-                    <CreditBadge credits={plan.monthlyCredits} />
-                  </div>
-                </div>
-                <ul className="mt-6 space-y-3">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-sm text-slate-600">
-                      <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <Button 
-                  fullWidth 
-                  className="mt-6"
-                  variant={currentPlan === plan.id ? 'secondary' : 'primary'}
-                  onClick={() => handleSelectPlan(plan.id)}
-                  loading={loading}
-                  disabled={currentPlan === plan.id}
-                >
-                  {currentPlan === plan.id ? 'Current Plan' : 'Select Plan'}
-                </Button>
-              </Card>
-            ))}
-          </div>
-        )}
-
         {activeTab === 'history' && (
           <Card>
-            <CardHeader title="Payment History" subtitle="All your transactions" />
+            <CardHeader title="Transaction History" subtitle="All your credit activity" />
             {transactions.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-slate-400">No transactions yet</p>
@@ -374,14 +259,26 @@ export default function BillingPage() {
                         <td className="px-6 py-4 text-sm text-slate-900">{tx.date}</td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">{tx.description}</td>
                         <td className="px-6 py-4">
-                          <Badge 
-                            variant={tx.type === 'purchase' ? 'success' : tx.type === 'subscription' ? 'info' : tx.type === 'refund' ? 'warning' : 'default'}
+                          <Badge
+                            variant={
+                              tx.type === 'purchase'
+                                ? 'success'
+                                : tx.type === 'usage'
+                                ? 'warning'
+                                : tx.type === 'refund'
+                                ? 'info'
+                                : 'default'
+                            }
                             size="sm"
                           >
                             {tx.type}
                           </Badge>
                         </td>
-                        <td className={`px-6 py-4 text-sm font-semibold text-right ${tx.amount > 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                        <td
+                          className={`px-6 py-4 text-sm font-semibold text-right ${
+                            tx.amount > 0 ? 'text-emerald-600' : 'text-red-500'
+                          }`}
+                        >
                           {tx.amount > 0 ? '+' : ''}{tx.amount} credits
                         </td>
                       </tr>
@@ -397,26 +294,26 @@ export default function BillingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* How Credits Work */}
             <Card>
-              <CardHeader title="How Credits Work" subtitle="Understanding your credit system" />
+              <CardHeader title="How Credits Work" subtitle="Understanding your credits" />
               <div className="space-y-4 mt-4">
                 <div className="p-4 bg-slate-50 rounded-xl">
                   <h4 className="font-semibold text-slate-900 mb-2">What are credits?</h4>
                   <p className="text-slate-600 text-sm">
-                    Credits are our currency for using AI features. Each action like photo editing, 
-                    image to video conversion, or template generation costs a certain number of credits.
+                    Credits are used for AI features like photo editing, video generation,
+                    and template creation. Each action costs a set number of credits.
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl">
-                  <h4 className="font-semibold text-slate-900 mb-2">Getting credits</h4>
+                  <h4 className="font-semibold text-slate-900 mb-2">Buying credits</h4>
                   <p className="text-slate-600 text-sm">
-                    You get credits by purchasing credit packages or subscribing to a monthly plan. 
-                    Subscriptions give you credits every month automatically.
+                    Buy credit packages anytime — the more you buy, the more you save.
+                    Credits are added to your account immediately after payment.
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl">
                   <h4 className="font-semibold text-slate-900 mb-2">Credits never expire</h4>
                   <p className="text-slate-600 text-sm">
-                    Your purchased credits stay in your account until you use them. They do not expire.
+                    Your purchased credits stay in your account until you use them.
                   </p>
                 </div>
               </div>
@@ -435,21 +332,21 @@ export default function BillingPage() {
                 </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                   <div>
-                    <p className="font-medium text-slate-900">Image to Video (3 seconds)</p>
+                    <p className="font-medium text-slate-900">Image to Video (3s)</p>
                     <p className="text-sm text-slate-400">Turn photos into short videos</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">3 credits</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Image to Video (5s)</p>
+                    <p className="text-sm text-slate-400">Create longer video clips</p>
                   </div>
                   <span className="text-lg font-bold text-blue-600">5 credits</span>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                   <div>
-                    <p className="font-medium text-slate-900">Image to Video (5 seconds)</p>
-                    <p className="text-sm text-slate-400">Create longer video clips</p>
-                  </div>
-                  <span className="text-lg font-bold text-blue-600">8 credits</span>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                  <div>
-                    <p className="font-medium text-slate-900">Image to Video (10 seconds)</p>
+                    <p className="font-medium text-slate-900">Image to Video (10s)</p>
                     <p className="text-sm text-slate-400">Create full-length video clips</p>
                   </div>
                   <span className="text-lg font-bold text-blue-600">15 credits</span>
@@ -459,7 +356,14 @@ export default function BillingPage() {
                     <p className="font-medium text-slate-900">Template Generation</p>
                     <p className="text-sm text-slate-400">Create marketing templates with AI</p>
                   </div>
-                  <span className="text-lg font-bold text-blue-600">3 credits</span>
+                  <span className="text-lg font-bold text-blue-600">3-5 credits</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Description Generator</p>
+                    <p className="text-sm text-slate-400">AI-written property descriptions</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">1 credit</span>
                 </div>
               </div>
             </Card>
@@ -471,93 +375,44 @@ export default function BillingPage() {
                 <div className="p-4 bg-blue-50 rounded-xl">
                   <h4 className="font-semibold text-slate-900 mb-2">3 Free Actions</h4>
                   <p className="text-slate-600 text-sm">
-                    Every new account gets 3 free AI actions to try out our features. This lets you 
-                    test photo editing, video creation, and templates before purchasing credits.
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-xl">
-                  <h4 className="font-semibold text-slate-900 mb-2">What happens after free usage?</h4>
-                  <p className="text-slate-600 text-sm">
-                    Once you use your 3 free actions, you&apos;ll need to purchase credits or subscribe 
-                    to continue using AI features. Free actions do not renew monthly.
+                    Every new account gets 3 free AI actions to try out our features.
+                    Test photo editing, video creation, and templates before purchasing credits.
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl">
                   <h4 className="font-semibold text-slate-900 mb-2">Watermarks</h4>
                   <p className="text-slate-600 text-sm">
-                    Free tier outputs include a Stagefy watermark. Subscribers and credit purchasers 
+                    Free tier outputs include a Stagefy watermark. Credit purchasers
                     get watermark-free downloads.
                   </p>
                 </div>
               </div>
             </Card>
 
-            {/* Subscriptions */}
-            <Card>
-              <CardHeader title="Subscriptions" subtitle="Monthly plans explained" />
-              <div className="space-y-4 mt-4">
-                <div className="p-4 bg-slate-50 rounded-xl">
-                  <h4 className="font-semibold text-slate-900 mb-2">Monthly credits</h4>
-                  <p className="text-slate-600 text-sm">
-                    Subscriptions give you a set number of credits every month. Unused credits roll 
-                    over to the next month. You can always buy extra credits if you run out.
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-xl">
-                  <h4 className="font-semibold text-slate-900 mb-2">Cancel anytime</h4>
-                  <p className="text-slate-600 text-sm">
-                    You can cancel your subscription at any time. You&apos;ll keep access until the end 
-                    of your current billing period.
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-xl">
-                  <h4 className="font-semibold text-slate-900 mb-2">Switching plans</h4>
-                  <p className="text-slate-600 text-sm">
-                    Upgrade or downgrade your plan anytime. Changes take effect on your next billing cycle.
-                  </p>
-                </div>
-              </div>
-            </Card>
-
             {/* Contact */}
-            <Card className="lg:col-span-2">
-              <CardHeader title="Need Help?" subtitle="Get in touch with our team" />
-              <div className="flex flex-col md:flex-row gap-6 mt-4">
-                <div className="flex-1 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <h4 className="font-semibold text-slate-900">Email Support</h4>
-                  </div>
-                  <p className="text-slate-600 text-sm mb-3">
-                    Have questions about billing, credits, or your account? Our team is here to help.
-                  </p>
-                  <a 
-                    href="mailto:support@stagefy.com" 
-                    className="inline-flex items-center gap-2 text-blue-600 font-medium hover:text-blue-700"
-                  >
-                    support@stagefy.com
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            <Card>
+              <CardHeader title="Need Help?" subtitle="Get in touch" />
+              <div className="mt-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                  </a>
-                </div>
-                <div className="flex-1 p-6 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                      <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <h4 className="font-semibold text-slate-900">Response Time</h4>
                   </div>
-                  <p className="text-slate-600 text-sm">
-                    We typically respond to all inquiries within 24-48 hours on business days.
-                  </p>
+                  <h4 className="font-semibold text-slate-900">Email Support</h4>
                 </div>
+                <p className="text-slate-600 text-sm mb-3">
+                  Have questions about credits or your account? Our team is here to help.
+                </p>
+                <a
+                  href="mailto:support@stagefy.com"
+                  className="inline-flex items-center gap-2 text-blue-600 font-medium hover:text-blue-700"
+                >
+                  support@stagefy.com
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </a>
               </div>
             </Card>
           </div>
