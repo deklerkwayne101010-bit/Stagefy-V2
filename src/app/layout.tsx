@@ -18,7 +18,6 @@ export const metadata: Metadata = {
   description: "Elevate Your Listings. Simplify Your Success. AI-powered real estate media tools.",
   icons: {
     icon: '/logo.png',
-    shortcut: '/favicon.ico',
     apple: '/logo.png',
   },
 };
