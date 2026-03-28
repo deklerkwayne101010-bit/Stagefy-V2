@@ -61,6 +61,19 @@ export async function POST(request: Request) {
       return new NextResponse('Server error', { status: 500 })
     }
 
+    // Idempotency check - prevent duplicate credit additions
+    if (pfPaymentId) {
+      const { data: existingTx } = await (supabase.from as any)('credit_transactions')
+        .select('id')
+        .eq('reference_id', pfPaymentId)
+        .maybeSingle()
+
+      if (existingTx) {
+        console.log(`Duplicate ITN received for payment ${pfPaymentId}, skipping`)
+        return new NextResponse('Duplicate payment', { status: 200 })
+      }
+    }
+
     if (paymentStatus === 'COMPLETE') {
       // Add credits to user account
       const { data: user } = await (supabase.from as any)('users')

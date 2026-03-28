@@ -37,7 +37,7 @@ export async function checkUserCredits(userId: string): Promise<number> {
   }
 
   console.log('User credits:', userId, 'credits:', user.credits)
-  return (user as User).credits || 10
+  return typeof user.credits === 'number' ? user.credits : 10
 }
 
 // Check if user can perform an AI action (based solely on credit balance)

@@ -2,7 +2,6 @@
 // Handles image uploads to Supabase Storage
 
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
 
 // Import actual Supabase client for storage
 import { createClient } from '@supabase/supabase-js'
@@ -10,6 +9,25 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch {
+    return null
+  }
+}
 
 // Create service role client for bucket operations (bypasses RLS)
 const getServiceClient = () => {
@@ -62,7 +80,7 @@ export async function POST(request: Request) {
 
     if (isSupabaseConfigured) {
       try {
-        const user = await getCurrentUser()
+        const user = await getUserFromAuthHeader(request)
         userId = user?.id || null
       } catch (authError) {
         console.error('Auth error:', authError)

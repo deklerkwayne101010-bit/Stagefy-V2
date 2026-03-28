@@ -1,21 +1,43 @@
 // API route for Image to Video (Replicate)
 import { NextResponse } from 'next/server'
-import { 
-  checkUserCredits, 
-  reserveCredits, 
-  refundCredits, 
-  CREDIT_COSTS, 
-  canPerformAction 
+import {
+  checkUserCredits,
+  reserveCredits,
+  refundCredits,
+  CREDIT_COSTS,
+  canPerformAction
 } from '@/lib/credits'
-import { getCurrentUser } from '@/lib/supabase'
 import { createNotification } from '@/lib/notifications'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch {
+    return null
+  }
+}
 
 // Check if running in demo mode (no Supabase configured)
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export async function POST(request: Request) {
   try {
-    const { images, mode, duration, prompt, userId } = await request.json()
+    const { images, mode, duration, prompt } = await request.json()
 
     // Validate input
     if (!images || images.length === 0) {
@@ -25,8 +47,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get user ID from auth or parameter
-    const user = userId ? { id: userId } : await getCurrentUser()
+    // Get user from Authorization header only
+    const user = await getUserFromAuthHeader(request)
     if (!user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },

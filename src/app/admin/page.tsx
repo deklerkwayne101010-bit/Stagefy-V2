@@ -50,7 +50,14 @@ export default function AdminPage() {
         params.set('endDate', customEndDate)
       }
 
-      const response = await fetch(`/api/admin/usage?${params.toString()}`)
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const response = await fetch(`/api/admin/usage?${params.toString()}`, {
+        headers: session?.access_token
+          ? { 'Authorization': `Bearer ${session.access_token}` }
+          : {},
+      })
       const data = await response.json()
 
       if (data.users) {
@@ -412,7 +419,7 @@ export default function AdminPage() {
                 {['free', 'basic', 'pro', 'enterprise'].map((tier) => {
                   const tierUsers = userUsage.filter(u => u.subscriptionTier === tier)
                   const tierSpent = tierUsers.reduce((sum, u) => sum + u.creditsSpentThisMonth, 0)
-                  const tierLimit = tier === 'free' ? 50 : tier === 'basic' ? 200 : tier === 'pro' ? 500 : 1500
+                  const tierLimit = tier === 'free' ? 10 : tier === 'basic' ? 200 : tier === 'pro' ? 500 : 1500
                   const percentage = tierLimit > 0 ? Math.min((tierSpent / (tierLimit * tierUsers.length || 1)) * 100, 100) : 0
                   
                   return (

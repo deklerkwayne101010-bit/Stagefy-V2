@@ -1,16 +1,50 @@
 // API route for admin usage statistics
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+import { getAdminClient } from '@/lib/supabase'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch { return null }
+}
 
 export async function GET(request: Request) {
   try {
+    // Require authentication
+    const authUser = await getUserFromAuthHeader(request)
+    if (!authUser?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if user is admin
+    const adminClient = getAdminClient() || createClient(supabaseUrl, supabaseAnonKey)
+    const { data: userProfile } = await (adminClient.from as any)('users')
+      .select('role')
+      .eq('id', authUser.id)
+      .single()
+
+    if (!userProfile || userProfile.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 })
+    }
+
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
     // Get all users with their current credit balance
-    let usersQuery = (supabase.from as any)('users')
+    let usersQuery = (adminClient.from as any)('users')
       .select('id, email, full_name, credits, subscription_tier, created_at')
 
     if (userId) {
@@ -35,7 +69,7 @@ export async function GET(request: Request) {
     const lastMonthEnd = lastDayOfLastMonth.toISOString()
 
     // Get all credit transactions for the date ranges
-    const { data: transactions, error: txError } = await (supabase.from as any)('credit_transactions')
+    const { data: transactions, error: txError } = await (adminClient.from as any)('credit_transactions')
       .select('user_id, amount, type, created_at')
 
     if (txError) {
