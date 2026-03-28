@@ -558,7 +558,7 @@ export default function CalendarPage() {
       {/* Event Modal with Full Form */}
       {showEventModal && (
         <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEventModal(false)}>
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 pt-6">
               <h2 className="text-lg font-semibold text-gray-900">{selectedEvent ? 'Edit Event' : 'New Event'}</h2>
               <button
@@ -759,7 +759,7 @@ export default function CalendarPage() {
                 )}
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </div>
