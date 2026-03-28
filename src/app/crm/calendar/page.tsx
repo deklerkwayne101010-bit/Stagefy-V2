@@ -557,7 +557,7 @@ export default function CalendarPage() {
 
       {/* Event Modal with Full Form */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <CardHeader title={selectedEvent ? 'Edit Event' : 'New Event'} />
             <div className="p-4 space-y-4">
