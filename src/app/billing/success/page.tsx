@@ -1,7 +1,7 @@
 // Payment success page
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AuthProvider, useAuth } from '@/lib/auth-context'
@@ -9,10 +9,15 @@ import { Button } from '@/components/ui/Button'
 
 function SuccessContent() {
   const searchParams = useSearchParams()
-  const { user, loading } = useAuth()
+  const { user, loading, refreshUser } = useAuth()
   const paymentType = searchParams.get('type') || ''
   const packageName = searchParams.get('package') || ''
   const planName = searchParams.get('plan') || ''
+
+  // Refresh user data to get updated credits
+  useEffect(() => {
+    refreshUser()
+  }, [refreshUser])
 
   if (loading) {
     return (
