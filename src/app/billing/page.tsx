@@ -1,4 +1,4 @@
-// Billing & Credits page - One-time purchases only
+// Billing & Credits page - Static PayFast buttons
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -7,7 +7,6 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CreditBadge, Badge } from '@/components/ui/Badge'
-import { CREDIT_PACKAGES } from '@/lib/payfast'
 
 interface Transaction {
   id: string
@@ -22,14 +21,21 @@ interface MonthlyStats {
   creditsPurchased: number
 }
 
+const PAYFAST_MERCHANT_ID = '32421419'
+
+const creditPackages = [
+  { id: '50', credits: 50, price: 75, badge: null as string | null },
+  { id: '100', credits: 100, price: 140, badge: null as string | null },
+  { id: '250', credits: 250, price: 325, badge: 'Most Popular' },
+  { id: '500', credits: 500, price: 600, badge: 'Best Value' },
+]
+
 export default function BillingPage() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'help'>('overview')
-  const [loading, setLoading] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ creditsUsed: 0, creditsPurchased: 0 })
 
-  // Fetch transactions and monthly stats on mount
   const fetchData = useCallback(async () => {
     if (!user?.id) return
 
@@ -37,7 +43,6 @@ export default function BillingPage() {
       const { getCreditHistory } = await import('@/lib/credits')
       const { data } = await getCreditHistory(user.id, 100)
 
-      // Format all transactions for display
       const formatted: Transaction[] = (data || []).map((tx: any) => ({
         id: tx.id,
         date: new Date(tx.created_at).toLocaleDateString('en-ZA', {
@@ -52,10 +57,8 @@ export default function BillingPage() {
 
       setTransactions(formatted)
 
-      // Calculate this month's stats
       const now = new Date()
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-
       const thisMonthTx = (data || []).filter((tx: any) => tx.created_at >= startOfMonth)
 
       const creditsUsed = Math.abs(
@@ -77,37 +80,6 @@ export default function BillingPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
-
-  const handleBuyCredits = async (packageId: string) => {
-    setLoading(true)
-    try {
-      // Get auth token
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-
-      const response = await fetch('/api/payments/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
-        },
-        body: JSON.stringify({ type: 'credits', packageId }),
-      })
-
-      const data = await response.json()
-
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl
-      } else {
-        alert(data.error || 'Failed to initiate payment')
-      }
-    } catch (error) {
-      console.error('Payment error:', error)
-      alert('Payment failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const creditsRemaining = user?.credits || 0
 
@@ -153,7 +125,6 @@ export default function BillingPage() {
                     <p className="text-sm text-slate-400 mt-1">Purchased this month</p>
                   </div>
                 </div>
-                {/* Usage bar */}
                 <div className="mt-6">
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-slate-500">Monthly usage</span>
@@ -171,16 +142,16 @@ export default function BillingPage() {
               </div>
             </Card>
 
-            {/* Quick Buy */}
+            {/* Buy Credits - Static PayFast Forms */}
             <Card>
               <CardHeader title="Buy Credits" subtitle="One-time purchases" />
               <div className="space-y-3">
-                {CREDIT_PACKAGES.map((pack) => (
-                  <button
+                {creditPackages.map((pack) => (
+                  <form
                     key={pack.id}
-                    onClick={() => handleBuyCredits(pack.id)}
-                    disabled={loading}
-                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                    action="https://payment.payfast.io/eng/process"
+                    method="post"
+                    className={`block w-full rounded-xl border-2 transition-all ${
                       pack.badge === 'Most Popular'
                         ? 'border-blue-500 bg-blue-50'
                         : pack.badge === 'Best Value'
@@ -188,22 +159,35 @@ export default function BillingPage() {
                         : 'border-slate-100 hover:border-blue-500'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-slate-900">{pack.credits} credits</p>
-                          {pack.badge && (
-                            <Badge variant={pack.badge === 'Most Popular' ? 'info' : 'success'} size="sm">
-                              {pack.badge === 'Most Popular' ? '⭐' : '🔥'} {pack.badge}
-                            </Badge>
-                          )}
+                    <input type="hidden" name="cmd" value="_paynow" />
+                    <input type="hidden" name="receiver" value={PAYFAST_MERCHANT_ID} />
+                    <input type="hidden" name="return_url" value="https://stagefy.co.za/billing/success" />
+                    <input type="hidden" name="cancel_url" value="https://stagefy.co.za/billing/cancelled" />
+                    <input type="hidden" name="notify_url" value="https://stagefy.co.za/api/payments/webhook" />
+                    <input type="hidden" name="amount" value={pack.price.toString()} />
+                    <input type="hidden" name="item_name" value={`${pack.credits} Credits`} />
+                    <input type="hidden" name="item_description" value={`Purchase ${pack.credits} Stagefy credits`} />
+                    <input type="hidden" name="custom_str1" value={user?.id || ''} />
+                    <input type="hidden" name="custom_str2" value={pack.credits.toString()} />
+
+                    <button type="submit" className="w-full p-4 text-left">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-slate-900">{pack.credits} credits</p>
+                            {pack.badge && (
+                              <Badge variant={pack.badge === 'Most Popular' ? 'info' : 'success'} size="sm">
+                                {pack.badge === 'Most Popular' ? '⭐' : '🔥'} {pack.badge}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-500">
+                            R{pack.price} &middot; R{(pack.price / pack.credits).toFixed(2)}/credit
+                          </p>
                         </div>
-                        <p className="text-sm text-slate-500">
-                          R{pack.price} &middot; R{(pack.price / pack.credits).toFixed(2)}/credit
-                        </p>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                  </form>
                 ))}
               </div>
             </Card>
@@ -299,7 +283,6 @@ export default function BillingPage() {
 
         {activeTab === 'help' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* How Credits Work */}
             <Card>
               <CardHeader title="How Credits Work" subtitle="Understanding your credits" />
               <div className="space-y-4 mt-4">
@@ -326,7 +309,6 @@ export default function BillingPage() {
               </div>
             </Card>
 
-            {/* Credit Costs */}
             <Card>
               <CardHeader title="Credit Costs" subtitle="What each action costs" />
               <div className="space-y-3 mt-4">
@@ -375,7 +357,6 @@ export default function BillingPage() {
               </div>
             </Card>
 
-            {/* Free Usage */}
             <Card>
               <CardHeader title="Free Usage" subtitle="Try before you buy" />
               <div className="space-y-4 mt-4">
@@ -396,7 +377,6 @@ export default function BillingPage() {
               </div>
             </Card>
 
-            {/* Contact */}
             <Card>
               <CardHeader title="Need Help?" subtitle="Get in touch" />
               <div className="mt-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
@@ -416,9 +396,6 @@ export default function BillingPage() {
                   className="inline-flex items-center gap-2 text-blue-600 font-medium hover:text-blue-700"
                 >
                   support@stagefy.com
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
                 </a>
               </div>
             </Card>
