@@ -129,7 +129,7 @@ export default function DashboardPage() {
               </p>
               <p className="text-blue-100 text-base mt-2">
                 {stats?.subscriptionTier === 'free' 
-                  ? '50 free credits included' 
+                   ? '10 free credits included'
                   : `${stats?.subscriptionTier || user?.subscription_tier || 'Free'} plan - monthly credits`}
               </p>
             </div>

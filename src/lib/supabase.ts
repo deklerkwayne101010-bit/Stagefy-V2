@@ -457,7 +457,7 @@ export async function getCurrentUser(): Promise<User | null> {
     email: user.email || '',
     full_name: user.user_metadata?.full_name || '',
     role: 'agent',
-    credits: 50,
+    credits: 10,
     subscription_tier: 'free',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -489,7 +489,7 @@ export async function isAdmin(): Promise<boolean> {
 //   market TEXT,
 //   use_case TEXT CHECK (use_case IN ('photos', 'video', 'templates', 'all')),
 //   role TEXT DEFAULT 'agent' CHECK (role IN ('agent', 'admin')),
-//   credits INTEGER DEFAULT 50,
+//   credits INTEGER DEFAULT 10,
 //   subscription_tier TEXT DEFAULT 'free' CHECK (subscription_tier IN ('free', 'basic', 'pro', 'enterprise')),
 //   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 //   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     // Demo mode: allow requests without authentication
     let user: any = null
     if (isDemoMode) {
-      user = { id: 'demo-user', credits: 50 }
+      user = { id: 'demo-user', credits: 10 }
     } else {
       // Get user ID from auth or parameter
       user = userId ? { id: userId } : await getCurrentUser()

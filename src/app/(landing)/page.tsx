@@ -54,7 +54,7 @@ export default function LandingPage() {
                 See How It Works
               </a>
             </div>
-            <p className="text-sm text-slate-500 mt-4">Free to try • No credit card required • 3 free edits</p>
+            <p className="text-sm text-slate-500 mt-4">Free to try • No credit card required • 10 free credits</p>
           </div>
           
           {/* Hero Visual */}
@@ -258,7 +258,7 @@ export default function LandingPage() {
                       <svg className="w-5 h-5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      3 free AI edits every month
+                      10 free credits to start
                     </li>
                     <li className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -309,7 +309,7 @@ export default function LandingPage() {
               Already a member? Log In
             </Link>
           </div>
-          <p className="text-sm text-blue-200 mt-4">No credit card required • 3 free edits • Cancel anytime</p>
+          <p className="text-sm text-blue-200 mt-4">No credit card required • 10 free credits • Buy more anytime</p>
         </div>
       </section>
 
