@@ -1,21 +1,43 @@
 // CRM Listing API - GET, PUT, DELETE single listing
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch { return null }
+}
+
+function getSupabaseClient(request: Request) {
+  const authHeader = request.headers.get('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '')
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  })
+}
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     const { id } = await params
     
     if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: listing, error } = await supabase
+    const { data: listing, error } = await getSupabaseClient(request)
       .from('crm_listings')
       .select('*')
       .eq('id', id)
@@ -39,7 +61,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     const { id } = await params
     
     if (!user?.id) {
@@ -76,7 +98,7 @@ export async function PUT(
     } = body
 
     // Verify listing belongs to user
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabaseClient(request)
       .from('crm_listings')
       .select('id')
       .eq('id', id)
@@ -87,7 +109,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
     }
 
-    const { data: listing, error } = await supabase
+    const { data: listing, error } = await getSupabaseClient(request)
       .from('crm_listings')
       .update({
         title,
@@ -139,7 +161,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     const { id } = await params
     
     if (!user?.id) {
@@ -147,7 +169,7 @@ export async function DELETE(
     }
 
     // Verify listing belongs to user
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabaseClient(request)
       .from('crm_listings')
       .select('id')
       .eq('id', id)
@@ -158,7 +180,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabaseClient(request)
       .from('crm_listings')
       .delete()
       .eq('id', id)

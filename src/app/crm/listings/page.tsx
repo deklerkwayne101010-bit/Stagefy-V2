@@ -9,6 +9,23 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/lib/auth-context'
 
+// Helper to get auth headers for API calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { 'Content-Type': 'application/json' }
+}
+
 interface Listing {
   id: string
   title: string
@@ -58,7 +75,8 @@ export default function ListingsPage() {
       if (filterStatus !== 'all') params.set('status', filterStatus)
       if (filterType !== 'all') params.set('property_type', filterType)
       
-      const response = await fetch(`/api/crm/listings?${params}`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`/api/crm/listings?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setListings(data.listings || [])
@@ -132,9 +150,10 @@ export default function ListingsPage() {
       
       const method = editingListing ? 'PUT' : 'POST'
       
+      const headers = await getAuthHeaders()
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           ...formData,
           price: formData.price ? parseFloat(formData.price) : null,
@@ -164,8 +183,10 @@ export default function ListingsPage() {
     if (!confirm('Are you sure you want to delete this listing?')) return
     
     try {
+      const headers = await getAuthHeaders()
       const response = await fetch(`/api/crm/listings/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       })
       
       if (response.ok) {

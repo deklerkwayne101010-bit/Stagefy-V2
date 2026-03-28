@@ -9,6 +9,23 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/lib/auth-context'
 
+// Helper to get auth headers for API calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { 'Content-Type': 'application/json' }
+}
+
 interface Contact {
   id: string
   name: string
@@ -56,7 +73,8 @@ export default function ContactsPage() {
       if (filterType !== 'all') params.set('type', filterType)
       if (filterStatus !== 'all') params.set('status', filterStatus)
       
-      const response = await fetch(`/api/crm/contacts?${params}`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`/api/crm/contacts?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setContacts(data.contacts || [])
@@ -120,10 +138,11 @@ export default function ContactsPage() {
         : '/api/crm/contacts'
       
       const method = editingContact ? 'PUT' : 'POST'
+      const headers = await getAuthHeaders()
       
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(formData)
       })
 
@@ -148,8 +167,10 @@ export default function ContactsPage() {
     if (!confirm('Are you sure you want to delete this contact?')) return
     
     try {
+      const headers = await getAuthHeaders()
       const response = await fetch(`/api/crm/contacts/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       })
       
       if (response.ok) {

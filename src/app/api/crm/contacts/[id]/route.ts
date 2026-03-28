@@ -1,20 +1,53 @@
 // CRM Contact API - GET, PUT, DELETE single contact
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) {
+      return null
+    }
+    return user
+  } catch {
+    return null
+  }
+}
+
+// Helper to get supabase client with user's auth token
+function getSupabaseClient(request: Request) {
+  const authHeader = request.headers.get('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '')
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  })
+}
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     const { id } = await params
     
     if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const supabase = getSupabaseClient(request)
     const { data: contact, error } = await supabase
       .from('crm_contacts')
       .select('*')
@@ -39,36 +72,15 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     const { id } = await params
     
     if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const supabase = getSupabaseClient(request)
     const body = await request.json()
-    const {
-      name,
-      email,
-      phone,
-      contact_type,
-      status,
-      notes,
-      address,
-      company,
-      preferred_locations,
-      budget_min,
-      budget_max,
-      property_types_interest,
-      bedrooms_required,
-      bathrooms_required,
-      features_required,
-      timeline,
-      source,
-      preferred_contact_method,
-      rating,
-      last_contacted_at
-    } = body
 
     // Verify contact belongs to user
     const { data: existing } = await supabase
@@ -85,26 +97,7 @@ export async function PUT(
     const { data: contact, error } = await supabase
       .from('crm_contacts')
       .update({
-        name,
-        email,
-        phone,
-        contact_type,
-        status,
-        notes,
-        address,
-        company,
-        preferred_locations,
-        budget_min,
-        budget_max,
-        property_types_interest,
-        bedrooms_required,
-        bathrooms_required,
-        features_required,
-        timeline,
-        source,
-        preferred_contact_method,
-        rating,
-        last_contacted_at,
+        ...body,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -129,24 +122,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     const { id } = await params
     
     if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify contact belongs to user
-    const { data: existing } = await supabase
-      .from('crm_contacts')
-      .select('id')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
-    }
+    const supabase = getSupabaseClient(request)
 
     const { error } = await supabase
       .from('crm_contacts')

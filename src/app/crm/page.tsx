@@ -9,6 +9,23 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/lib/auth-context'
 
+// Helper to get auth headers for API calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { 'Content-Type': 'application/json' }
+}
+
 interface Contact {
   id: string
   name: string
@@ -48,8 +65,10 @@ export default function CRMPage() {
     
     setIsLoading(true)
     try {
+      const headers = await getAuthHeaders()
+
       // Fetch contacts
-      const contactsRes = await fetch('/api/crm/contacts?limit=5')
+      const contactsRes = await fetch('/api/crm/contacts?limit=5', { headers })
       if (contactsRes.ok) {
         const contactsData = await contactsRes.json()
         setRecentContacts(contactsData.contacts || [])
@@ -57,7 +76,7 @@ export default function CRMPage() {
       }
 
       // Fetch listings
-      const listingsRes = await fetch('/api/crm/listings?limit=5')
+      const listingsRes = await fetch('/api/crm/listings?limit=5', { headers })
       if (listingsRes.ok) {
         const listingsData = await listingsRes.json()
         const listings = listingsData.listings || []

@@ -1,12 +1,34 @@
 // CRM Listings API - GET (list), POST (create)
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch { return null }
+}
+
+function getSupabaseClient(request: Request) {
+  const authHeader = request.headers.get('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '')
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  })
+}
 
 // GET - List listings
 export async function GET(request: Request) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     
     if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,7 +40,7 @@ export async function GET(request: Request) {
     const property_type = searchParams.get('property_type') || 'all'
     const limit = parseInt(searchParams.get('limit') || '100')
 
-    let query = supabase
+    let query = getSupabaseClient(request)
       .from('crm_listings')
       .select('*')
       .eq('user_id', user.id)
@@ -55,7 +77,7 @@ export async function GET(request: Request) {
 // POST - Create listing
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     
     if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -93,7 +115,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Title and address are required' }, { status: 400 })
     }
 
-    const { data: listing, error } = await supabase
+    const { data: listing, error } = await getSupabaseClient(request)
       .from('crm_listings')
       .insert({
         user_id: user.id,
