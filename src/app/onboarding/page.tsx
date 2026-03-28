@@ -24,6 +24,7 @@ export default function OnboardingPage() {
     fullName: user?.full_name || '',
     brokerage: '',
     market: '',
+    businessType: 'residential' as 'residential' | 'commercial' | 'luxury' | 'all',
     useCase: 'all' as 'photos' | 'video' | 'templates' | 'all',
   })
 
@@ -157,61 +158,36 @@ export default function OnboardingPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Card hover className="p-4 cursor-pointer border-2 border-blue-500 bg-blue-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Residential</p>
-                      <p className="text-sm text-gray-500">Single family homes</p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card hover className="p-4 cursor-pointer border-2 border-transparent hover:border-gray-300">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Commercial</p>
-                      <p className="text-sm text-gray-500">Retail, office, industrial</p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card hover className="p-4 cursor-pointer border-2 border-transparent hover:border-gray-300">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Luxury</p>
-                      <p className="text-sm text-gray-500">High-end properties</p>
+                {[
+                  { value: 'residential', label: 'Residential', desc: 'Single family homes', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+                  { value: 'commercial', label: 'Commercial', desc: 'Retail, office, industrial', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+                  { value: 'luxury', label: 'Luxury', desc: 'High-end properties', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' },
+                  { value: 'all', label: 'All Types', desc: 'I work with everything', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4' },
+                ].map((option) => (
+                  <div
+                    key={option.value}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      formData.businessType === option.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setFormData({ ...formData, businessType: option.value as typeof formData.businessType })}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        formData.businessType === option.value ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}>
+                        <svg className={`w-5 h-5 ${formData.businessType === option.value ? 'text-blue-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={option.icon} />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{option.label}</p>
+                        <p className="text-sm text-gray-500">{option.desc}</p>
+                      </div>
                     </div>
                   </div>
-                </Card>
-
-                <Card hover className="p-4 cursor-pointer border-2 border-transparent hover:border-gray-300">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">All Types</p>
-                      <p className="text-sm text-gray-500">I work with everything</p>
-                    </div>
-                  </div>
-                </Card>
+                ))}
               </div>
             </div>
           )}
@@ -230,13 +206,12 @@ export default function OnboardingPage() {
                   { value: 'templates', label: 'AI Templates', icon: '📋', desc: 'Create listing promos and social media' },
                   { value: 'all', label: 'All Features', icon: '✨', desc: 'Get the most out of Stagefy' },
                 ].map((option) => (
-                  <Card
+                  <div
                     key={option.value}
-                    hover
-                    className={`p-4 cursor-pointer transition-all ${
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       formData.useCase === option.value
-                        ? 'border-2 border-blue-500 bg-blue-50'
-                        : 'border-2 border-transparent hover:border-gray-300'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setFormData({ ...formData, useCase: option.value as typeof formData.useCase })}
                   >
@@ -247,7 +222,7 @@ export default function OnboardingPage() {
                         <p className="text-sm text-gray-500">{option.desc}</p>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
 
