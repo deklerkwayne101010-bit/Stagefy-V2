@@ -38,7 +38,6 @@ interface Contact {
 
 interface Listing {
   id: string
-  title: string
   address: string
   price: number
   status: string
@@ -271,7 +270,7 @@ export default function CRMPage() {
                   <div key={listing.id} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-medium text-gray-900">{listing.title || listing.address}</p>
+                        <p className="font-medium text-gray-900">{listing.address}</p>
                         <p className="text-sm text-gray-500 mt-1">
                           {listing.bedrooms && `${listing.bedrooms} bed`}
                           {listing.bedrooms && listing.bathrooms && ' • '}

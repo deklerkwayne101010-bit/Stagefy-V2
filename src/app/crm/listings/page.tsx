@@ -28,7 +28,6 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 interface Listing {
   id: string
-  title: string
   address: string
   price: number
   description?: string
@@ -53,7 +52,6 @@ export default function ListingsPage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    title: '',
     address: '',
     price: '',
     description: '',
@@ -102,7 +100,6 @@ export default function ListingsPage() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      title: '',
       address: '',
       price: '',
       description: '',
@@ -125,7 +122,6 @@ export default function ListingsPage() {
   const handleEdit = (listing: Listing) => {
     setEditingListing(listing)
     setFormData({
-      title: listing.title || '',
       address: listing.address || '',
       price: listing.price?.toString() || '',
       description: listing.description || '',
@@ -140,7 +136,7 @@ export default function ListingsPage() {
 
   // Save listing (create or update)
   const handleSave = async () => {
-    if (!formData.title || !formData.address) return
+    if (!formData.address) return
     
     setIsSaving(true)
     try {
@@ -270,8 +266,8 @@ export default function ListingsPage() {
                     <tr key={listing.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
-                          <p className="font-medium text-gray-900">{listing.title}</p>
-                          <p className="text-sm text-gray-500">{listing.address}</p>
+                          <p className="font-medium text-gray-900">{listing.address}</p>
+                          {listing.description && <p className="text-sm text-gray-500 truncate max-w-xs">{listing.description}</p>}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -326,14 +322,6 @@ export default function ListingsPage() {
               <h2 className="text-xl font-bold mb-4">{editingListing ? 'Edit Listing' : 'Add Listing'}</h2>
               
               <div className="space-y-4">
-                <Input
-                  label="Title *"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g., Beautiful Family Home"
-                  required
-                />
-                
                 <Input
                   label="Address *"
                   value={formData.address}

@@ -111,38 +111,42 @@ export async function POST(request: Request) {
     } = body
 
     // Validate required fields
-    if (!title || !address) {
-      return NextResponse.json({ error: 'Title and address are required' }, { status: 400 })
+    if (!address) {
+      return NextResponse.json({ error: 'Address is required' }, { status: 400 })
     }
+
+    // Build insert object with only valid base + migration columns
+    const insertData: Record<string, any> = {
+      user_id: user.id,
+      address,
+      price,
+      status: status || 'active',
+    }
+
+    // Base schema column
+    if (description) insertData.description = description
+    if (body.notes) insertData.notes = body.notes
+
+    // Migration 003 columns (only include if provided)
+    if (listing_type) insertData.listing_type = listing_type
+    if (property_type) insertData.property_type = property_type
+    if (bedrooms) insertData.bedrooms = bedrooms
+    if (bathrooms) insertData.bathrooms = bathrooms
+    if (land_size) insertData.land_size = land_size
+    if (year_built) insertData.year_built = year_built
+    if (levies) insertData.levies = levies
+    if (rates) insertData.rates = rates
+    if (parking) insertData.parking = parking
+    if (features) insertData.features = features
+    if (mandate_expiry) insertData.mandate_expiry = mandate_expiry
+    if (instructions) insertData.instructions = instructions
+    if (virtual_tour_url) insertData.virtual_tour_url = virtual_tour_url
+    if (floorplan_url) insertData.floorplan_url = floorplan_url
+    if (open_house_dates) insertData.open_house_dates = open_house_dates
 
     const { data: listing, error } = await getSupabaseClient(request)
       .from('crm_listings')
-      .insert({
-        user_id: user.id,
-        title,
-        address,
-        price,
-        description,
-        status: status || 'active',
-        listing_type: listing_type || 'sale',
-        property_type,
-        bedrooms,
-        bathrooms,
-        land_size,
-        year_built,
-        levies,
-        rates,
-        parking,
-        features,
-        mandate_expiry,
-        instructions,
-        virtual_tour_url,
-        floorplan_url,
-        open_house_dates,
-        seller_name,
-        seller_phone,
-        seller_email
-      })
+      .insert(insertData)
       .select()
       .single()
 

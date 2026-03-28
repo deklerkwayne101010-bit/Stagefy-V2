@@ -109,36 +109,21 @@ export async function PUT(
       return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
     }
 
+    // Build update object with only valid columns
+    const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
+    const validColumns = ['address', 'price', 'description', 'status', 'notes',
+      'listing_type', 'property_type', 'bedrooms', 'bathrooms', 'land_size',
+      'year_built', 'levies', 'rates', 'parking', 'features', 'mandate_expiry',
+      'instructions', 'virtual_tour_url', 'floorplan_url', 'open_house_dates',
+      'view_count', 'inquiry_count']
+    
+    for (const key of validColumns) {
+      if (key in body) updateData[key] = body[key]
+    }
+
     const { data: listing, error } = await getSupabaseClient(request)
       .from('crm_listings')
-      .update({
-        title,
-        address,
-        price,
-        description,
-        status,
-        listing_type,
-        property_type,
-        bedrooms,
-        bathrooms,
-        land_size,
-        year_built,
-        levies,
-        rates,
-        parking,
-        features,
-        mandate_expiry,
-        instructions,
-        virtual_tour_url,
-        floorplan_url,
-        open_house_dates,
-        seller_name,
-        seller_phone,
-        seller_email,
-        view_count,
-        inquiry_count,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
