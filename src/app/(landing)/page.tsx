@@ -45,7 +45,7 @@ export default function LandingPage() {
               AI-Powered Real Estate Media
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-              Make Your Listings Look <span className="text-gradient">Incredible</span> in Minutes
+              Elevate Your Listings. <span className="text-gradient">Simplify Your Success.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
               AI-powered photo edits, videos, and templates built specifically for real estate agents. No design skills needed.
