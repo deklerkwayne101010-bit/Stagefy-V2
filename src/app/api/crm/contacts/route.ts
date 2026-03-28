@@ -126,30 +126,34 @@ export async function POST(request: Request) {
       global: { headers: { Authorization: `Bearer ${token}` } }
     })
 
+    // Build insert object with only valid columns
+    const insertData: Record<string, any> = {
+      user_id: user.id,
+      name,
+      email,
+      phone,
+      type: contact_type || 'buyer', // DB column is 'type', not 'contact_type'
+      status: status || 'lead',
+      notes,
+      tags: [],
+    }
+
+    // Optional columns - only include if the migration has been run
+    if (preferred_locations) insertData.preferred_locations = preferred_locations
+    if (budget_min) insertData.budget_min = budget_min
+    if (budget_max) insertData.budget_max = budget_max
+    if (property_types_interest) insertData.property_types_interest = property_types_interest
+    if (bedrooms_required) insertData.bedrooms_required = bedrooms_required
+    if (bathrooms_required) insertData.bathrooms_required = bathrooms_required
+    if (features_required) insertData.features_required = features_required
+    if (timeline) insertData.timeline = timeline
+    if (source) insertData.source = source
+    if (preferred_contact_method) insertData.preferred_contact_method = preferred_contact_method
+    if (rating) insertData.rating = rating
+
     const { data: contact, error } = await supabase
       .from('crm_contacts')
-      .insert({
-        user_id: user.id,
-        name,
-        email,
-        phone,
-        contact_type: contact_type || 'buyer',
-        status: status || 'lead',
-        notes,
-        address,
-        company,
-        preferred_locations,
-        budget_min,
-        budget_max,
-        property_types_interest,
-        bedrooms_required,
-        bathrooms_required,
-        features_required,
-        timeline,
-        source,
-        preferred_contact_method,
-        rating: rating || 3
-      })
+      .insert(insertData)
       .select()
       .single()
 

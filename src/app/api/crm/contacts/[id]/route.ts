@@ -94,12 +94,22 @@ export async function PUT(
       return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
     }
 
+    // Build update object with only valid columns
+    const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
+    const validColumns = ['name', 'email', 'phone', 'type', 'status', 'notes', 'tags',
+      'preferred_locations', 'budget_min', 'budget_max', 'property_types_interest',
+      'bedrooms_required', 'bathrooms_required', 'features_required', 'timeline',
+      'source', 'preferred_contact_method', 'rating', 'last_contacted_at']
+    
+    for (const key of validColumns) {
+      if (key in body) updateData[key] = body[key]
+    }
+    // Map contact_type to type if sent
+    if ('contact_type' in body) updateData.type = body.contact_type
+
     const { data: contact, error } = await supabase
       .from('crm_contacts')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
