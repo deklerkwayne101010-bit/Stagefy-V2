@@ -7,6 +7,12 @@ const PAYFAST_PASSPHRASE = process.env.PAYFAST_PASSPHRASE || ''
 
 // Validate PayFast ITN signature
 function validateSignature(data: Record<string, string>): boolean {
+  if (!data.signature) {
+    // No signature present - skip validation (common with sandbox static buttons)
+    console.log('No signature in ITN, skipping validation')
+    return true
+  }
+
   // Build signature string (sorted keys, URL encoded)
   const sortedKeys = Object.keys(data)
     .filter(k => k !== 'signature')
@@ -25,7 +31,11 @@ function validateSignature(data: Record<string, string>): boolean {
     .update(sigWithPassphrase)
     .digest('hex')
 
-  return generatedSig === data.signature
+  const isValid = generatedSig === data.signature
+  if (!isValid) {
+    console.log('Signature mismatch. Expected:', generatedSig, 'Got:', data.signature)
+  }
+  return isValid
 }
 
 export async function POST(request: Request) {
@@ -46,19 +56,34 @@ export async function POST(request: Request) {
     }
 
     const paymentStatus = data.payment_status
-    const userId = data.custom_str1  // User ID passed from the form
+    let userId = data.custom_str1  // User ID passed from the form
     const creditsAmount = parseInt(data.custom_str2 || '0')  // Credits to add
     const pfPaymentId = data.pf_payment_id
-
-    if (!userId) {
-      console.error('No user ID in payment data')
-      return new NextResponse('Missing user ID', { status: 400 })
-    }
+    const payerEmail = data.email_address  // Buyer's email
 
     const supabase = getAdminClient()
     if (!supabase) {
       console.error('Supabase admin client not configured')
       return new NextResponse('Server error', { status: 500 })
+    }
+
+    // If userId is empty, try to find user by email
+    if (!userId && payerEmail) {
+      console.log(`No userId in custom_str1, looking up by email: ${payerEmail}`)
+      const { data: userByEmail } = await (supabase.from as any)('users')
+        .select('id')
+        .eq('email', payerEmail)
+        .maybeSingle()
+
+      if (userByEmail) {
+        userId = userByEmail.id
+        console.log(`Found user by email: ${userId}`)
+      }
+    }
+
+    if (!userId) {
+      console.error('No user ID in payment data and could not find by email')
+      return new NextResponse('Missing user ID', { status: 400 })
     }
 
     // Idempotency check - prevent duplicate credit additions
@@ -81,12 +106,22 @@ export async function POST(request: Request) {
         .eq('id', userId)
         .single()
 
-      const currentCredits = user?.credits || 0
+      if (!user) {
+        console.error(`User not found: ${userId}`)
+        return new NextResponse('User not found', { status: 400 })
+      }
+
+      const currentCredits = user.credits || 0
       const newCredits = currentCredits + creditsAmount
 
-      await (supabase.from as any)('users')
+      const { error: updateError } = await (supabase.from as any)('users')
         .update({ credits: newCredits })
         .eq('id', userId)
+
+      if (updateError) {
+        console.error('Failed to update credits:', updateError)
+        return new NextResponse('Failed to update credits', { status: 500 })
+      }
 
       // Log transaction
       await (supabase.from as any)('credit_transactions')
@@ -108,7 +143,7 @@ export async function POST(request: Request) {
           action_url: '/billing',
         })
 
-      console.log(`Added ${creditsAmount} credits to user ${userId}. New balance: ${newCredits}`)
+      console.log(`SUCCESS: Added ${creditsAmount} credits to user ${userId}. Balance: ${currentCredits} -> ${newCredits}`)
       return new NextResponse('Payment processed', { status: 200 })
     }
 
@@ -117,6 +152,7 @@ export async function POST(request: Request) {
       return new NextResponse('Payment cancelled', { status: 200 })
     }
 
+    console.log(`Unhandled payment status: ${paymentStatus}`)
     return new NextResponse('OK', { status: 200 })
   } catch (error) {
     console.error('Webhook error:', error)

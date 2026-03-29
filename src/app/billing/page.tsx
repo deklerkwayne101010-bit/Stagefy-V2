@@ -37,6 +37,8 @@ export default function BillingPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ creditsUsed: 0, creditsPurchased: 0 })
 
+  const creditsRemaining = user?.credits || 0
+
   const fetchData = useCallback(async () => {
     if (!user?.id) return
 
@@ -81,8 +83,6 @@ export default function BillingPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
-
-  const creditsRemaining = user?.credits || 0
 
   return (
     <div>
@@ -171,7 +171,7 @@ export default function BillingPage() {
                     <input type="hidden" name="custom_str1" value={user?.id || ''} />
                     <input type="hidden" name="custom_str2" value={pack.credits.toString()} />
 
-                    <button type="submit" className="w-full p-4 text-left">
+                    <button type="submit" disabled={!user?.id} className="w-full p-4 text-left disabled:opacity-50 disabled:cursor-not-allowed">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
