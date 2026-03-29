@@ -24,7 +24,6 @@ interface MonthlyStats {
 const PAYFAST_MERCHANT_ID = '32421419'
 
 const creditPackages = [
-  { id: '2', credits: 2, price: 5, badge: 'Test' },
   { id: '50', credits: 50, price: 75, badge: null as string | null },
   { id: '100', credits: 100, price: 140, badge: null as string | null },
   { id: '250', credits: 250, price: 325, badge: 'Most Popular' },
