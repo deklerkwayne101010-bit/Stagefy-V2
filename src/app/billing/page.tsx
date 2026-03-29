@@ -24,10 +24,10 @@ interface MonthlyStats {
 const PAYFAST_MERCHANT_ID = '32421419'
 
 const creditPackages = [
-  { id: '50', credits: 50, price: 75, badge: null as string | null },
-  { id: '100', credits: 100, price: 140, badge: null as string | null },
-  { id: '250', credits: 250, price: 325, badge: 'Most Popular' },
-  { id: '500', credits: 500, price: 600, badge: 'Best Value' },
+  { id: '50', credits: 50, price: 100, badge: null as string | null },
+  { id: '100', credits: 100, price: 175, badge: null as string | null },
+  { id: '250', credits: 250, price: 375, badge: 'Most Popular' },
+  { id: '500', credits: 500, price: 650, badge: 'Best Value' },
 ]
 
 export default function BillingPage() {
