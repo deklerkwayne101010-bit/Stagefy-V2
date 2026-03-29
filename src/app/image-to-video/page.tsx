@@ -88,16 +88,22 @@ export default function ImageToVideoPage() {
     setError(null)
 
     try {
+      // Get auth token
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
       // Call the API to convert images to video
       const response = await fetch('/api/ai/image-to-video', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           images: selectedImages,
           mode,
           duration: parseInt(duration),
           prompt,
-          userId: user?.id,
         }),
       })
 

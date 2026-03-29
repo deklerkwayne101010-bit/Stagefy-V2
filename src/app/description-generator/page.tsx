@@ -115,9 +115,15 @@ export default function DescriptionGeneratorPage() {
         return
       }
 
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
       const response = await fetch('/api/ai/description-generator', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           propertyType,
           listingStyle,
@@ -132,7 +138,6 @@ export default function DescriptionGeneratorPage() {
           keyFeatures,
           additionalNotes,
           targetAudience,
-          userId: user.id,
         }),
       })
 

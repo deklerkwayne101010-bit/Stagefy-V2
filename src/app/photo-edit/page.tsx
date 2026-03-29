@@ -147,15 +147,21 @@ export default function PhotoEditPage() {
       const imageToProcess = targetImageUrl || targetImage
       const referenceToProcess = useReference ? (referenceImageUrl || referenceImage) : null
       
+      // Get auth token
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
       // Call the API to process the image with Qwen Image Edit 2511
       const response = await fetch('/api/ai/photo-edit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           image: imageToProcess,
           referenceImage: referenceToProcess,
           prompt: customPrompt,
-          userId: user?.id,
         }),
       })
 
