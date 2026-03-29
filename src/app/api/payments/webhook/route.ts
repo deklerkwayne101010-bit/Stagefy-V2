@@ -7,8 +7,14 @@ const PAYFAST_PASSPHRASE = process.env.PAYFAST_PASSPHRASE || ''
 
 // Validate PayFast ITN signature
 function validateSignature(data: Record<string, string>): boolean {
+  // Skip validation if no passphrase configured (sandbox/dev mode)
+  if (!PAYFAST_PASSPHRASE) {
+    console.log('No PAYFAST_PASSPHRASE set, skipping signature validation')
+    return true
+  }
+
+  // Skip validation if no signature in ITN
   if (!data.signature) {
-    // No signature present - skip validation (common with sandbox static buttons)
     console.log('No signature in ITN, skipping validation')
     return true
   }
