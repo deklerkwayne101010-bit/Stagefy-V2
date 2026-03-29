@@ -617,7 +617,7 @@ export function InfographicWizard({
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAutoFillArea(e.target.value)}
                               />
                               <p className="text-xs text-blue-600 mt-2">
-                                Nano Banana 2 will search the web for current {typeInfo.label.toLowerCase()} data in this area
+                                Our AI will search the web for current {typeInfo.label.toLowerCase()} data in this area
                               </p>
                             </div>
                           )}

@@ -1457,7 +1457,7 @@ PROPERTY INFO SECTION:
           // Show success message
           alert(`✅ Wizard completed! 
 
-Your prompt has been generated and added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design with Nano Banana Pro.`)
+Your prompt has been generated and added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design.`)
         }}
       />
 
