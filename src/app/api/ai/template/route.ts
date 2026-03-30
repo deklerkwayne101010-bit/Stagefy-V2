@@ -101,8 +101,8 @@ export async function POST(request: Request) {
         image_input: images && images.length > 0 ? images : [],
         aspect_ratio: '4:3',
         output_format: 'png',
-        google_search: true,
-        image_search: false,
+        google_search: false,
+        image_search: true,
         safety_filter_level: 'block_only_high'
       }
 
