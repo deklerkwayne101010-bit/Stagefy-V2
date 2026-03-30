@@ -31,17 +31,37 @@ const creditPackages = [
 ]
 
 export default function BillingPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'help'>('overview')
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ creditsUsed: 0, creditsPurchased: 0 })
+  const [freshCredits, setFreshCredits] = useState<number | null>(null)
 
-  const creditsRemaining = user?.credits || 0
+  const creditsRemaining = freshCredits ?? (user?.credits || 0)
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return
 
     try {
+      // Refresh user data from auth context
+      refreshUser()
+
+      // Also fetch fresh credits from database
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session?.user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('id', session.user.id)
+          .single()
+
+        if (userData?.credits !== undefined) {
+          setFreshCredits(userData.credits)
+        }
+      }
+
       const { getCreditHistory } = await import('@/lib/credits')
       const { data } = await getCreditHistory(user.id, 100)
 

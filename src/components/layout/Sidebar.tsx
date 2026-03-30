@@ -95,6 +95,30 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user } = useAuth()
   const [expandedItems, setExpandedItems] = useState<string[]>(['CRM'])
+  const [freshCredits, setFreshCredits] = useState<number | null>(null)
+
+  // Fetch fresh credits from database on mount
+  React.useEffect(() => {
+    async function fetchCredits() {
+      if (!user?.id) return
+      try {
+        const { supabase } = await import('@/lib/supabase')
+        const { data } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('id', user.id)
+          .single()
+        if (data?.credits !== undefined) {
+          setFreshCredits(data.credits)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchCredits()
+  }, [user?.id])
+
+  const credits = freshCredits ?? (user?.credits || 0)
 
   const toggleExpand = (name: string) => {
     setExpandedItems(prev => 
@@ -115,7 +139,7 @@ export function Sidebar() {
 
       {/* Credit Balance */}
       <div className="px-4 py-4">
-        <CreditBadge credits={user?.credits || 0} />
+        <CreditBadge credits={credits} />
       </div>
 
       {/* Navigation */}

@@ -39,6 +39,53 @@ export default function PhotoEditPage() {
   const [uploading, setUploading] = useState(false)
   const [useReference, setUseReference] = useState(false)
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
+  const [savedPrompts, setSavedPrompts] = useState<Array<{ id: string; name: string; prompt: string }>>([])
+  const [showSavedPrompts, setShowSavedPrompts] = useState(false)
+  const [savePromptName, setSavePromptName] = useState('')
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+
+  // Load saved prompts from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('stagefy-saved-prompts')
+      if (stored) {
+        setSavedPrompts(JSON.parse(stored))
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  // Save a prompt
+  const handleSavePrompt = () => {
+    if (!customPrompt.trim() || !savePromptName.trim()) return
+
+    const newPrompt = {
+      id: Date.now().toString(),
+      name: savePromptName.trim(),
+      prompt: customPrompt.trim(),
+    }
+
+    const updated = [...savedPrompts, newPrompt]
+    setSavedPrompts(updated)
+    localStorage.setItem('stagefy-saved-prompts', JSON.stringify(updated))
+    setSavePromptName('')
+    setShowSaveDialog(false)
+  }
+
+  // Delete a saved prompt
+  const handleDeletePrompt = (id: string) => {
+    const updated = savedPrompts.filter(p => p.id !== id)
+    setSavedPrompts(updated)
+    localStorage.setItem('stagefy-saved-prompts', JSON.stringify(updated))
+  }
+
+  // Load a saved prompt
+  const handleLoadPrompt = (prompt: string) => {
+    setCustomPrompt(prompt)
+    setSelectedPreset(null)
+    setShowSavedPrompts(false)
+  }
 
   // Check if user has enough credits
   const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
@@ -445,6 +492,95 @@ export default function PhotoEditPage() {
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 rows={4}
               />
+
+              {/* Save/Load Prompt Buttons */}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => setShowSaveDialog(true)}
+                  disabled={!customPrompt.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  Save Prompt
+                </button>
+                {savedPrompts.length > 0 && (
+                  <button
+                    onClick={() => setShowSavedPrompts(!showSavedPrompts)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    Saved ({savedPrompts.length})
+                  </button>
+                )}
+              </div>
+
+              {/* Save Dialog */}
+              {showSaveDialog && (
+                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Save this prompt as:</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., Bright living room"
+                      value={savePromptName}
+                      onChange={(e) => setSavePromptName(e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onKeyDown={(e) => e.key === 'Enter' && handleSavePrompt()}
+                    />
+                    <button
+                      onClick={handleSavePrompt}
+                      disabled={!savePromptName.trim()}
+                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setShowSaveDialog(false)}
+                      className="px-3 py-1.5 text-sm bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Saved Prompts List */}
+              {showSavedPrompts && savedPrompts.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {savedPrompts.map((sp) => (
+                    <div
+                      key={sp.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 group"
+                    >
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-sm font-medium text-gray-900 truncate">{sp.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{sp.prompt}</p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleLoadPrompt(sp.prompt)}
+                          className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                          Use
+                        </button>
+                        <button
+                          onClick={() => handleDeletePrompt(sp.id)}
+                          className="px-2.5 py-1 text-xs bg-red-100 text-red-600 rounded-md hover:bg-red-200"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <p className="text-sm text-gray-500 mt-2">
                 💡 Tip: Be specific about what you want. {useReference && "Mention which image provides the reference."}
               </p>
