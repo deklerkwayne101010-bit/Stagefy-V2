@@ -437,11 +437,6 @@ export default function TemplatesPage() {
   const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
 
   const handleSubmit = async () => {
-    if (selectedImages.length === 0) {
-      setError('Please upload at least one image')
-      return
-    }
-
     if (!prompt.trim()) {
       setError('Please describe your template')
       return
@@ -757,7 +752,7 @@ export default function TemplatesPage() {
 
               {/* Image Upload */}
               <Card>
-                <CardHeader title="Upload Images" subtitle="Add photos to include in your template" />
+                <CardHeader title="Upload Images" subtitle="Optional — add photos to include in your template" />
                 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {selectedImages.map((img, index) => (
@@ -996,7 +991,7 @@ export default function TemplatesPage() {
                   size="lg"
                   className="mt-4"
                   loading={loading}
-                  disabled={selectedImages.length === 0 || !prompt.trim() || !hasEnoughCredits}
+                  disabled={!prompt.trim() || !hasEnoughCredits}
                   onClick={handleSubmit}
                 >
                   {loading ? 'Creating Template...' : 'Generate Template'}
