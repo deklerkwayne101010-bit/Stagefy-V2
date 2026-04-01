@@ -105,7 +105,7 @@ export default function TemplatesPage() {
     }
   }, [])
 
-  // Auto-save a generation to recent list (keeps last 5)
+  // Auto-save a generation to recent list (keeps last 10)
   const autoSaveGeneration = (outputUrl: string, type: string, prompt: string) => {
     if (!outputUrl || outputUrl.includes('example.com')) return // Don't save demo/placeholder URLs
 
@@ -120,7 +120,7 @@ export default function TemplatesPage() {
     }
 
     setRecentGenerations(prev => {
-      const updated = [entry, ...prev].slice(0, 5)
+      const updated = [entry, ...prev].slice(0, 10)
       try {
         localStorage.setItem('stagefy-recent-generations', JSON.stringify(updated))
       } catch {

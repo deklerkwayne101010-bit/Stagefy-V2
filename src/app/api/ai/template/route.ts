@@ -8,6 +8,7 @@ import {
   canPerformAction
 } from '@/lib/credits'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminClient } from '@/lib/supabase'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -139,7 +140,40 @@ export async function POST(request: Request) {
 
       // Success! Return response
       // Nano Banana Pro returns output as an array with the image URL
-      const outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
+      let outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
+      
+      // Upload to Supabase storage for permanent URL
+      try {
+        const adminClient = getAdminClient()
+        if (adminClient && outputUrl && !outputUrl.includes('example.com')) {
+          // Download the image from Replicate
+          const imageResponse = await fetch(outputUrl)
+          if (imageResponse.ok) {
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+            const fileName = `templates/${userIdStr}/${Date.now()}.png`
+
+            const { error: uploadError } = await adminClient.storage
+              .from('ai-outputs')
+              .upload(fileName, imageBuffer, {
+                contentType: 'image/png',
+                upsert: true,
+              })
+
+            if (!uploadError) {
+              const { data: publicUrl } = adminClient.storage
+                .from('ai-outputs')
+                .getPublicUrl(fileName)
+              outputUrl = publicUrl.publicUrl
+              console.log('Uploaded template to storage:', outputUrl)
+            } else {
+              console.error('Failed to upload template:', uploadError)
+            }
+          }
+        }
+      } catch (uploadErr) {
+        console.error('Error uploading to storage:', uploadErr)
+        // Continue with original URL if upload fails
+      }
       
       return NextResponse.json({
         outputUrl: outputUrl,
