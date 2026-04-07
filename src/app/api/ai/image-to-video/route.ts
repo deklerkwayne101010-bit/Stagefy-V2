@@ -95,6 +95,51 @@ export async function POST(request: Request) {
     }
 
     try {
+      // Upload first image to Replicate storage if it's a data URL
+      let imageUrl = images[0]
+      
+      if (images[0].startsWith('data:')) {
+        // Upload to Replicate as a temporary URL
+        const imageResponse = await fetch('https://api.replicate.com/v1/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content_type: 'image/jpeg',
+          }),
+        })
+        
+        if (!imageResponse.ok) {
+          throw new Error('Failed to create upload URL')
+        }
+        
+        const uploadData = await imageResponse.json()
+        
+        // Convert base64 to blob and upload
+        const base64Data = images[0].split(',')[1]
+        const binaryString = atob(base64Data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        
+        const uploadResponse = await fetch(uploadData.urls[0].upload_url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/jpeg',
+          },
+          body: bytes,
+        })
+        
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image')
+        }
+        
+        imageUrl = uploadData.urls[0].url
+      }
+      
       let prediction;
       
       if (mode === 'frames') {
@@ -115,6 +160,7 @@ export async function POST(request: Request) {
               generate_audio: false,
               keep_original_sound: true,
               video_reference_type: 'feature',
+              image_reference: imageUrl,
             },
           }),
         })
@@ -125,8 +171,8 @@ export async function POST(request: Request) {
 
         prediction = await response.json()
       } else {
-        // Use xai/grok-imagine-video for single image
-        const response = await fetch('https://api.replicate.com/v1/models/xai/grok-imagine-video/predictions', {
+        // Use kling-v2-1-video-05-16 for single image to video
+        const response = await fetch('https://api.replicate.com/v1/models/klings-ai/kling-video-v1-2-0/predictions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -136,15 +182,14 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             input: {
               prompt: prompt || 'smooth camera movement',
+              image: imageUrl,
               duration: parseInt(duration),
-              resolution: '720p',
-              aspect_ratio: '16:9',
             },
           }),
         })
 
         if (!response.ok) {
-          throw new Error('Failed to create video with grok-imagine-video')
+          throw new Error('Failed to create video with kling-video-v1-2-0')
         }
 
         prediction = await response.json()

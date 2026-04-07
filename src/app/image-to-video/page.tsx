@@ -10,6 +10,7 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
 import { Badge } from '@/components/ui/Badge'
 import { canPerformAction, checkUserCredits } from '@/lib/credits'
+import { uploadImage } from '@/lib/supabase'
 
 const videoDurations = [
   { value: '3', label: '3 seconds', credits: 3, description: 'Quick social media clip' },
@@ -29,6 +30,7 @@ export default function ImageToVideoPage() {
   const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedImages, setSelectedImages] = useState<string[]>([])
+  const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([])
   const [mode, setMode] = useState<'single' | 'frames'>('single')
   const [duration, setDuration] = useState('5')
   const [prompt, setPrompt] = useState('')
@@ -48,20 +50,30 @@ export default function ImageToVideoPage() {
     checkCredits()
   }, [user?.id])
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     
-    files.forEach((file) => {
+    for (const file of files) {
+      // Show local preview immediately
       const reader = new FileReader()
       reader.onload = (event) => {
         setSelectedImages(prev => [...prev, event.target?.result as string])
       }
       reader.readAsDataURL(file)
-    })
+      
+      // Upload to Supabase if user is logged in
+      if (user?.id) {
+        const { data, error } = await uploadImage(file, user.id)
+        if (!error && data) {
+          setSelectedImageUrls(prev => [...prev, data.url])
+        }
+      }
+    }
   }
 
   const removeImage = (index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index))
+    setSelectedImageUrls(prev => prev.filter((_, i) => i !== index))
   }
 
   const creditCost = CREDIT_COSTS[duration as keyof typeof CREDIT_COSTS] || 8
@@ -92,6 +104,9 @@ export default function ImageToVideoPage() {
       const { supabase } = await import('@/lib/supabase')
       const { data: { session } } = await supabase.auth.getSession()
 
+      // Use Supabase URLs if available, otherwise local previews
+      const imagesToSend = selectedImageUrls.length > 0 ? selectedImageUrls : selectedImages
+      
       // Call the API to convert images to video
       const response = await fetch('/api/ai/image-to-video', {
         method: 'POST',
@@ -100,7 +115,7 @@ export default function ImageToVideoPage() {
           ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({
-          images: selectedImages,
+          images: imagesToSend,
           mode,
           duration: parseInt(duration),
           prompt,
