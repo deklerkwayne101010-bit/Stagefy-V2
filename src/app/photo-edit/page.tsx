@@ -220,11 +220,13 @@ export default function PhotoEditPage() {
       const data = await response.json()
       setProcessedImage(data.outputUrl)
       setIsWatermarked(false)
+      window.scrollTo(0, document.body.scrollHeight)
     } catch (err: any) {
       setError(err.message || 'Failed to process image. Please try again.')
       // For demo, show a mock processed image
       setProcessedImage(targetImage)
       setIsWatermarked(false)
+      window.scrollTo(0, document.body.scrollHeight)
     } finally {
       setLoading(false)
     }
