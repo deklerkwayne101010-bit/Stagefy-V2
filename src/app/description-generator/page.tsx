@@ -372,6 +372,22 @@ export default function DescriptionGeneratorPage() {
             >
               {loading ? 'Generating Description...' : 'Generate Description'}
             </Button>
+
+            {/* Loading Progress Bar */}
+            {loading && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm text-slate-600">
+                  <span>AI is crafting your description...</span>
+                  <span>Please wait</span>
+                </div>
+                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
+                <p className="text-xs text-slate-500 text-center">
+                  This usually takes 5-15 seconds
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Output */}
