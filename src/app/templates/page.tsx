@@ -83,6 +83,10 @@ export default function TemplatesPage() {
   const [result, setResult] = useState<{ outputUrl: string; isWatermarked?: boolean } | null>(null)
   const [savedTemplates, setSavedTemplates] = useState<{ id: number; name: string; type: string; thumbnail: string }[]>([])
 
+  // Version selection state
+  const [showVersionPopup, setShowVersionPopup] = useState(false)
+  const [selectedVersion, setSelectedVersion] = useState<'standard' | 'pro'>('standard')
+
   // Recent generations - auto-saved, keeps last 5
   const [recentGenerations, setRecentGenerations] = useState<{
     id: number
@@ -434,7 +438,7 @@ export default function TemplatesPage() {
     }
   }
 
-  const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
+  const hasEnoughCredits = (user?.credits || 0) >= (selectedVersion === 'pro' ? 5 : 3)
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
@@ -479,6 +483,7 @@ export default function TemplatesPage() {
         type: templateType,
         userId: user?.id,
         prompt: finalPrompt,
+        version: selectedVersion, // 'standard' or 'pro'
       }
       
       // Add agent profile data if toggle is enabled (for reference in template)
@@ -1007,7 +1012,7 @@ export default function TemplatesPage() {
               <Card className="bg-gray-900 text-white border-0">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Credit Cost</span>
-                  <CreditBadge credits={CREDIT_COST} />
+                  <CreditBadge credits={selectedVersion === 'pro' ? 5 : 3} />
                 </div>
 
                 <Button
@@ -1016,7 +1021,7 @@ export default function TemplatesPage() {
                   className="mt-4"
                   loading={loading}
                   disabled={!prompt.trim() || !hasEnoughCredits}
-                  onClick={handleSubmit}
+                  onClick={() => setShowVersionPopup(true)}
                 >
                   {loading ? 'Creating Template...' : 'Generate Template'}
                 </Button>
@@ -1640,6 +1645,74 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
           setGeneratedLayout(null)
         }}
       />
+
+      {/* Version Selection Popup */}
+      {showVersionPopup && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Choose Template Version</h3>
+            <p className="text-gray-500 mb-6">Select which AI model to use for your template</p>
+            
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={() => setSelectedVersion('standard')}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  selectedVersion === 'standard'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900">Standard</p>
+                    <p className="text-sm text-gray-500">Nano Banana 2 - Fast & reliable</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">3 credits</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setSelectedVersion('pro')}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  selectedVersion === 'pro'
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900 flex items-center gap-2">
+                      Pro
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ NEW</span>
+                    </p>
+                    <p className="text-sm text-gray-500">Nano Banana Pro - Higher quality</p>
+                  </div>
+                  <span className="text-lg font-bold text-purple-600">5 credits</span>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowVersionPopup(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setShowVersionPopup(false)
+                  handleSubmit()
+                }}
+              >
+                Generate ({selectedVersion === 'pro' ? 5 : 3} credits)
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

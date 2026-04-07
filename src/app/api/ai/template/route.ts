@@ -37,7 +37,7 @@ const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PU
 
 export async function POST(request: Request) {
   try {
-    const { images, type, prompt, customOptions } = await request.json()
+    const { images, type, prompt, customOptions, version } = await request.json()
 
     // Validate input
     if (!images || images.length === 0) {
@@ -46,6 +46,13 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Determine version (default to standard)
+    const templateVersion = version || 'standard'
+    const isPro = templateVersion === 'pro'
+    
+    // Set credit cost based on version
+    const creditCost = isPro ? 5 : 3
 
     // Get user from Authorization header only
     const user = await getUserFromAuthHeader(request)
@@ -57,7 +64,6 @@ export async function POST(request: Request) {
     }
 
     const userIdStr = user.id
-    const creditCost = CREDIT_COSTS.template_generation
 
     // Demo mode: skip credit check and return demo response
     if (isDemoMode) {
@@ -85,8 +91,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Reserve credits
-    const reservation = await reserveCredits(userIdStr, 'template_generation', `template-${Date.now()}`)
+    // Reserve credits - use different operation key based on version
+    const operationKey = isPro ? 'template_generation_pro' : 'template_generation_standard'
+    const reservation = await reserveCredits(userIdStr, operationKey, `template-${Date.now()}`)
     if (!reservation.success) {
       return NextResponse.json(
         { error: reservation.error || 'Failed to reserve credits' },
@@ -117,9 +124,12 @@ export async function POST(request: Request) {
         }
       }
 
-      // Call Replicate API for Nano Banana Pro template generation
-      // Using the correct endpoint format per user's curl example
-      const response = await fetch('https://api.replicate.com/v1/models/google/nano-banana-2/predictions', {
+      // Select model based on version
+      const modelId = isPro ? 'google/nano-banana-pro' : 'google/nano-banana-2'
+      console.log(`Using model: ${modelId} for ${templateVersion} version`)
+
+      // Call Replicate API for template generation
+      const response = await fetch(`https://api.replicate.com/v1/models/${modelId}/predictions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -184,7 +194,8 @@ export async function POST(request: Request) {
       })
     } catch (aiError) {
       // Refund credits on failure
-      await refundCredits(userIdStr, 'template_generation', `template-${Date.now()}`)
+      const operationKey = isPro ? 'template_generation_pro' : 'template_generation_standard'
+      await refundCredits(userIdStr, operationKey, `template-${Date.now()}`)
       
       // Return mock response for demo
       return NextResponse.json({
