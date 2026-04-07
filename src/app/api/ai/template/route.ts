@@ -91,9 +91,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Reserve credits - use different operation key based on version
-    const operationKey = isPro ? 'template_generation_pro' : 'template_generation_standard'
-    const reservation = await reserveCredits(userIdStr, operationKey, `template-${Date.now()}`)
+    // Reserve credits using template_generation operation
+    // The actual credit amount is determined by creditCost variable based on version
+    const reservation = await reserveCredits(userIdStr, 'template_generation', `template-${Date.now()}`, creditCost)
     if (!reservation.success) {
       return NextResponse.json(
         { error: reservation.error || 'Failed to reserve credits' },
@@ -193,9 +193,8 @@ export async function POST(request: Request) {
         isWatermarked: false,
       })
     } catch (aiError) {
-      // Refund credits on failure
-      const operationKey = isPro ? 'template_generation_pro' : 'template_generation_standard'
-      await refundCredits(userIdStr, operationKey, `template-${Date.now()}`)
+      // Refund credits on failure - use same operation, pass the actual credit cost
+      await refundCredits(userIdStr, 'template_generation', `template-${Date.now()}`, creditCost)
       
       // Return mock response for demo
       return NextResponse.json({

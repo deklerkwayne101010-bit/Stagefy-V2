@@ -73,10 +73,11 @@ export async function canPerformAction(userId: string, creditCost: number): Prom
 export async function reserveCredits(
   userId: string,
   operation: CreditOperation,
-  projectId: string
+  projectId: string,
+  customAmount?: number
 ): Promise<{ success: boolean; error?: string; creditsReserved?: number }> {
   const { client, isAdmin } = getCreditClient()
-  const creditCost = CREDIT_COSTS[operation]
+  const creditCost = customAmount ?? CREDIT_COSTS[operation]
   
   // Check current balance
   const currentCredits = await checkUserCredits(userId)
@@ -127,10 +128,11 @@ export async function reserveCredits(
 export async function refundCredits(
   userId: string,
   operation: CreditOperation,
-  projectId: string
+  projectId: string,
+  customAmount?: number
 ): Promise<{ success: boolean; error?: string }> {
   const { client } = getCreditClient()
-  const creditCost = CREDIT_COSTS[operation]
+  const creditCost = customAmount ?? CREDIT_COSTS[operation]
   const currentCredits = await checkUserCredits(userId)
 
   // Log the refund
