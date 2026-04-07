@@ -679,12 +679,20 @@ export default function TemplatesPage() {
                         </p>
                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation()
-                              const link = document.createElement('a')
-                              link.href = gen.thumbnail
-                              link.download = `stagefy-${gen.typeName.toLowerCase()}-${Date.now()}.jpg`
-                              link.click()
+                              try {
+                                const response = await fetch(gen.thumbnail)
+                                const blob = await response.blob()
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `stagefy-${gen.typeName.toLowerCase()}-${Date.now()}.jpg`
+                                link.click()
+                                window.URL.revokeObjectURL(url)
+                              } catch {
+                                window.open(gen.thumbnail, '_blank')
+                              }
                             }}
                             className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center hover:bg-blue-700"
                             title="Download"
@@ -910,11 +918,19 @@ export default function TemplatesPage() {
                         variant="outline" 
                         size="sm" 
                         fullWidth
-                        onClick={() => {
-                          const link = document.createElement('a')
-                          link.href = result.outputUrl
-                          link.download = 'stagefy-template.jpg'
-                          link.click()
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(result.outputUrl)
+                            const blob = await response.blob()
+                            const url = window.URL.createObjectURL(blob)
+                            const link = document.createElement('a')
+                            link.href = url
+                            link.download = `stagefy-template-${Date.now()}.jpg`
+                            link.click()
+                            window.URL.revokeObjectURL(url)
+                          } catch {
+                            window.open(result.outputUrl, '_blank')
+                          }
                         }}
                       >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -951,11 +967,19 @@ export default function TemplatesPage() {
                         <Button 
                           variant="outline"
                           className="bg-white text-gray-900 hover:bg-gray-100"
-                          onClick={() => {
-                            const link = document.createElement('a')
-                            link.href = result.outputUrl
-                            link.download = 'stagefy-template.jpg'
-                            link.click()
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(result.outputUrl)
+                              const blob = await response.blob()
+                              const url = window.URL.createObjectURL(blob)
+                              const link = document.createElement('a')
+                              link.href = url
+                              link.download = `stagefy-template-${Date.now()}.jpg`
+                              link.click()
+                              window.URL.revokeObjectURL(url)
+                            } catch {
+                              window.open(result.outputUrl, '_blank')
+                            }
                           }}
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1099,7 +1123,20 @@ export default function TemplatesPage() {
                             <Button size="sm" variant="outline" fullWidth>
                               Use
                             </Button>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              try {
+                                const response = await fetch(template.thumbnail)
+                                const blob = await response.blob()
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `stagefy-${template.type.toLowerCase()}-${Date.now()}.jpg`
+                                link.click()
+                                window.URL.revokeObjectURL(url)
+                              } catch {
+                                window.open(template.thumbnail, '_blank')
+                              }
+                            }}>
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                               </svg>
