@@ -194,7 +194,7 @@ export async function uploadImage(
  */
 export async function getUploadHistory(
   userId: string,
-  limit: number = 5
+  limit: number = 10
 ): Promise<{ data: Array<{ id: string; url: string; created_at: string }> | null; error: Error | null }> {
   const client = getSupabaseClient()
   if (!client) {

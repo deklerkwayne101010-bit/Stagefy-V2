@@ -94,7 +94,7 @@ export default function PhotoEditPage() {
   useEffect(() => {
     const fetchUploadHistory = async () => {
       if (user?.id) {
-        const { data } = await getUploadHistory(user.id, 5)
+        const { data } = await getUploadHistory(user.id, 10)
         if (data) {
           setUploadHistory(data)
         }
@@ -122,7 +122,7 @@ export default function PhotoEditPage() {
             // Add to upload history
             setUploadHistory(prev => [
               { id: data.id, url: data.url, created_at: new Date().toISOString() },
-              ...prev.slice(0, 4)
+              ...prev.slice(0, 9)
             ])
           }
         }
