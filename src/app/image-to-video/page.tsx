@@ -347,7 +347,17 @@ export default function ImageToVideoPage() {
                 className="mt-4"
                 loading={loading}
                 disabled={selectedImages.length === 0 || !user || userCredits < creditCost}
-                onClick={handleSubmit}
+                onClick={() => {
+                  if (!user) {
+                    setError('Please log in to create videos')
+                    return
+                  }
+                  if (userCredits < creditCost) {
+                    setError('Not enough credits')
+                    return
+                  }
+                  handleSubmit()
+                }}
               >
                 {loading ? 'Creating Video...' : 'Create Video'}
               </Button>

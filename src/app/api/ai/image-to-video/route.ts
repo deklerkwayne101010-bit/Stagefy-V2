@@ -95,6 +95,11 @@ export async function POST(request: Request) {
     }
 
     try {
+      // Check if Replicate API token exists
+      if (!process.env.REPLICATE_API_TOKEN) {
+        throw new Error('REPLICATE_API_TOKEN not configured')
+      }
+
       // Upload first image to Replicate storage if it's a data URL
       let imageUrl = images[0]
       
@@ -171,8 +176,8 @@ export async function POST(request: Request) {
 
         prediction = await response.json()
       } else {
-        // Use kling-v2-1-video-05-16 for single image to video
-        const response = await fetch('https://api.replicate.com/v1/models/klings-ai/kling-video-v1-2-0/predictions', {
+        // Use xai/grok-imagine-video for single image to video
+        const response = await fetch('https://api.replicate.com/v1/models/xai/grok-imagine-video/predictions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -181,15 +186,18 @@ export async function POST(request: Request) {
           },
           body: JSON.stringify({
             input: {
-              prompt: prompt || 'smooth camera movement',
+              prompt: prompt || 'smooth camera movement, gentle pan',
               image: imageUrl,
               duration: parseInt(duration),
+              resolution: '720p',
+              mode: 'normal',
             },
           }),
         })
 
         if (!response.ok) {
-          throw new Error('Failed to create video with kling-video-v1-2-0')
+          const errorText = await response.text()
+          throw new Error(`Failed to create video with grok-imagine-video: ${errorText}`)
         }
 
         prediction = await response.json()
