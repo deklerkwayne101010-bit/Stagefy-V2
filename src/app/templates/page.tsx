@@ -1665,7 +1665,7 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-gray-900">Standard</p>
-                    <p className="text-sm text-gray-500">Nano Banana 2 - Fast & reliable</p>
+                    <p className="text-sm text-gray-500">Fast & reliable results</p>
                   </div>
                   <span className="text-lg font-bold text-blue-600">3 credits</span>
                 </div>
@@ -1685,7 +1685,7 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
                       Pro
                       <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ NEW</span>
                     </p>
-                    <p className="text-sm text-gray-500">Nano Banana Pro - Higher quality</p>
+                    <p className="text-sm text-gray-500">Higher quality output</p>
                   </div>
                   <span className="text-lg font-bold text-purple-600">5 credits</span>
                 </div>
