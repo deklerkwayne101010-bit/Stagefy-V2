@@ -71,6 +71,32 @@ export default function ImageToVideoPage() {
     }
   }
 
+  // Handle single image upload for frames mode (start/end specific slots)
+  const handleSingleImageUpload = async (file: File, slotIndex: number) => {
+    // Show local preview immediately
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setSelectedImages(prev => {
+        const newImages = [...prev]
+        newImages[slotIndex] = event.target?.result as string
+        return newImages
+      })
+    }
+    reader.readAsDataURL(file)
+    
+    // Upload to Supabase if user is logged in
+    if (user?.id) {
+      const { data, error } = await uploadImage(file, user.id)
+      if (!error && data) {
+        setSelectedImageUrls(prev => {
+          const newUrls = [...prev]
+          newUrls[slotIndex] = data.url
+          return newUrls
+        })
+      }
+    }
+  }
+
   const removeImage = (index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index))
     setSelectedImageUrls(prev => prev.filter((_, i) => i !== index))
@@ -79,8 +105,13 @@ export default function ImageToVideoPage() {
   const creditCost = CREDIT_COSTS[duration as keyof typeof CREDIT_COSTS] || 8
 
   const handleSubmit = async () => {
-    if (selectedImages.length === 0) {
-      setError('Please upload at least one image')
+    if (mode === 'frames' && selectedImages.length < 2) {
+      setError('Please upload both start and end images')
+      return
+    }
+    
+    if (mode === 'single' && selectedImages.length === 0) {
+      setError('Please upload an image')
       return
     }
 
@@ -223,44 +254,127 @@ export default function ImageToVideoPage() {
                 subtitle={mode === 'single' ? 'Add your listing photo' : 'Upload start and end frames'} 
               />
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {selectedImages.map((img, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={img}
-                      alt={`Upload ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                    <button
-                      onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+              {mode === 'frames' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Start Image */}
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Start Image</p>
+                    {selectedImages[0] ? (
+                      <div className="relative">
+                        <img
+                          src={selectedImages[0]}
+                          alt="Start frame"
+                          className="w-full h-40 object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={() => removeImage(0)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center h-40 cursor-pointer hover:border-blue-500 transition-colors">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-sm text-gray-500 mt-2">Start Frame</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              handleSingleImageUpload(file, 0)
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
                   </div>
-                ))}
-                
-                <label className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center h-32 cursor-pointer hover:border-blue-500 transition-colors">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span className="text-sm text-gray-500 mt-2">Add Image</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple={mode === 'frames'}
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                </label>
-              </div>
+                  
+                  {/* End Image */}
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">End Image</p>
+                    {selectedImages[1] ? (
+                      <div className="relative">
+                        <img
+                          src={selectedImages[1]}
+                          alt="End frame"
+                          className="w-full h-40 object-cover rounded-lg"
+                        />
+                        <button
+                          onClick={() => removeImage(1)}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center h-40 cursor-pointer hover:border-blue-500 transition-colors">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-sm text-gray-500 mt-2">End Frame</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              handleSingleImageUpload(file, 1)
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {selectedImages.map((img, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={img}
+                        alt={`Upload ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  
+                  <label className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center h-32 cursor-pointer hover:border-blue-500 transition-colors">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="text-sm text-gray-500 mt-2">Add Image</span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
 
-              {mode === 'frames' && selectedImages.length > 0 && (
+              {mode === 'frames' && selectedImages.length >= 2 && (
                 <p className="text-sm text-gray-500 mt-3">
-                  💡 Tip: Upload 2 images for smooth transitions (start → end frame)
+                  💡 Tip: Your start and end frames will create a smooth transition
                 </p>
               )}
             </Card>

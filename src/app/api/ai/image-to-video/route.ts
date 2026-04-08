@@ -149,6 +149,10 @@ export async function POST(request: Request) {
       
       if (mode === 'frames') {
         // Use kling-v3-omni-video for image sequence (start + end frame)
+        // Need start_image and end_image for the sequence
+        const startImage = images[0]
+        const endImage = images.length > 1 ? images[1] : images[0]
+        
         const response = await fetch('https://api.replicate.com/v1/models/kwaivgi/kling-v3-omni-video/predictions', {
           method: 'POST',
           headers: {
@@ -158,14 +162,15 @@ export async function POST(request: Request) {
           },
           body: JSON.stringify({
             input: {
-              mode: 'standard',
-              prompt: prompt || 'Smooth video transition',
+              mode: 'pro',
+              prompt: prompt || 'Smooth video transition between frames',
               duration: parseInt(duration),
               aspect_ratio: '16:9',
-              generate_audio: false,
+              generate_audio: true,
               keep_original_sound: true,
               video_reference_type: 'feature',
-              image_reference: imageUrl,
+              start_image: startImage,
+              end_image: endImage,
             },
           }),
         })
