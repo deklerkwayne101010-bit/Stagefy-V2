@@ -102,9 +102,13 @@ export async function POST(request: Request) {
     }
 
     try {
+      // RE/MAX brand colors
+      const remaxColors = '#ff1300 (red), #5b0204 (maroon), #003bff (blue), #00102e (navy), #000000 (black), #f5f3ed (cream)'
+      
       // Build input for Replicate API - Nano Banana 2 format
+      const basePrompt = prompt || 'Create a professional listing template'
       const replicateInput = {
-        prompt: prompt || 'Create a professional listing template',
+        prompt: `${basePrompt} Use these brand colors: ${remaxColors}`,
         resolution: '1K',
         image_input: images && images.length > 0 ? images : [],
         aspect_ratio: '4:3',
