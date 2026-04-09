@@ -13,6 +13,7 @@ import { ProfessionalTemplateWizard } from '@/components/templates/ProfessionalT
 import { InfographicWizard } from '@/components/templates/InfographicWizard'
 import { HolidayPromoWizard } from '@/components/templates/HolidayPromoWizard'
 import { TestimonialWizard } from '@/components/templates/TestimonialWizard'
+import { AgentShowcaseWizard } from '@/components/templates/AgentShowcaseWizard'
 import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPopup'
 import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
 import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
@@ -63,6 +64,7 @@ const marketplaceTypes: { value: string; label: string; icon: string; descriptio
   { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visuals' },
   { value: 'holiday', label: 'Holiday Promos', icon: '🎉', description: 'SA holiday posters' },
   { value: 'testimonial', label: 'Testimonials', icon: '💬', description: 'Client reviews & ratings' },
+  { value: 'agent_showcase', label: 'Agent Showcase', icon: '🌟', description: 'Agent personal branding' },
   { value: 'custom', label: 'Custom', icon: '✨', description: 'Enter your own custom prompt' },
 ]
 
@@ -156,6 +158,8 @@ export default function TemplatesPage() {
   const [showHolidayWizard, setShowHolidayWizard] = useState(false)
   // Testimonial Wizard State
   const [showTestimonialWizard, setShowTestimonialWizard] = useState(false)
+  // Agent Showcase Wizard State
+  const [showAgentShowcaseWizard, setShowAgentShowcaseWizard] = useState(false)
   const [wizardData, setWizardData] = useState<{
     photoFrames: number
     includeAgent: boolean
@@ -733,6 +737,9 @@ export default function TemplatesPage() {
                         } else if (type.value === 'testimonial') {
                           // Open testimonial wizard
                           setShowTestimonialWizard(true)
+                        } else if (type.value === 'agent_showcase') {
+                          // Open agent showcase wizard
+                          setShowAgentShowcaseWizard(true)
                         } else {
                           setTemplateType(type.value)
                         }
@@ -1585,6 +1592,33 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
           setPrompt(data.generatedPrompt)
 
           alert(`✅ Testimonial card ready!\n\nYour prompt has been generated. Click "Generate Template" to create your testimonial card.`)
+        }}
+      />
+
+      {/* Agent Showcase Wizard */}
+      <AgentShowcaseWizard
+        isOpen={showAgentShowcaseWizard}
+        onClose={() => setShowAgentShowcaseWizard(false)}
+        agentProfile={agentName.trim() ? {
+          name: agentName,
+          email: agentEmail,
+          phone: agentPhone,
+          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
+          photoUrl: agentPhoto,
+          logoUrl: agentLogo,
+        } : null}
+        agencyBrandColors={(() => {
+          const brand = agencyBrands.find(b => b.slug === agentAgency)
+          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+        })() : null}
+        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
+        onComplete={(data) => {
+          setShowAgentShowcaseWizard(false)
+          setTemplateType('custom')
+          setIncludeAgentProfile(data.includeAgent)
+          setPrompt(data.generatedPrompt)
+
+          alert(`✅ Agent Showcase ready!\n\nYour prompt has been generated. Click "Generate Template" to create your agent showcase.`)
         }}
       />
 
