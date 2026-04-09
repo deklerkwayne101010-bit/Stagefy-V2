@@ -7,10 +7,13 @@ import { createClient } from '@supabase/supabase-js'
 // Only allow cron requests with authorization header
 const CRON_SECRET = process.env.CRON_SECRET || ''
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Lazy-initialize Supabase client to avoid build-time errors
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 // Subscription plans with monthly credit allocations
 const SUBSCRIPTION_PLANS: Record<string, { monthlyCredits: number }> = {
@@ -27,6 +30,9 @@ export async function GET(request: Request) {
   }
 
   console.log('Starting monthly credit reset via Vercel Cron...')
+
+  // Initialize Supabase client lazily to avoid build-time errors
+  const supabase = getSupabaseClient()
 
   try {
     // Get all active subscriptions
