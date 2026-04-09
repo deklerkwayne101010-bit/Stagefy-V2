@@ -105,10 +105,17 @@ export async function POST(request: Request) {
       // RE/MAX brand colors
       const remaxColors = '#ff1300 (red), #5b0204 (maroon), #003bff (blue), #00102e (navy), #000000 (black), #f5f3ed (cream)'
       
+      // Get exact number of property images uploaded (exclude agent photo/logo)
+      const imageCount = images && images.length > 0 ? images.length : 0
+      
       // Build input for Replicate API - Nano Banana 2 format
       const basePrompt = prompt || 'Create a professional listing template'
+      
+      // Make the prompt very specific about using EXACTLY the uploaded images only
+      let promptWithImageCount = `${basePrompt}. IMPORTANT: Use EXACTLY ${imageCount} photo frame(s) in the template layout - no more, no less. The images provided are the ONLY property photos to use. Do NOT add any extra photos or placeholder images.`
+      
       const replicateInput = {
-        prompt: `${basePrompt} Use these brand colors: ${remaxColors}`,
+        prompt: `${promptWithImageCount} Use these brand colors: ${remaxColors}`,
         resolution: '1K',
         image_input: images && images.length > 0 ? images : [],
         aspect_ratio: '4:3',

@@ -460,23 +460,22 @@ export default function TemplatesPage() {
       
       // Add agent profile to prompt if toggle is enabled
       if (includeAgentProfile && agentName.trim()) {
-        const agentInfo = `\n\nAgent Information (include in template):\n- Name: ${agentName}\n- Email: ${agentEmail}\n- Phone: ${agentPhone}`
+        let agentInfo = `\n\nAgent Information (include in template):\n- Name: ${agentName}\n- Email: ${agentEmail}\n- Phone: ${agentPhone}`
+        
+        // Add agent photo/logo reference to prompt so AI knows to use them
+        if (agentPhoto) {
+          agentInfo += `\n- Agent photo: Use the agent photo provided separately`
+        }
+        if (agentLogo) {
+          agentInfo += `\n- Agency logo: Use the logo provided separately`
+        }
+        
         finalPrompt = `${prompt}${agentInfo}`
       }
 
-      // Build images array - include property images + agent photo + agent logo (if agent profile enabled)
+      // Build images array - ONLY include property images (not agent photo/logo)
+      // Agent info will be sent separately in agentProfile
       const imagesToSend = [...selectedImages]
-      
-      // Add agent photo and logo to images if agent profile is enabled
-      // This ensures Nano Banana Pro can use them in the template
-      if (includeAgentProfile) {
-        if (agentPhoto) {
-          imagesToSend.push(agentPhoto)
-        }
-        if (agentLogo) {
-          imagesToSend.push(agentLogo)
-        }
-      }
 
       const requestBody: any = {
         images: imagesToSend,
