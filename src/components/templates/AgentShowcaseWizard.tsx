@@ -270,18 +270,18 @@ export function AgentShowcaseWizard({
                     Orientation
                   </label>
                   <div className="grid grid-cols-3 gap-3">
-                    {orientations.map((orientation) => (
+                    {orientations.map((orient) => (
                       <button
-                        key={orientation.id}
-                        onClick={() => setOrientation(orientation.id)}
+                        key={orient.id}
+                        onClick={() => setOrientation(orient.id)}
                         className={`p-3 rounded-lg border-2 text-center transition-all ${
-                          orientation === orientation.id
+                          orientation === orient.id
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <span className="text-xl block">{orientation.icon}</span>
-                        <span className="text-sm font-medium text-gray-900">{orientation.label}</span>
+                        <span className="text-xl block">{orient.icon}</span>
+                        <span className="text-sm font-medium text-gray-900">{orient.label}</span>
                       </button>
                     ))}
                   </div>
