@@ -552,7 +552,7 @@ export function ProfessionalTemplateWizard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Price
+                        Price *
                       </label>
                       <Input
                         placeholder="e.g., R2,950,000"
@@ -562,7 +562,7 @@ export function ProfessionalTemplateWizard({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Location
+                        Location *
                       </label>
                       <Input
                         placeholder="e.g., Sandton, Johannesburg"
@@ -576,7 +576,7 @@ export function ProfessionalTemplateWizard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Property Type
+                        Property Type *
                       </label>
                       <select
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -591,7 +591,7 @@ export function ProfessionalTemplateWizard({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Square Meters
+                        Square Meters *
                       </label>
                       <Input
                         placeholder="e.g., 250m²"
@@ -604,7 +604,7 @@ export function ProfessionalTemplateWizard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bedrooms
+                        Bedrooms *
                       </label>
                       <Input
                         placeholder="e.g., 4"
@@ -614,7 +614,7 @@ export function ProfessionalTemplateWizard({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bathrooms
+                        Bathrooms *
                       </label>
                       <Input
                         placeholder="e.g., 3"
@@ -627,7 +627,7 @@ export function ProfessionalTemplateWizard({
                   {/* Key Features */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Key Features
+                      Key Features *
                     </label>
                     <Textarea
                       placeholder="Enter key features, one per line..."
@@ -660,7 +660,16 @@ export function ProfessionalTemplateWizard({
                 onClick={step === 'details' ? handleGeneratePrompt : handleNext}
                 disabled={
                   (step === 'upload' && uploadedImages.length < photoFrames) ||
-                  (step === 'details' && !propertyDetails.header.trim()) ||
+                  (step === 'details' && (
+                    !propertyDetails.header.trim() || 
+                    !propertyDetails.price.trim() || 
+                    !propertyDetails.location.trim() ||
+                    !propertyDetails.propertyType ||
+                    !propertyDetails.bedrooms.trim() ||
+                    !propertyDetails.bathrooms.trim() ||
+                    !propertyDetails.squareMeters.trim() ||
+                    !propertyDetails.keyFeatures.trim()
+                  )) ||
                   isGenerating
                 }
                 className={`px-6 py-2 rounded-lg text-white font-medium transition-all ${
