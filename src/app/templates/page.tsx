@@ -464,19 +464,9 @@ export default function TemplatesPage() {
         finalPrompt = `${prompt}${agentInfo}`
       }
 
-      // Build images array - include property images + agent photo + agent logo (if agent profile enabled)
+      // Build images array - ONLY property images (not agent photo/logo)
+      // Agent info is sent separately in agentProfile
       const imagesToSend = [...selectedImages]
-      
-      // Add agent photo and logo to images if agent profile is enabled
-      // This ensures Nano Banana Pro can use them in the template
-      if (includeAgentProfile) {
-        if (agentPhoto) {
-          imagesToSend.push(agentPhoto)
-        }
-        if (agentLogo) {
-          imagesToSend.push(agentLogo)
-        }
-      }
 
       const requestBody: any = {
         images: imagesToSend,
@@ -1478,7 +1468,7 @@ HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing
           
           prompt += `
 
-PHOTO LAYOUT: ${layoutSuggestion}. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid.
+PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
 PROPERTY INFO SECTION:
 - Price prominently displayed: ${data.propertyDetails.price || '300000'} in large bold typography
