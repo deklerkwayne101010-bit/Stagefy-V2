@@ -1607,7 +1607,7 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
           photoUrl: agentPhoto,
           logoUrl: agentLogo,
         } : null}
-        agencyBrandColors={(() => {
+        agencyBrandColors={agentAgency ? (() => {
           const brand = agencyBrands.find(b => b.slug === agentAgency)
           return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
         })() : null}
