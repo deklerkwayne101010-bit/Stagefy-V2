@@ -464,9 +464,19 @@ export default function TemplatesPage() {
         finalPrompt = `${prompt}${agentInfo}`
       }
 
-      // Build images array - ONLY property images (not agent photo/logo)
-      // Agent info is sent separately in agentProfile
+      // Build images array - property images + agent photo + agent logo (at the end)
       const imagesToSend = [...selectedImages]
+      
+      // Add agent photo and logo at the END of the array
+      // This way the API knows: first images = property, last images = agent/logo
+      if (includeAgentProfile) {
+        if (agentPhoto) {
+          imagesToSend.push(agentPhoto)
+        }
+        if (agentLogo) {
+          imagesToSend.push(agentLogo)
+        }
+      }
 
       const requestBody: any = {
         images: imagesToSend,
@@ -1470,21 +1480,20 @@ HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing
 
 PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
-PROPERTY INFO SECTION:
-- Price prominently displayed: ${data.propertyDetails.price || '300000'} in large bold typography
-- Location: ${data.propertyDetails.location || '[LOCATION]'}
-- Property type badge: ${data.propertyDetails.propertyType || 'Apartment'}
-- Stats row showing ${data.propertyDetails.bedrooms || '4'} beds, ${data.propertyDetails.bathrooms || '2'} baths, ${data.propertyDetails.squareMeters || '250'}m²
-- Key features list: ${data.propertyDetails.keyFeatures || 'Big pool\nSolar panels'}
+IMPORTANT - Property Images: The first ${data.photoFrames} image(s) in the provided images are the ONLY property photos to use in the template photo frames.
 
 `
-          
-          // Add agent profile section
-          if (data.includeAgent && agentName.trim()) {
-            prompt += `AGENT PROFILE SECTION: Use image 1 as the exact reference image for the agent, do not alter, change, enhance or beautify the picture at all, just use exactly as is. Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card.`
-          } else {
-            prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
-          }
+           
+           // Add agent profile section
+           const totalImages = data.photoFrames + (agentPhoto ? 1 : 0) + (agentLogo ? 1 : 0)
+           const agentPhotoIndex = data.photoFrames + 1
+           const agentLogoIndex = data.photoFrames + (agentPhoto ? 2 : 1)
+           
+           if (data.includeAgent && agentName.trim()) {
+             prompt += `AGENT PROFILE SECTION: The ${agentPhoto ? `agent photo is at image position ${agentPhotoIndex}` : 'agent photo is not uploaded'} and ${agentLogo ? `the agency logo is at image position ${agentLogoIndex}` : 'the agency logo is not uploaded'}. Use these as reference but do NOT include them in the property photo frames. Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card.`
+           } else {
+             prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
+           }
           
           prompt += ``
           
