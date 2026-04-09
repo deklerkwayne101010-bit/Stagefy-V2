@@ -111,12 +111,15 @@ export async function POST(request: Request) {
       // Build input for Replicate API - Nano Banana 2 format
       const basePrompt = prompt || 'Create a professional listing template'
       
-      // Make the prompt very specific about using EXACTLY the uploaded images only
-      // and NO extra photos or placeholder images
-      let finalPrompt = `${basePrompt}. CRITICAL: Use EXACTLY ${imageCount} photo(s) in the template layout. `
-      finalPrompt += `The ${imageCount} image(s) provided are the ONLY property photos to use in the template. `
-      finalPrompt += `Do NOT add any extra photos, random images, or placeholder images. `
-      finalPrompt += `Do NOT use more than ${imageCount} photo frames - use exactly ${imageCount}. `
+      // STRICT instructions to use ONLY property images exactly once each
+      let finalPrompt = `${basePrompt}. `
+      finalPrompt += `CRITICAL INSTRUCTIONS: `
+      finalPrompt += `1. Use EXACTLY ${imageCount} photo(s) from the provided images - no more, no less. `
+      finalPrompt += `2. Use EACH provided image exactly ONCE - do NOT duplicate or repeat any image. `
+      finalPrompt += `3. The FIRST ${imageCount} image(s) are property photos - place each in a separate photo frame. `
+      finalPrompt += `4. Do NOT add ANY extra photos, random images, or placeholder images. `
+      finalPrompt += `5. Do NOT use more than ${imageCount} photo frames - use exactly ${imageCount}. `
+      finalPrompt += `6. If agent photo or logo is provided, use each exactly ONCE in the agent profile section only. `
       finalPrompt += `Use these brand colors: ${remaxColors}`
       
       const replicateInput = {

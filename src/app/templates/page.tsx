@@ -1485,22 +1485,22 @@ HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing
           
           prompt += `
 
-PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
+PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Use EACH property photo exactly ONCE - do NOT duplicate or repeat any image. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
-IMPORTANT - Property Images: The first ${data.photoFrames} image(s) in the provided images are the ONLY property photos to use in the template photo frames.
+IMPORTANT - Property Images: The first ${data.photoFrames} image(s) in the provided images are the ONLY property photos to use in the template photo frames. Use each exactly once - do NOT repeat any image.
 
 `
            
            // Add agent profile section
-           const totalImages = data.photoFrames + (agentPhoto ? 1 : 0) + (agentLogo ? 1 : 0)
-           const agentPhotoIndex = data.photoFrames + 1
-           const agentLogoIndex = data.photoFrames + (agentPhoto ? 2 : 1)
-           
-           if (data.includeAgent && agentName.trim()) {
-             prompt += `AGENT PROFILE SECTION: The ${agentPhoto ? `agent photo is at image position ${agentPhotoIndex}` : 'agent photo is not uploaded'} and ${agentLogo ? `the agency logo is at image position ${agentLogoIndex}` : 'the agency logo is not uploaded'}. Use these as reference but do NOT include them in the property photo frames. Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card.`
-           } else {
-             prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
-           }
+            const totalImages = data.photoFrames + (agentPhoto ? 1 : 0) + (agentLogo ? 1 : 0)
+            const agentPhotoIndex = data.photoFrames + 1
+            const agentLogoIndex = data.photoFrames + (agentPhoto ? 2 : 1)
+            
+            if (data.includeAgent && agentName.trim()) {
+              prompt += `AGENT PROFILE SECTION: ${agentPhoto ? `Use the agent photo at image position ${agentPhotoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agent photo provided.'} ${agentLogo ? `Use the agency logo at image position ${agentLogoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agency logo provided.'} Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card. Do NOT use these images in the property photo frames.`
+            } else {
+              prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
+            }
           
           prompt += ``
           
