@@ -133,7 +133,7 @@ export async function POST(request: Request) {
         customer_email,
         customer_name,
         notes: notes || null,
-      })
+      } as never)
       .select()
       .single()
 
