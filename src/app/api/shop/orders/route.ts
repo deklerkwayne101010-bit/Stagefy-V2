@@ -14,6 +14,16 @@ interface ShopProduct {
   credits_included: number | null
 }
 
+interface ShopOrderWithProduct {
+  id: string
+  user_id: string
+  product_id: string
+  quantity: number
+  total_amount: number
+  status: string
+  shop_products: ShopProduct | null
+}
+
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization')
@@ -190,7 +200,7 @@ export async function PUT(request: Request) {
       .from('shop_orders')
       .select('*, shop_products(*)')
       .eq('id', id)
-      .single()
+      .single() as { data: ShopOrderWithProduct | null; error: Error | null }
 
     if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
