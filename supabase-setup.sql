@@ -486,8 +486,18 @@ EXCEPTION
 END $;
 
 -- ============================================
--- SHOP TABLES
+-- SHOP TABLES (Idempotent - Safe to run multiple times)
 -- ============================================
+
+-- Drop existing policies if they exist (for re-runs)
+DROP POLICY IF EXISTS "Anyone can view active shop_products" ON shop_products;
+DROP POLICY IF EXISTS "Anyone can view all shop_products" ON shop_products;
+DROP POLICY IF EXISTS "Authenticated can insert shop_products" ON shop_products;
+DROP POLICY IF EXISTS "Authenticated can update shop_products" ON shop_products;
+DROP POLICY IF EXISTS "Authenticated can delete shop_products" ON shop_products;
+DROP POLICY IF EXISTS "Users can view own shop_orders" ON shop_orders;
+DROP POLICY IF EXISTS "Users can insert own shop_orders" ON shop_orders;
+DROP POLICY IF EXISTS "Users can update own shop_orders" ON shop_orders;
 
 DO $$ BEGIN
     CREATE TYPE product_category AS ENUM ('credits', 'subscription', 'template_pack', 'service', 'other');
@@ -555,7 +565,7 @@ ALTER TABLE shop_orders ENABLE ROW LEVEL SECURITY;
 
 -- Shop Products Policies
 DO $ BEGIN
-    CREATE POLICY "Anyone can view active products" ON shop_products
+    CREATE POLICY "Anyone can view active shop_products" ON shop_products
     FOR SELECT TO public
     USING (status = 'active');
 EXCEPTION
@@ -563,7 +573,7 @@ EXCEPTION
 END $;
 
 DO $ BEGIN
-    CREATE POLICY "Anyone can view all products" ON shop_products
+    CREATE POLICY "Anyone can view all shop_products" ON shop_products
     FOR SELECT TO authenticated
     USING (true);
 EXCEPTION
@@ -571,7 +581,7 @@ EXCEPTION
 END $;
 
 DO $ BEGIN
-    CREATE POLICY "Anyone can insert products" ON shop_products
+    CREATE POLICY "Authenticated can insert shop_products" ON shop_products
     FOR INSERT TO authenticated
     WITH CHECK (true);
 EXCEPTION
@@ -579,7 +589,7 @@ EXCEPTION
 END $;
 
 DO $ BEGIN
-    CREATE POLICY "Anyone can update products" ON shop_products
+    CREATE POLICY "Authenticated can update shop_products" ON shop_products
     FOR UPDATE TO authenticated
     USING (true);
 EXCEPTION
@@ -587,7 +597,7 @@ EXCEPTION
 END $;
 
 DO $ BEGIN
-    CREATE POLICY "Anyone can delete products" ON shop_products
+    CREATE POLICY "Authenticated can delete shop_products" ON shop_products
     FOR DELETE TO authenticated
     USING (true);
 EXCEPTION
@@ -596,7 +606,7 @@ END $;
 
 -- Shop Orders Policies
 DO $ BEGIN
-    CREATE POLICY "Users can view own orders" ON shop_orders
+    CREATE POLICY "Users can view own shop_orders" ON shop_orders
     FOR SELECT TO authenticated
     USING (auth.uid() = user_id);
 EXCEPTION
@@ -604,7 +614,7 @@ EXCEPTION
 END $;
 
 DO $ BEGIN
-    CREATE POLICY "Users can insert own orders" ON shop_orders
+    CREATE POLICY "Users can insert own shop_orders" ON shop_orders
     FOR INSERT TO authenticated
     WITH CHECK (auth.uid() = user_id);
 EXCEPTION
@@ -612,7 +622,7 @@ EXCEPTION
 END $;
 
 DO $ BEGIN
-    CREATE POLICY "Users can update own orders" ON shop_orders
+    CREATE POLICY "Users can update own shop_orders" ON shop_orders
     FOR UPDATE TO authenticated
     USING (auth.uid() = user_id);
 EXCEPTION
