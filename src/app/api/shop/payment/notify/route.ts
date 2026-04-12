@@ -6,6 +6,15 @@ import crypto from 'crypto'
 const PAYFAST_PASSPHRASE = process.env.PAYFAST_PASSPHRASE || ''
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@stagefy.co.za'
 
+interface ShopOrder {
+  id: string
+  user_id: string
+  status: string
+  total_amount: number
+  customer_name: string
+  customer_email: string
+}
+
 function verifySignature(data: Record<string, string>, passphrase: string, signature: string): boolean {
   const pfParams = Object.keys(data)
     .filter(key => key.startsWith('pf_'))
@@ -58,7 +67,7 @@ export async function POST(request: Request) {
       .from('shop_orders')
       .select('*, shop_products(*)')
       .eq('id', orderId)
-      .single()
+      .single() as { data: ShopOrder | null; error: Error | null }
 
     if (orderError || !order) {
       console.error('Order not found:', orderId)
