@@ -219,31 +219,8 @@ export async function PUT(request: Request) {
       updates.notes = notes
     }
 
-    if (status === 'paid' && order.shop_products?.credits_included) {
-      const { data: userCredits } = await adminClient
-        .from('users')
-        .select('credits')
-        .eq('id', order.user_id)
-        .single()
-
-      if (userCredits) {
-        await adminClient
-          .from('users')
-          .update({ 
-            credits: userCredits.credits + (order.shop_products.credits_included * order.quantity) 
-          } as never)
-          .eq('id', order.user_id)
-      }
-
-      await adminClient
-        .from('credit_transactions')
-        .insert({
-          user_id: order.user_id,
-          amount: order.shop_products.credits_included * order.quantity,
-          type: 'purchase',
-          description: `Shop purchase - ${order.shop_products.name}`,
-        } as never)
-    }
+    // Simple purchase in Rand - no credits needed
+    // Just update the order status
 
     const { data: updatedOrder, error } = await adminClient
       .from('shop_orders')

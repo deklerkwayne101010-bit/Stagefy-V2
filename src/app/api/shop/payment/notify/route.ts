@@ -78,35 +78,7 @@ export async function POST(request: Request) {
       })
       .eq('id', orderId)
 
-    if (newStatus === 'paid' && order.shop_products?.credits_included) {
-      const { data: userCredits } = await adminClient
-        .from('users')
-        .select('credits')
-        .eq('id', order.user_id)
-        .single()
-
-      if (userCredits) {
-        const creditsToAdd = order.shop_products.credits_included * order.quantity
-        
-        await adminClient
-          .from('users')
-          .update({ 
-            credits: userCredits.credits + creditsToAdd 
-          })
-          .eq('id', order.user_id)
-
-        await adminClient
-          .from('credit_transactions')
-          .insert({
-            user_id: order.user_id,
-            amount: creditsToAdd,
-            type: 'purchase',
-            description: `Shop purchase - ${order.shop_products.name}`,
-          })
-
-        console.log(`Added ${creditsToAdd} credits to user ${order.user_id}`)
-      }
-    }
+    // Simple purchase in Rand - no credits added
 
     console.log(`Order ${orderId} status updated to ${newStatus}`)
 
