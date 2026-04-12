@@ -24,6 +24,9 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ products: [] })
+    }
     
     let query = adminClient
       .from('shop_products')

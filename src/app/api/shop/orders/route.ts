@@ -33,6 +33,9 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
     
     let query = adminClient
       .from('shop_orders')
