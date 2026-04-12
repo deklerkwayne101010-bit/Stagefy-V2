@@ -231,7 +231,7 @@ export async function PUT(request: Request) {
           .from('users')
           .update({ 
             credits: userCredits.credits + (order.shop_products.credits_included * order.quantity) 
-          })
+          } as never)
           .eq('id', order.user_id)
       }
 
@@ -242,12 +242,12 @@ export async function PUT(request: Request) {
           amount: order.shop_products.credits_included * order.quantity,
           type: 'purchase',
           description: `Shop purchase - ${order.shop_products.name}`,
-        })
+        } as never)
     }
 
     const { data: updatedOrder, error } = await adminClient
       .from('shop_orders')
-      .update(updates)
+      .update(updates as never)
       .eq('id', id)
       .select()
       .single()
