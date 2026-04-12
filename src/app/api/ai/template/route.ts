@@ -109,17 +109,25 @@ export async function POST(request: Request) {
       const imageCount = images && images.length > 0 ? images.length : 0
       
       // Build input for Replicate API - Nano Banana 2 format
-      const basePrompt = prompt || 'Create a professional listing template'
+      const userPrompt = prompt || 'Create a professional listing template'
       
-      // STRICT instructions to use ONLY property images exactly once each
-      let finalPrompt = `${basePrompt}. `
-      finalPrompt += `CRITICAL INSTRUCTIONS: `
-      finalPrompt += `1. Use EXACTLY ${imageCount} photo(s) from the provided images - no more, no less. `
-      finalPrompt += `2. Use EACH provided image exactly ONCE - do NOT duplicate or repeat any image. `
-      finalPrompt += `3. The FIRST ${imageCount} image(s) are property photos - place each in a separate photo frame. `
-      finalPrompt += `4. Do NOT add ANY extra photos, random images, or placeholder images. `
-      finalPrompt += `5. Do NOT use more than ${imageCount} photo frames - use exactly ${imageCount}. `
-      finalPrompt += `6. If agent photo or logo is provided, use each exactly ONCE in the agent profile section only. `
+      // Get property image count to calculate agent/logo positions
+      // Images array format: [property photos..., agent photo?, logo?]
+      const propertyImageCount = imageCount
+      const agentPhotoPosition = propertyImageCount + 1
+      const logoPosition = propertyImageCount + (imageCount > 1 ? 2 : 1)
+      
+      // Append critical instructions to the user's prompt (don't prepend)
+      let finalPrompt = `${userPrompt}`
+      finalPrompt += `\n\n--- CRITICAL IMAGE INSTRUCTIONS ---\n`
+      finalPrompt += `IMPORTANT: There are ${propertyImageCount} property photo(s) provided. `
+      finalPrompt += `Use EXACTLY ${propertyImageCount} photo frame(s) - no more, no less. `
+      finalPrompt += `Use EACH property photo exactly ONCE - do NOT duplicate or repeat any. `
+      finalPrompt += `The property photo(s) are at positions 1 to ${propertyImageCount}. `
+      finalPrompt += `If agent photo is provided (position ${agentPhotoPosition}), use it exactly ONCE in the agent profile section only. `
+      finalPrompt += `If agency logo is provided (position ${logoPosition}), use it exactly ONCE in the agent profile section only. `
+      finalPrompt += `Do NOT use any images in the property photo frames except the first ${propertyImageCount} images. `
+      finalPrompt += `Do NOT add any extra photos, random images, or placeholder images. `
       finalPrompt += `Use these brand colors: ${remaxColors}`
       
       const replicateInput = {
@@ -133,7 +141,7 @@ export async function POST(request: Request) {
         safety_filter_level: 'block_only_high'
       }
 
-      console.log(`Template generation: ${imageCount} photo(s) uploaded, prompt emphasizes EXACTLY ${imageCount} photos`)
+      console.log(`Template generation: ${propertyImageCount} property photo(s) uploaded`)
 
       // Add custom template options if provided
       if (type === 'custom' && customOptions) {
