@@ -106,7 +106,7 @@ export async function POST(request: Request) {
           message: `Order #${order.id.slice(0, 8)} - R${order.total_amount} from ${order.customer_name} (${order.customer_email}) - Status: ${newStatus}`,
           read: false,
           action_url: '/admin',
-        })
+        } as never)
       console.log('Admin notification created')
     } catch (notifError) {
       console.error('Failed to create notification:', notifError)
