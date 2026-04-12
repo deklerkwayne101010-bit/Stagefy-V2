@@ -6,6 +6,14 @@ import { getAdminClient } from '@/lib/supabase'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+interface ShopProduct {
+  id: string
+  name: string
+  price: number
+  sale_price: number | null
+  credits_included: number | null
+}
+
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization')
@@ -103,7 +111,7 @@ export async function POST(request: Request) {
       .select('*')
       .eq('id', product_id)
       .eq('status', 'active')
-      .single()
+      .single() as { data: ShopProduct | null; error: Error | null }
 
     if (productError || !product) {
       return NextResponse.json({ error: 'Product not found or unavailable' }, { status: 404 })
