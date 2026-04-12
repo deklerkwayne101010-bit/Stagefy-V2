@@ -103,7 +103,15 @@ export async function POST(request: Request) {
 
     try {
       // RE/MAX brand colors
-      const remaxColors = '#ff1300 (red), #5b0204 (maroon), #003bff (blue), #00102e (navy), #000000 (black), #f5f3ed (cream)'
+      const remaxColors = {
+        red: '#ff1300',
+        maroon: '#5b0204',
+        blue: '#003bff',
+        navy: '#00102e',
+        black: '#000000',
+        cream: '#f5f3ed'
+      }
+      const remaxColorsList = Object.entries(remaxColors).map(([name, hex]) => `${hex} (${name})`).join(', ')
       
       // Get the exact number of property images uploaded
       const imageCount = images && images.length > 0 ? images.length : 0
@@ -117,18 +125,21 @@ export async function POST(request: Request) {
       const agentPhotoPosition = propertyImageCount + 1
       const logoPosition = propertyImageCount + (imageCount > 1 ? 2 : 1)
       
-      // Append critical instructions to the user's prompt (don't prepend)
-      let finalPrompt = `${userPrompt}`
+      // Build gradient section with colors at TOP, then append critical instructions at END
+      // Gradient section at TOP - colors directly where header gradient is specified
+      const gradientSection = `--- GRADIENT HEADER SECTION ---\nUse gradient background with RE/MAX brand colors: ${remaxColorsList}\nUse ${remaxColors.red} (red), ${remaxColors.maroon} (maroon), ${remaxColors.blue} (blue), ${remaxColors.navy} (navy), ${remaxColors.black} (black), ${remaxColors.cream} (cream) for gradients.\n---------------------------\n\n`
+      
+      // Prepend gradient with brand colors, then user prompt, then critical instructions at END
+      let finalPrompt = gradientSection + userPrompt
       finalPrompt += `\n\n--- CRITICAL IMAGE INSTRUCTIONS ---\n`
-      finalPrompt += `IMPORTANT: There are ${propertyImageCount} property photo(s) provided. `
+      finalPrompt += `IMPORTANT: Exactly ${propertyImageCount} property photo(s) provided. `
       finalPrompt += `Use EXACTLY ${propertyImageCount} photo frame(s) - no more, no less. `
       finalPrompt += `Use EACH property photo exactly ONCE - do NOT duplicate or repeat any. `
-      finalPrompt += `The property photo(s) are at positions 1 to ${propertyImageCount}. `
-      finalPrompt += `If agent photo is provided (position ${agentPhotoPosition}), use it exactly ONCE in the agent profile section only. `
-      finalPrompt += `If agency logo is provided (position ${logoPosition}), use it exactly ONCE in the agent profile section only. `
+      finalPrompt += `The property photos are at positions 1 to ${propertyImageCount}. `
+      finalPrompt += `If agent photo is at position ${agentPhotoPosition}, use it exactly ONCE in the agent profile section only. `
+      finalPrompt += `If agency logo is at position ${logoPosition}, use it exactly ONCE in the agent profile section only. `
       finalPrompt += `Do NOT use any images in the property photo frames except the first ${propertyImageCount} images. `
-      finalPrompt += `Do NOT add any extra photos, random images, or placeholder images. `
-      finalPrompt += `Use these brand colors: ${remaxColors}`
+      finalPrompt += `Do NOT add any extra photos, random images, or placeholder images.`
       
       const replicateInput = {
         prompt: finalPrompt,

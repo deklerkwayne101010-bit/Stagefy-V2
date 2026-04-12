@@ -635,3 +635,64 @@ export interface AgentProfileFormData {
   show_on_templates?: boolean
 }
 
+// =============================================
+// SHOP TYPES
+// =============================================
+
+export type ProductCategory = 'credits' | 'subscription' | 'template_pack' | 'service' | 'other'
+export type ProductStatus = 'active' | 'inactive' | 'out_of_stock' | 'draft'
+export type OrderStatus = 'pending' | 'paid' | 'processing' | 'shipped' | 'completed' | 'cancelled' | 'refunded'
+export type PaymentMethod = 'payfast' | 'manual' | 'free'
+
+export interface ShopProduct {
+  id: string
+  name: string
+  description: string
+  price: number
+  sale_price?: number | null
+  category: ProductCategory
+  status: ProductStatus
+  image_url?: string | null
+  thumbnail_url?: string | null
+  credits_included?: number | null
+  is_featured: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ShopOrder {
+  id: string
+  user_id: string
+  product_id: string
+  product?: ShopProduct
+  quantity: number
+  total_amount: number
+  status: OrderStatus
+  payment_method: PaymentMethod
+  payfast_payment_id?: string | null
+  customer_email: string
+  customer_name: string
+  billing_address?: Record<string, string> | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PayFastPayment {
+  merchant_id: string
+  merchant_key: string
+  return_url: string
+  cancel_url: string
+  notify_url: string
+  name_first?: string
+  name_last?: string
+  email_address: string
+  m_payment_id: string
+  amount: number
+  item_name: string
+  item_description?: string
+  custom_int1?: string
+  custom_str1?: string
+}
+

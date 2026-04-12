@@ -22,8 +22,8 @@ function getAgencyInfo(agencySlug: string | null): AgencyBrandInfo | null {
   const agencyMap: Record<string, AgencyBrandInfo> = {
     'remax': {
       name: 'RE/MAX',
-      colors: 'RE/MAX Red (#E41E26) and White (#FFFFFF)',
-      style: 'Professional, bold, with signature red accents'
+      colors: 'RE/MAX Red (#ff1300), Maroon (#5b0204), Blue (#003bff), Navy (#00102e), Black (#000000), Cream (#f5f3ed)',
+      style: 'Professional, bold, with signature red accents and brand gradient'
     },
     'pam-golding': {
       name: 'Pam Golding Properties',

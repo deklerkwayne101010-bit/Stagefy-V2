@@ -486,6 +486,140 @@ EXCEPTION
 END $;
 
 -- ============================================
+-- SHOP TABLES
+-- ============================================
+
+DO $$ BEGIN
+    CREATE TYPE product_category AS ENUM ('credits', 'subscription', 'template_pack', 'service', 'other');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE product_status AS ENUM ('active', 'inactive', 'out_of_stock', 'draft');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE order_status AS ENUM ('pending', 'paid', 'processing', 'shipped', 'completed', 'cancelled', 'refunded');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_method AS ENUM ('payfast', 'manual', 'free');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Shop Products Table
+CREATE TABLE IF NOT EXISTS shop_products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    price DECIMAL(10,2) NOT NULL,
+    sale_price DECIMAL(10,2),
+    category product_category NOT NULL DEFAULT 'other',
+    status product_status NOT NULL DEFAULT 'active',
+    image_url TEXT,
+    thumbnail_url TEXT,
+    credits_included INTEGER,
+    is_featured BOOLEAN DEFAULT false,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Shop Orders Table
+CREATE TABLE IF NOT EXISTS shop_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES shop_products(id) ON DELETE SET NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    total_amount DECIMAL(10,2) NOT NULL,
+    status order_status NOT NULL DEFAULT 'pending',
+    payment_method payment_method NOT NULL DEFAULT 'payfast',
+    payfast_payment_id TEXT,
+    customer_email TEXT NOT NULL,
+    customer_name TEXT NOT NULL,
+    billing_address JSONB,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE shop_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shop_orders ENABLE ROW LEVEL SECURITY;
+
+-- Shop Products Policies
+DO $ BEGIN
+    CREATE POLICY "Anyone can view active products" ON shop_products
+    FOR SELECT TO public
+    USING (status = 'active');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+DO $ BEGIN
+    CREATE POLICY "Anyone can view all products" ON shop_products
+    FOR SELECT TO authenticated
+    USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+DO $ BEGIN
+    CREATE POLICY "Anyone can insert products" ON shop_products
+    FOR INSERT TO authenticated
+    WITH CHECK (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+DO $ BEGIN
+    CREATE POLICY "Anyone can update products" ON shop_products
+    FOR UPDATE TO authenticated
+    USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+DO $ BEGIN
+    CREATE POLICY "Anyone can delete products" ON shop_products
+    FOR DELETE TO authenticated
+    USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+-- Shop Orders Policies
+DO $ BEGIN
+    CREATE POLICY "Users can view own orders" ON shop_orders
+    FOR SELECT TO authenticated
+    USING (auth.uid() = user_id);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+DO $ BEGIN
+    CREATE POLICY "Users can insert own orders" ON shop_orders
+    FOR INSERT TO authenticated
+    WITH CHECK (auth.uid() = user_id);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+DO $ BEGIN
+    CREATE POLICY "Users can update own orders" ON shop_orders
+    FOR UPDATE TO authenticated
+    USING (auth.uid() = user_id);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $;
+
+-- ============================================
 -- DONE
 -- ============================================
 

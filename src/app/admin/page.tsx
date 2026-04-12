@@ -8,6 +8,22 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 
+interface ShopOrder {
+  id: string
+  user_id: string
+  product_id: string
+  quantity: number
+  total_amount: number
+  status: string
+  customer_email: string
+  customer_name: string
+  created_at: string
+  shop_products?: {
+    name: string
+    credits_included: number | null
+  }
+}
+
 interface UserUsageStats {
   userId: string
   email: string
@@ -29,8 +45,198 @@ interface Totals {
   totalCreditsSpentLastMonth: number
 }
 
+function OrdersTab() {
+  const [orders, setOrders] = useState<ShopOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'pending' | 'paid' | 'completed'>('all')
+
+  useEffect(() => {
+    fetchOrders()
+  }, [filter])
+
+  const fetchOrders = async () => {
+    setLoading(true)
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) return
+
+      let url = '/api/shop/orders?status=all'
+      
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      })
+      const data = await response.json()
+      
+      if (data.orders) {
+        setOrders(data.orders)
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) return
+
+      const response = await fetch('/api/shop/orders', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ id: orderId, status: newStatus }),
+      })
+
+      if (response.ok) {
+        fetchOrders()
+      }
+    } catch (error) {
+      console.error('Failed to update order:', error)
+    }
+  }
+
+  const filteredOrders = filter === 'all' 
+    ? orders 
+    : orders.filter(o => o.status === filter)
+
+  const pendingOrders = orders.filter(o => o.status === 'pending').length
+  const paidOrders = orders.filter(o => o.status === 'paid' || o.status === 'completed').length
+  const totalRevenue = orders
+    .filter(o => o.status === 'paid' || o.status === 'completed')
+    .reduce((sum, o) => sum + Number(o.total_amount), 0)
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-yellow-50">
+          <p className="text-sm text-yellow-700">Pending Orders</p>
+          <p className="text-2xl font-bold text-yellow-900 mt-1">{pendingOrders}</p>
+        </Card>
+        <Card className="bg-green-50">
+          <p className="text-sm text-green-700">Completed Orders</p>
+          <p className="text-2xl font-bold text-green-900 mt-1">{paidOrders}</p>
+        </Card>
+        <Card className="bg-blue-50">
+          <p className="text-sm text-blue-700">Total Revenue</p>
+          <p className="text-2xl font-bold text-blue-900 mt-1">R{totalRevenue.toLocaleString()}</p>
+        </Card>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {['all', 'pending', 'paid', 'completed'].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f as typeof filter)}
+            className={`px-4 py-2 rounded-lg font-medium capitalize ${
+              filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader title="Shop Orders" />
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No orders found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="px-4 py-3 text-sm font-mono">{order.id.slice(0, 8)}...</td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900">{order.customer_name}</div>
+                      <div className="text-sm text-gray-500">{order.customer_email}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {order.shop_products?.name || 'Unknown'}
+                      {order.shop_products?.credits_included && (
+                        <span className="ml-2 text-green-600">+{order.shop_products.credits_included} credits</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium">R{order.total_amount}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant={
+                          order.status === 'completed' || order.status === 'paid' ? 'success' :
+                          order.status === 'pending' ? 'warning' :
+                          order.status === 'cancelled' ? 'danger' : 'secondary'
+                        }
+                      >
+                        {order.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        {order.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateOrderStatus(order.id, 'paid')}
+                          >
+                            Mark Paid
+                          </Button>
+                        )}
+                        {order.status === 'paid' && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateOrderStatus(order.id, 'completed')}
+                          >
+                            Complete
+                          </Button>
+                        )}
+                        {order.status !== 'cancelled' && order.status !== 'completed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  )
+}
+
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'usage'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'usage' | 'orders'>('overview')
   const [userUsage, setUserUsage] = useState<UserUsageStats[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)
   const [loading, setLoading] = useState(false)
@@ -102,7 +308,7 @@ export default function AdminPage() {
       <div className="p-6">
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
-          {['overview', 'users', 'usage'].map((tab) => (
+          {['overview', 'users', 'usage', 'orders'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
@@ -480,6 +686,10 @@ export default function AdminPage() {
               </div>
             </Card>
           </div>
+        )}
+
+        {activeTab === 'orders' && (
+          <OrdersTab />
         )}
       </div>
     </div>
