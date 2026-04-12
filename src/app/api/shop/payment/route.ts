@@ -49,6 +49,9 @@ export async function POST(request: Request) {
     }
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
     
     const { data: order, error: orderError } = await adminClient
       .from('shop_orders')

@@ -99,6 +99,10 @@ export async function POST(request: Request) {
     }
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
+
     const { data: product, error } = await adminClient
       .from('shop_products')
       .insert({
@@ -113,7 +117,7 @@ export async function POST(request: Request) {
         credits_included: credits_included || null,
         is_featured: is_featured || false,
         sort_order: sort_order || 0,
-      })
+      } as never)
       .select()
       .single()
 
@@ -162,12 +166,16 @@ export async function PUT(request: Request) {
     }
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
+
     const { data: product, error } = await adminClient
       .from('shop_products')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
-      })
+      } as never)
       .eq('id', id)
       .select()
       .single()
@@ -217,6 +225,10 @@ export async function DELETE(request: Request) {
     }
 
     const adminClient = getAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
+
     const { error } = await adminClient
       .from('shop_products')
       .delete()
