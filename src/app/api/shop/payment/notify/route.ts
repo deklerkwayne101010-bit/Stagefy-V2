@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         status: newStatus,
         payfast_payment_id: data['pptx_id'] || null,
         updated_at: new Date().toISOString(),
-      })
+      } as never)
       .eq('id', orderId)
 
     // Simple purchase in Rand - no credits added
