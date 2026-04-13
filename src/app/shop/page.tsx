@@ -35,10 +35,12 @@ export default function ShopPage() {
     const { data: { session } } = await supabase.auth.getSession()
 
     if (session?.access_token) {
-      const response = await fetch('/api/shop/products?status=all', {
+      // Fetch all products (API returns active by default)
+      const response = await fetch('/api/shop/products', {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       })
       const data = await response.json()
+      console.log('Products response:', data)
       if (data.products) {
         setProducts(data.products)
       }

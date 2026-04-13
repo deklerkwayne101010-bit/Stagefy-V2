@@ -31,8 +31,12 @@ export async function GET(request: Request) {
     let query = adminClient
       .from('shop_products')
       .select('*')
-      .eq('status', 'active')
       .order('sort_order', { ascending: true })
+
+    // Only filter by status if explicitly set to active, otherwise show all
+    if (status === 'active' || !status) {
+      query = query.eq('status', 'active')
+    }
 
     if (featured === 'true') {
       query = query.eq('is_featured', true)
