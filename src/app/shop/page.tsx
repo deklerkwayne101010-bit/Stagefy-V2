@@ -25,33 +25,25 @@ export default function ShopPage() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading) {
       loadData()
     }
-  }, [user, authLoading])
+  }, [authLoading])
 
   const loadData = async () => {
-    const { supabase } = await import('@/lib/supabase')
-    const { data: { session } } = await supabase.auth.getSession()
-
-    if (session?.access_token) {
-      // Fetch all products (API returns active by default)
-      const response = await fetch('/api/shop/products', {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      })
+    try {
+      const response = await fetch('/api/shop/products')
       const data = await response.json()
       console.log('Products response:', data)
-      if (data.products) {
+      
+      if (data.products && Array.isArray(data.products)) {
+        console.log('Products array:', data.products)
         setProducts(data.products)
+      } else if (data.error) {
+        console.error('API error:', data.error)
       }
-
-      const profileRes = await fetch('/api/user/profile', {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      })
-      const profileData = await profileRes.json()
-      if (profileData.user?.role === 'admin') {
-        setIsAdmin(true)
-      }
+    } catch (error) {
+      console.error('Failed to load products:', error)
     }
     setIsLoadingProducts(false)
   }
