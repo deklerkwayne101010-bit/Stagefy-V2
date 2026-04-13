@@ -6,6 +6,13 @@ import { getAdminClient } from '@/lib/supabase'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+interface ShopOrder {
+  id: string
+  status: string
+  total_amount: number
+  shop_products: { name: string; description: string } | null
+}
+
 const PAYFAST_MERCHANT_ID = process.env.PAYFAST_MERCHANT_ID || '10028813'
 const PAYFAST_MERCHANT_KEY = process.env.PAYFAST_MERCHANT_KEY || '4j9g7b8c8k44c'
 const PAYFAST_PASSPHRASE = process.env.PAYFAST_PASSPHRASE || ''
@@ -58,7 +65,7 @@ export async function POST(request: Request) {
       .select('*, shop_products(*)')
       .eq('id', order_id)
       .eq('user_id', user.id)
-      .single()
+      .single() as { data: ShopOrder | null; error: Error | null }
 
     if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
