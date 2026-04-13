@@ -35,17 +35,17 @@ export default function ShopPage() {
       const response = await fetch('/api/shop/products')
       const data = await response.json()
       console.log('Products response:', data)
+      console.log('Products array:', data.products)
       
-      if (data.products && Array.isArray(data.products)) {
-        console.log('Products array:', data.products)
+if (data.products && Array.isArray(data.products)) {
+        console.log('Setting products:', data.products.length)
         setProducts(data.products)
-      } else if (data.error) {
-        console.error('API error:', data.error)
       }
     } catch (error) {
       console.error('Failed to load products:', error)
+    } finally {
+      setIsLoadingProducts(false)
     }
-    setIsLoadingProducts(false)
   }
 
   const handlePurchase = async (product: ShopProduct) => {
@@ -168,6 +168,7 @@ export default function ShopPage() {
         ) : products.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">No products available at the moment.</p>
+            <p className="text-gray-400 text-sm mt-2">Products loaded: {products.length}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
