@@ -311,14 +311,11 @@ export default function ShopPage() {
         {isAdmin && showAdminPanel && (
           <div className="mb-8">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold">Admin - Manage Products</h2>
-                  <Button onClick={() => { setShowAddProduct(true); setEditingProduct(null) }}>
-                    Add Product
-                  </Button>
-                </div>
-              </CardHeader>
+              <CardHeader title="Admin - Manage Products" action={
+                <Button onClick={() => { setShowAddProduct(true); setEditingProduct(null) }}>
+                  Add Product
+                </Button>
+              } />
               <CardContent>
                 {showAddProduct && (
                   <div className="mb-6 p-4 bg-gray-50 rounded-lg">
@@ -473,9 +470,7 @@ export default function ShopPage() {
             </Card>
 
             <Card className="mt-6">
-              <CardHeader>
-                <h2 className="text-xl font-semibold">Orders</h2>
-              </CardHeader>
+              <CardHeader title="Orders" />
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full">
