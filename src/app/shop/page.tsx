@@ -72,7 +72,7 @@ export default function ShopPage() {
   }, [user, loading])
 
   const checkAdminAndLoadData = async () => {
-    const { supabase } = await import('@supabase/supabase-js')
+    const { supabase } = await import('@/lib/supabase')
     const { data: { session } } = await supabase.auth.getSession()
     
     if (session?.access_token) {
@@ -113,7 +113,7 @@ export default function ShopPage() {
       return
     }
 
-    const { supabase } = await import('@supabase/supabase-js')
+    const { supabase } = await import('@/lib/supabase')
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {
@@ -180,7 +180,7 @@ export default function ShopPage() {
   }
 
   const handleSaveProduct = async () => {
-    const { supabase } = await import('@supabase/supabase-js')
+    const { supabase } = await import('@/lib/supabase')
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) return
@@ -226,7 +226,7 @@ export default function ShopPage() {
   const handleDeleteProduct = async (productId: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return
 
-    const { supabase } = await import('@supabase/supabase-js')
+    const { supabase } = await import('@/lib/supabase')
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) return
@@ -244,7 +244,7 @@ export default function ShopPage() {
   }
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const { supabase } = await import('@supabase/supabase-js')
+    const { supabase } = await import('@/lib/supabase')
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) return
