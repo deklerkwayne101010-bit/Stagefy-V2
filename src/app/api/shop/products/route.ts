@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { 
       name, description, price, sale_price, category, status,
-      image_url, color, size, sku, stock_quantity, brand, weight
+      image_url
     } = body
 
     if (!name || !price) {
@@ -108,13 +108,6 @@ export async function POST(request: Request) {
         category: category || 'other',
         status: status || 'active',
         image_url: image_url || null,
-        // New fields
-        color: color || null,
-        size: size || null,
-        sku: sku || null,
-        stock_quantity: stock_quantity || 0,
-        brand: brand || null,
-        weight: weight || null,
       } as never)
       .select()
       .single()
