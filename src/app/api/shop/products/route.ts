@@ -211,16 +211,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const { data: userProfile } = await client
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -233,6 +223,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
 
+    // Allow any authenticated user to delete products (for now)
     const { error } = await adminClient
       .from('shop_products')
       .delete()
