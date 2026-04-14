@@ -98,7 +98,6 @@ export async function POST(request: Request) {
       amount: order.total_amount.toFixed(2),
       item_name: order.shop_products?.name || 'Shop Item',
       item_description: order.shop_products?.description || '',
-      custom_int1: user.id,
       custom_str1: order.id,
     }
 

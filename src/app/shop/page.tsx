@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
@@ -19,6 +20,7 @@ interface ShopProduct {
 }
 
 export default function ShopPage() {
+  const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const [products, setProducts] = useState<ShopProduct[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
@@ -173,7 +175,11 @@ if (data.products && Array.isArray(data.products)) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map(product => (
-              <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+              <div 
+                key={product.id} 
+                className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/shop/${product.id}`)}
+              >
                 {product.image_url ? (
                   <div className="relative h-64 w-full rounded-t-xl overflow-hidden">
                     <Image
@@ -204,7 +210,10 @@ if (data.products && Array.isArray(data.products)) {
                         <span className="text-2xl font-bold text-gray-900">R{product.price}</span>
                       )}
                     </div>
-                    <Button onClick={() => handlePurchase(product)}>
+                    <Button onClick={(e) => {
+                      e.stopPropagation()
+                      handlePurchase(product)
+                    }}>
                       Buy Now
                     </Button>
                   </div>
