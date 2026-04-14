@@ -673,12 +673,15 @@ export default function AdminPage() {
                       <span className="text-xs text-gray-500">{tierUsers.length} users</span>
                     </div>
                   )
-                })}
-              </div>
-            </Card>
+})}
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
-            {/* Monthly Comparison */}
-            <Card>
+      <Card>
               <CardHeader title="Monthly Credit Spending" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-4 bg-gray-50 rounded-lg">
@@ -832,18 +835,28 @@ function ProductsTab({
       const { supabase } = await import('@/lib/supabase')
       const { data: { session } } = await supabase.auth.getSession()
       
-      if (!session) return
+      if (!session) {
+        alert('Please login as admin')
+        return
+      }
 
       const response = await fetch(`/api/shop/products?id=${productId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${session.access_token}` },
       })
 
+      const data = await response.json()
+      console.log('Delete response:', data)
+      
       if (response.ok) {
+        alert('Product deleted!')
         fetchProducts()
+      } else {
+        alert(data.error || 'Failed to delete')
       }
     } catch (error) {
       console.error('Failed to delete product:', error)
+      alert('Error deleting product')
     }
   }
 
@@ -858,45 +871,112 @@ function ProductsTab({
 
       {showAddProduct && (
         <Card className="mb-4">
-          <CardHeader title={editingProduct ? 'Edit Product' : 'Add Product'} />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              placeholder="Product Name"
-              value={newProduct.name}
-              onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-            />
-            <Input
-              type="number"
-              placeholder="Price"
-              value={newProduct.price}
-              onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
-            />
-            <Input
-              type="number"
-              placeholder="Sale Price (optional)"
-              value={newProduct.sale_price}
-              onChange={(e) => setNewProduct({...newProduct, sale_price: Number(e.target.value)})}
-            />
-            <select
-              className="w-full px-3 py-2 border rounded-lg"
-              value={newProduct.category}
-              onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-            >
-              <option value="other">Other</option>
-              <option value="credits">Credits</option>
-              <option value="subscription">Subscription</option>
-              <option value="service">Service</option>
-            </select>
-            <select
-              className="w-full px-3 py-2 border rounded-lg"
-              value={newProduct.status}
-              onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <Input
-              placeholder="Image URL"
+          <CardHeader title={editingProduct ? 'Edit Product' : 'Add New Product'} />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Product Name *</label>
+              <Input
+                placeholder="Enter product name"
+                value={newProduct.name}
+                onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea
+                placeholder="Describe the product..."
+                value={newProduct.description}
+                onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg"
+                rows={3}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Regular Price (R) *</label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={newProduct.price}
+                  onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Sale Price (R)</label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={newProduct.sale_price}
+                  onChange={(e) => setNewProduct({...newProduct, sale_price: Number(e.target.value)})}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Category</label>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg"
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                >
+                  <option value="other">Other</option>
+                  <option value="credits">Credits</option>
+                  <option value="subscription">Subscription</option>
+                  <option value="service">Service</option>
+                  <option value="template_pack">Template Pack</option>
+                  <option value="merchandise">Merchandise</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg"
+                  value={newProduct.status}
+                  onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="draft">Draft</option>
+                  <option value="out_of_stock">Out of Stock</option>
+                </select>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Product Image URL</label>
+              <Input
+                placeholder="https://example.com/image.jpg"
+                value={newProduct.image_url}
+                onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})}
+              />
+              <p className="text-xs text-gray-500 mt-1">Paste a URL to an image (from Supabase Storage, Google Drive, etc.)</p>
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button onClick={handleSaveProduct} disabled={!newProduct.name || !newProduct.price}>
+                {editingProduct ? 'Update Product' : 'Add Product'}
+              </Button>
+              <Button variant="outline" onClick={() => { 
+                setShowAddProduct(false); 
+                setEditingProduct(null); 
+                setNewProduct({
+                  name: '',
+                  description: '',
+                  price: 0,
+                  sale_price: 0,
+                  category: 'other',
+                  status: 'active',
+                  image_url: '',
+                })
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Card>
               value={newProduct.image_url}
               onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})}
               className="col-span-2"
