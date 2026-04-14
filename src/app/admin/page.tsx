@@ -17,6 +17,12 @@ interface ShopProduct {
   category: string
   status: string
   image_url: string | null
+  color?: string
+  size?: string
+  sku?: string
+  stock_quantity?: number
+  brand?: string
+  weight?: string
 }
 
 interface ShopOrder {
@@ -903,7 +909,21 @@ export default function AdminPage() {
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" onClick={() => {
                             setEditingProduct(p)
-                            setNewProduct({ name: p.name, description: p.description, price: p.price, sale_price: p.sale_price || 0, category: p.category, status: p.status, image_url: p.image_url || '' })
+                            setNewProduct({ 
+                              name: p.name || '', 
+                              description: p.description || '', 
+                              price: p.price || 0, 
+                              sale_price: p.sale_price || 0, 
+                              category: p.category || 'other', 
+                              status: p.status || 'active', 
+                              image_url: p.image_url || '',
+                              color: (p as any).color || '',
+                              size: (p as any).size || '',
+                              sku: (p as any).sku || '',
+                              stock_quantity: (p as any).stock_quantity || 0,
+                              brand: (p as any).brand || '',
+                              weight: (p as any).weight || ''
+                            })
                             setShowAddProduct(true)
                           }}>Edit</Button>
                           <Button variant="outline" size="sm" onClick={async () => {
