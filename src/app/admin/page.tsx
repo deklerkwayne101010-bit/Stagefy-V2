@@ -857,11 +857,16 @@ export default function AdminPage() {
                     try {
                       const { supabase } = await import('@/lib/supabase')
                       const { data: { session } } = await supabase.auth.getSession()
-                      if (!session) return
+                      if (!session) {
+                        alert('Please login')
+                        return
+                      }
                       
                       const url = editingProduct ? '/api/shop/products' : '/api/shop/products'
                       const method = editingProduct ? 'PUT' : 'POST'
                       const payload = editingProduct ? { id: editingProduct.id, ...newProduct } : newProduct
+                      
+                      console.log('Saving product:', payload)
                       
                       const response = await fetch(url, {
                         method,
@@ -869,7 +874,11 @@ export default function AdminPage() {
                         body: JSON.stringify(payload),
                       })
                       
+                      const resData = await response.json()
+                      console.log('Save response:', resData)
+                      
                       if (response.ok) {
+                        alert(editingProduct ? 'Product updated!' : 'Product added!')
                         setShowAddProduct(false)
                         setEditingProduct(null)
                         setNewProduct({ name: '', description: '', price: 0, sale_price: 0, category: 'other', status: 'active', image_url: '', color: '', size: '', sku: '', stock_quantity: 0, brand: '', weight: '' })
@@ -877,8 +886,13 @@ export default function AdminPage() {
                         const res = await fetch('/api/shop/products')
                         const data = await res.json()
                         if (data.products) setProducts(data.products)
+                      } else {
+                        alert(resData.error || 'Failed to save product')
                       }
-                    } catch (e) { console.error(e) }
+                    } catch (e) { 
+                      console.error(e)
+                      alert('Error: ' + e.message)
+                    }
                   }}>
                     {editingProduct ? 'Update' : 'Add'}
                   </Button>
