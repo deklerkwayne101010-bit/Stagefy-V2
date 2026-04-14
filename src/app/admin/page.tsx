@@ -251,7 +251,6 @@ export default function AdminPage() {
   const [products, setProducts] = useState<ShopProduct[]>([])
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null)
-
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
@@ -306,6 +305,17 @@ export default function AdminPage() {
       fetchUsageStats()
     }
   }, [activeTab, fetchUsageStats])
+
+  useEffect(() => {
+    if (activeTab === 'products') {
+      fetch('/api/shop/products')
+        .then(res => res.json())
+        .then(data => {
+          if (data.products) setProducts(data.products)
+        })
+        .catch(console.error)
+    }
+  }, [activeTab])
 
   const filteredUsers = userUsage.filter(user => 
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -673,15 +683,12 @@ export default function AdminPage() {
                       <span className="text-xs text-gray-500">{tierUsers.length} users</span>
                     </div>
                   )
-})}
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+                })}
+              </div>
+            </Card>
 
-      <Card>
+            {/* Monthly Comparison */}
+            <Card>
               <CardHeader title="Monthly Credit Spending" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-4 bg-gray-50 rounded-lg">
@@ -720,344 +727,143 @@ export default function AdminPage() {
         )}
 
         {activeTab === 'products' && (
-          <ProductsTab 
-            products={products}
-            setProducts={setProducts}
-            showAddProduct={showAddProduct}
-            setShowAddProduct={setShowAddProduct}
-            editingProduct={editingProduct}
-            setEditingProduct={setEditingProduct}
-            newProduct={newProduct}
-            setNewProduct={setNewProduct}
-          />
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ProductsTab({ 
-  products, setProducts, showAddProduct, setShowAddProduct, editingProduct, setEditingProduct, newProduct, setNewProduct 
-}: {
-  products: ShopProduct[]
-  setProducts: (p: ShopProduct[]) => void
-  showAddProduct: boolean
-  setShowAddProduct: (b: boolean) => void
-  editingProduct: ShopProduct | null
-  setEditingProduct: (p: ShopProduct | null) => void
-  newProduct: {
-    name: string
-    description: string
-    price: number
-    sale_price: number
-    category: string
-    status: string
-    image_url: string
-  }
-  setNewProduct: (p: any) => void
-}) {
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetchProducts()
-  }, [])
-
-  const fetchProducts = async () => {
-    setLoading(true)
-    try {
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) return
-
-      const response = await fetch('/api/shop/products', {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      })
-      const data = await response.json()
-      if (data.products) {
-        setProducts(data.products)
-      }
-    } catch (error) {
-      console.error('Failed to fetch products:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSaveProduct = async () => {
-    try {
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) return
-
-      const url = editingProduct ? '/api/shop/products' : '/api/shop/products'
-      const method = editingProduct ? 'PUT' : 'POST'
-
-      const payload = editingProduct 
-        ? { id: editingProduct.id, ...newProduct }
-        : newProduct
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (response.ok) {
-        setShowAddProduct(false)
-        setEditingProduct(null)
-        setNewProduct({
-          name: '',
-          description: '',
-          price: 0,
-          sale_price: 0,
-          category: 'other',
-          status: 'active',
-          image_url: '',
-        })
-        fetchProducts()
-      } else {
-        alert('Failed to save product')
-      }
-    } catch (error) {
-      console.error('Failed to save product:', error)
-    }
-  }
-
-  const handleDeleteProduct = async (productId: string) => {
-    if (!confirm('Delete this product?')) return
-
-    try {
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        alert('Please login as admin')
-        return
-      }
-
-      const response = await fetch(`/api/shop/products?id=${productId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${session.access_token}` },
-      })
-
-      const data = await response.json()
-      console.log('Delete response:', data)
-      
-      if (response.ok) {
-        alert('Product deleted!')
-        fetchProducts()
-      } else {
-        alert(data.error || 'Failed to delete')
-      }
-    } catch (error) {
-      console.error('Failed to delete product:', error)
-      alert('Error deleting product')
-    }
-  }
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Manage Products</h2>
-        <Button onClick={() => { setShowAddProduct(true); setEditingProduct(null) }}>
-          Add Product
-        </Button>
-      </div>
-
-      {showAddProduct && (
-        <Card className="mb-4">
-          <CardHeader title={editingProduct ? 'Edit Product' : 'Add New Product'} />
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Product Name *</label>
-              <Input
-                placeholder="Enter product name"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                placeholder="Describe the product..."
-                value={newProduct.description}
-                onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                className="w-full px-3 py-2 border rounded-lg"
-                rows={3}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Regular Price (R) *</label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={newProduct.price}
-                  onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Sale Price (R)</label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={newProduct.sale_price}
-                  onChange={(e) => setNewProduct({...newProduct, sale_price: Number(e.target.value)})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Category</label>
-                <select
-                  className="w-full px-3 py-2 border rounded-lg"
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                >
-                  <option value="other">Other</option>
-                  <option value="credits">Credits</option>
-                  <option value="subscription">Subscription</option>
-                  <option value="service">Service</option>
-                  <option value="template_pack">Template Pack</option>
-                  <option value="merchandise">Merchandise</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <select
-                  className="w-full px-3 py-2 border rounded-lg"
-                  value={newProduct.status}
-                  onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="draft">Draft</option>
-                  <option value="out_of_stock">Out of Stock</option>
-                </select>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Product Image URL</label>
-              <Input
-                placeholder="https://example.com/image.jpg"
-                value={newProduct.image_url}
-                onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})}
-              />
-              <p className="text-xs text-gray-500 mt-1">Paste a URL to an image (from Supabase Storage, Google Drive, etc.)</p>
-            </div>
-            
-            <div className="flex gap-2 pt-2">
-              <Button onClick={handleSaveProduct} disabled={!newProduct.name || !newProduct.price}>
-                {editingProduct ? 'Update Product' : 'Add Product'}
-              </Button>
-              <Button variant="outline" onClick={() => { 
-                setShowAddProduct(false); 
-                setEditingProduct(null); 
-                setNewProduct({
-                  name: '',
-                  description: '',
-                  price: 0,
-                  sale_price: 0,
-                  category: 'other',
-                  status: 'active',
-                  image_url: '',
-                })
-              }}>
-                Cancel
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Manage Products</h2>
+              <Button onClick={() => { setShowAddProduct(true); setEditingProduct(null) }}>
+                Add Product
               </Button>
             </div>
-          </div>
-        </Card>
-              value={newProduct.image_url}
-              onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})}
-              className="col-span-2"
-            />
-            <textarea
-              placeholder="Description"
-              value={newProduct.description}
-              onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-              className="w-full px-3 py-2 border rounded-lg col-span-2"
-              rows={3}
-            />
-          </div>
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleSaveProduct}>
-              {editingProduct ? 'Update' : 'Add'} Product
-            </Button>
-            <Button variant="outline" onClick={() => { setShowAddProduct(false); setEditingProduct(null) }}>
-              Cancel
-            </Button>
-          </div>
-        </Card>
-      )}
 
-      <Card>
-        {loading ? (
-          <div className="p-8 text-center">Loading...</div>
-        ) : products.length === 0 ? (
-          <div className="p-8 text-center">No products</div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left">Name</th>
-                <th className="px-4 py-2 text-left">Price</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map(product => (
-                <tr key={product.id} className="border-t">
-                  <td className="px-4 py-2">{product.name}</td>
-                  <td className="px-4 py-2">
-                    R{product.sale_price || product.price}
-                    {product.sale_price && (
-                      <span className="text-gray-400 line-through ml-2">R{product.price}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    <Badge variant={product.status === 'active' ? 'success' : 'secondary'}>
-                      {product.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => {
-                        setEditingProduct(product)
-                        setNewProduct({
-                          name: product.name,
-                          description: product.description,
-                          price: product.price,
-                          sale_price: product.sale_price || 0,
-                          category: product.category,
-                          status: product.status,
-                          image_url: product.image_url || '',
-                        })
-                        setShowAddProduct(true)
-                      }}>
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            {showAddProduct && (
+              <Card>
+                <CardHeader title={editingProduct ? 'Edit Product' : 'Add Product'} />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    placeholder="Product Name"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Price"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Sale Price"
+                    value={newProduct.sale_price}
+                    onChange={(e) => setNewProduct({...newProduct, sale_price: Number(e.target.value)})}
+                  />
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={newProduct.category}
+                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                  >
+                    <option value="other">Other</option>
+                    <option value="credits">Credits</option>
+                    <option value="subscription">Subscription</option>
+                    <option value="service">Service</option>
+                    <option value="merchandise">Merchandise</option>
+                  </select>
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={newProduct.status}
+                    onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <Input
+                    placeholder="Image URL"
+                    value={newProduct.image_url}
+                    onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})}
+                    className="col-span-2"
+                  />
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button onClick={async () => {
+                    try {
+                      const { supabase } = await import('@/lib/supabase')
+                      const { data: { session } } = await supabase.auth.getSession()
+                      if (!session) return
+                      
+                      const url = editingProduct ? '/api/shop/products' : '/api/shop/products'
+                      const method = editingProduct ? 'PUT' : 'POST'
+                      const payload = editingProduct ? { id: editingProduct.id, ...newProduct } : newProduct
+                      
+                      const response = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                        body: JSON.stringify(payload),
+                      })
+                      
+                      if (response.ok) {
+                        setShowAddProduct(false)
+                        setEditingProduct(null)
+                        setNewProduct({ name: '', description: '', price: 0, sale_price: 0, category: 'other', status: 'active', image_url: '' })
+                        // Refresh products
+                        const res = await fetch('/api/shop/products')
+                        const data = await res.json()
+                        if (data.products) setProducts(data.products)
+                      }
+                    } catch (e) { console.error(e) }
+                  }}>
+                    {editingProduct ? 'Update' : 'Add'}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowAddProduct(false); setEditingProduct(null) }}>
+                    Cancel
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            <Card>
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Name</th>
+                    <th className="px-4 py-2 text-left">Price</th>
+                    <th className="px-4 py-2 text-left">Status</th>
+                    <th className="px-4 py-2 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map(p => (
+                    <tr key={p.id} className="border-t">
+                      <td className="px-4 py-2">{p.name}</td>
+                      <td className="px-4 py-2">R{p.sale_price || p.price}</td>
+                      <td className="px-4 py-2"><Badge variant={p.status === 'active' ? 'success' : 'secondary'}>{p.status}</Badge></td>
+                      <td className="px-4 py-2">
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setEditingProduct(p)
+                            setNewProduct({ name: p.name, description: p.description, price: p.price, sale_price: p.sale_price || 0, category: p.category, status: p.status, image_url: p.image_url || '' })
+                            setShowAddProduct(true)
+                          }}>Edit</Button>
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            if (!confirm('Delete?')) return
+                            try {
+                              const { supabase } = await import('@/lib/supabase')
+                              const { data: { session } } = await supabase.auth.getSession()
+                              if (!session) return
+                              await fetch(`/api/shop/products?id=${p.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } })
+                              const res = await fetch('/api/shop/products')
+                              const data = await res.json()
+                              if (data.products) setProducts(data.products)
+                            } catch (e) { console.error(e) }
+                          }}>Delete</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          </div>
         )}
-      </Card>
+      </div>
     </div>
   )
 }
