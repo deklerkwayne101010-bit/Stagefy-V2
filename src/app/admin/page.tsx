@@ -927,16 +927,33 @@ export default function AdminPage() {
                             setShowAddProduct(true)
                           }}>Edit</Button>
                           <Button variant="outline" size="sm" onClick={async () => {
-                            if (!confirm('Delete?')) return
+                            if (!confirm('Are you sure you want to delete this product?')) return
                             try {
                               const { supabase } = await import('@/lib/supabase')
                               const { data: { session } } = await supabase.auth.getSession()
-                              if (!session) return
-                              await fetch(`/api/shop/products?id=${p.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } })
-                              const res = await fetch('/api/shop/products')
-                              const data = await res.json()
-                              if (data.products) setProducts(data.products)
-                            } catch (e) { console.error(e) }
+                              if (!session) {
+                                alert('Please login as admin')
+                                return
+                              }
+                              const response = await fetch(`/api/shop/products?id=${p.id}`, { 
+                                method: 'DELETE', 
+                                headers: { 'Authorization': `Bearer ${session.access_token}` } 
+                              })
+                              const resData = await response.json()
+                              console.log('Delete response:', resData)
+                              if (response.ok) {
+                                alert('Product deleted!')
+                                // Refresh the list
+                                const res = await fetch('/api/shop/products')
+                                const data = await res.json()
+                                if (data.products) setProducts(data.products)
+                              } else {
+                                alert(resData.error || 'Failed to delete product')
+                              }
+                            } catch (e) { 
+                              console.error(e)
+                              alert('Error deleting product')
+                            }
                           }}>Delete</Button>
                         </div>
                       </td>
