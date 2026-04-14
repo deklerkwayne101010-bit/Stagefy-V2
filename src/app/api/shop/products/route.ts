@@ -86,9 +86,9 @@ export async function POST(request: Request) {
       image_url, color, size, sku, stock_quantity, brand, weight
     } = body
 
-    if (!name || !price || !category) {
+    if (!name || !price) {
       return NextResponse.json(
-        { error: 'Name, price, and category are required' },
+        { error: 'Name and price are required' },
         { status: 400 }
       )
     }
@@ -105,13 +105,16 @@ export async function POST(request: Request) {
         description: description || '',
         price,
         sale_price: sale_price || null,
-        category,
+        category: category || 'other',
         status: status || 'active',
         image_url: image_url || null,
-        thumbnail_url: thumbnail_url || null,
-        credits_included: credits_included || null,
-        is_featured: is_featured || false,
-        sort_order: sort_order || 0,
+        // New fields
+        color: color || null,
+        size: size || null,
+        sku: sku || null,
+        stock_quantity: stock_quantity || 0,
+        brand: brand || null,
+        weight: weight || null,
       } as never)
       .select()
       .single()
