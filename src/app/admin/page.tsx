@@ -889,9 +889,9 @@ export default function AdminPage() {
                       } else {
                         alert(resData.error || 'Failed to save product')
                       }
-                    } catch (e) { 
+                    } catch (e: any) { 
                       console.error(e)
-                      alert('Error: ' + e.message)
+                      alert('Error: ' + (e?.message || 'Unknown error'))
                     }
                   }}>
                     {editingProduct ? 'Update' : 'Add'}
