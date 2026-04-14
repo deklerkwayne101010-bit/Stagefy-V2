@@ -259,6 +259,13 @@ export default function AdminPage() {
     category: 'other',
     status: 'active',
     image_url: '',
+    // Additional fields
+    color: '',
+    size: '',
+    sku: '',
+    stock_quantity: 0,
+    brand: '',
+    weight: '',
   })
   const [userUsage, setUserUsage] = useState<UserUsageStats[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)
@@ -738,49 +745,106 @@ export default function AdminPage() {
             {showAddProduct && (
               <Card>
                 <CardHeader title={editingProduct ? 'Edit Product' : 'Add Product'} />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    placeholder="Product Name"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Price"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Sale Price"
-                    value={newProduct.sale_price}
-                    onChange={(e) => setNewProduct({...newProduct, sale_price: Number(e.target.value)})}
-                  />
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                  >
-                    <option value="other">Other</option>
-                    <option value="credits">Credits</option>
-                    <option value="subscription">Subscription</option>
-                    <option value="service">Service</option>
-                    <option value="merchandise">Merchandise</option>
-                  </select>
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg"
-                    value={newProduct.status}
-                    onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                  <Input
-                    placeholder="Image URL"
-                    value={newProduct.image_url}
-                    onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})}
-                    className="col-span-2"
-                  />
+                <div className="space-y-6">
+                  {/* Basic Info */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm text-gray-600 mb-1">Product Name *</label>
+                        <Input placeholder="Enter product name" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm text-gray-600 mb-1">Description</label>
+                        <textarea placeholder="Product description..." value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} className="w-full px-3 py-2 border rounded-lg" rows={3} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">SKU / Product Code</label>
+                        <Input placeholder="e.g., PROD-001" value={newProduct.sku} onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Brand</label>
+                        <Input placeholder="Brand name" value={newProduct.brand} onChange={(e) => setNewProduct({...newProduct, brand: e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pricing */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Pricing</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Regular Price (R) *</label>
+                        <Input type="number" placeholder="0" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Sale Price (R)</label>
+                        <Input type="number" placeholder="0" value={newProduct.sale_price} onChange={(e) => setNewProduct({...newProduct, sale_price: Number(e.target.value)})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inventory */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Inventory</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Stock Quantity</label>
+                        <Input type="number" placeholder="0" value={newProduct.stock_quantity} onChange={(e) => setNewProduct({...newProduct, stock_quantity: Number(e.target.value)})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Status</label>
+                        <select className="w-full px-3 py-2 border rounded-lg" value={newProduct.status} onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}>
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                          <option value="draft">Draft</option>
+                          <option value="out_of_stock">Out of Stock</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Product Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Color</label>
+                        <Input placeholder="e.g., Red, Blue, Black" value={newProduct.color} onChange={(e) => setNewProduct({...newProduct, color: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Size</label>
+                        <Input placeholder="e.g., Small, Medium, Large" value={newProduct.size} onChange={(e) => setNewProduct({...newProduct, size: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Weight</label>
+                        <Input placeholder="e.g., 500g" value={newProduct.weight} onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Category</label>
+                        <select className="w-full px-3 py-2 border rounded-lg" value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}>
+                          <option value="other">Other</option>
+                          <option value="credits">Credits</option>
+                          <option value="subscription">Subscription</option>
+                          <option value="service">Service</option>
+                          <option value="merchandise">Merchandise</option>
+                          <option value="clothing">Clothing</option>
+                          <option value="accessories">Accessories</option>
+                          <option value="promo">Promotional</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Image */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Product Image</h3>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Image URL</label>
+                      <Input placeholder="https://example.com/image.jpg" value={newProduct.image_url} onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})} />
+                      <p className="text-xs text-gray-500 mt-1">Paste a URL to an image (from Supabase Storage, Google Drive, etc.)</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button onClick={async () => {
@@ -802,7 +866,7 @@ export default function AdminPage() {
                       if (response.ok) {
                         setShowAddProduct(false)
                         setEditingProduct(null)
-                        setNewProduct({ name: '', description: '', price: 0, sale_price: 0, category: 'other', status: 'active', image_url: '' })
+                        setNewProduct({ name: '', description: '', price: 0, sale_price: 0, category: 'other', status: 'active', image_url: '', color: '', size: '', sku: '', stock_quantity: 0, brand: '', weight: '' })
                         // Refresh products
                         const res = await fetch('/api/shop/products')
                         const data = await res.json()
