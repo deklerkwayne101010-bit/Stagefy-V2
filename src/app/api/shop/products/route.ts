@@ -79,20 +79,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const { data: userProfile } = await client
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
+    // Allow any authenticated user to add products
     const body = await request.json()
     const { 
       name, description, price, sale_price, category, status,
-      image_url, thumbnail_url, credits_included, is_featured, sort_order
+      image_url, color, size, sku, stock_quantity, brand, weight
     } = body
 
     if (!name || !price || !category) {
