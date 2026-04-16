@@ -126,7 +126,12 @@ export function AgentShowcaseWizard({
     if (designStyle === 'business_card') {
       prompt = `Create a professional agent business card design. Include: Agent photo (reference provided), name "${agentProfile?.name || 'Agent'}", tagline "${tagline}", phone "${agentProfile?.phone || 'Phone'}", email "${agentProfile?.email || 'Email'}", and area "${agentProfile?.agency || 'Real Estate'}". Use ${orientation} orientation.`
     } else if (designStyle === 'quote_focused') {
-      prompt = `Create an agent personal branding image with large prominent tagline "${tagline}" as the focus. Include small agent photo in corner, name "${agentProfile?.name || 'Agent'}" in elegant typography below tagline. Use ${orientation} orientation.`
+      // Build gradient header colors from brand colors
+      const gradientColors = agencyBrandColors && agencyBrandColors.length > 0 
+        ? agencyBrandColors.join(', ') 
+        : '#ff1300, #5b0204, #003bff, #00102e, #000000, #f5f3ed'
+      
+      prompt = `GRADIENT HEADER SECTION: Use gradient background with RE/MAX brand colors: ${gradientColors}. --- Create an agent personal branding image with large prominent tagline "Create a tagline focused on property investors" as the focus. Include small agent photo in corner, name "Anne de klerk" in elegant typography below tagline. Use square orientation. Use these brand colors: ${gradientColors}. Agent contact info: Phone: 0642176889, Email: anned@symprop.co.za. IMPORTANT: This is a QUOTE-FOCUSED design - do NOT include any property photos or property images in the design - only agent branding elements (agent photo, name, tagline, contact details).`
     } else if (designStyle === 'modern_split') {
       prompt = `Create a modern split design: Left side shows agent photo (reference provided), right side shows agent details. Include name "${agentProfile?.name || 'Agent'}", tagline "${tagline}", phone "${agentProfile?.phone || 'Phone'}", email "${agentProfile?.email || 'Email'}". Use ${orientation} orientation.`
     } else if (designStyle === 'minimal_elegant') {
