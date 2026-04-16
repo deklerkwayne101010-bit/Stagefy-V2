@@ -145,16 +145,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const { data: userProfile } = await client
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
+    // Allow any authenticated user to update products
     const body = await request.json()
     const { id, ...updates } = body
 
