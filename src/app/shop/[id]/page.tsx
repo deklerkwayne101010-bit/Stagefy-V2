@@ -31,6 +31,9 @@ export default function ProductPage() {
   const [product, setProduct] = useState<ShopProduct | null>(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
+  const [selectedColor, setSelectedColor] = useState('')
+  const [selectedSize, setSelectedSize] = useState('')
+  const [customNotes, setCustomNotes] = useState('')
 
   useEffect(() => {
     if (params.id) {
@@ -82,6 +85,7 @@ export default function ProductPage() {
           quantity,
           customer_email: user.email,
           customer_name: user.full_name || 'Customer',
+          notes: `Color: ${selectedColor || 'Not selected'}, Size: ${selectedSize || 'Not selected'}, Custom: ${customNotes || 'None'}`,
         }),
       })
 
@@ -260,6 +264,68 @@ export default function ProductPage() {
                 )}
               </div>
             </Card>
+
+            {/* Color Selection */}
+            {product.color && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Color: <span className="font-normal text-gray-500">{product.color}</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {product.color.split(',').map((c: string) => (
+                    <button
+                      key={c.trim()}
+                      onClick={() => setSelectedColor(c.trim())}
+                      className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                        selectedColor === c.trim()
+                          ? 'border-blue-600 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {c.trim()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Size Selection */}
+            {product.size && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Size: <span className="font-normal text-gray-500">{product.size}</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {product.size.split(',').map((s: string) => (
+                    <button
+                      key={s.trim()}
+                      onClick={() => setSelectedSize(s.trim())}
+                      className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                        selectedSize === s.trim()
+                          ? 'border-blue-600 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {s.trim()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Instructions */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Custom Notes / Instructions
+              </label>
+              <textarea
+                value={customNotes}
+                onChange={(e) => setCustomNotes(e.target.value)}
+                placeholder="Add any special instructions or customizations..."
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+              />
+            </div>
 
             {/* Quantity */}
             <div className="flex items-center gap-4">
