@@ -126,12 +126,14 @@ export function AgentShowcaseWizard({
     if (designStyle === 'business_card') {
       prompt = `Create a professional agent business card design. Include: Agent photo (reference provided), name "${agentProfile?.name || 'Agent'}", tagline "${tagline}", phone "${agentProfile?.phone || 'Phone'}", email "${agentProfile?.email || 'Email'}", and area "${agentProfile?.agency || 'Real Estate'}". Use ${orientation} orientation.`
     } else if (designStyle === 'quote_focused') {
-      // Build gradient header colors from brand colors
-      const gradientColors = agencyBrandColors && agencyBrandColors.length > 0 
-        ? agencyBrandColors.join(', ') 
-        : '#ff1300, #5b0204, #003bff, #00102e, #000000, #f5f3ed'
+      // RE/MAX brand colors - pick one randomly as main color, follow 60/30/10 rule
+      const remaxColors = ['#000000', '#00102e', '#ff1300']
+      const shuffled = [...remaxColors].sort(() => Math.random() - 0.5)
+      const mainColor = shuffled[0]
+      const secondaryColor = shuffled[1]
+      const accentColor = shuffled[2]
       
-      prompt = `GRADIENT HEADER SECTION: Use gradient background with RE/MAX brand colors: ${gradientColors}. --- Create an agent personal branding image with large prominent tagline "Create a tagline focused on property investors" as the focus. Include small agent photo in corner, name "Anne de klerk" in elegant typography below tagline. Use square orientation. Use these brand colors: ${gradientColors}. Agent contact info: Phone: 0642176889, Email: anned@symprop.co.za. IMPORTANT: This is a QUOTE-FOCUSED design - do NOT include any property photos or property images in the design - only agent branding elements (agent photo, name, tagline, contact details).`
+      prompt = `GRADIENT HEADER SECTION: Use gradient background where ${mainColor} is the dominant color (60%), ${secondaryColor} as secondary (30%), and ${accentColor} as accent (10%) following the 60/30/10 design rule. --- Create an agent personal branding image with large prominent tagline "Create a tagline focused on property investors" as the focus. Include small agent photo in corner, name "Anne de klerk" in elegant typography below tagline. Use square orientation. Use ${mainColor} as the main background color, ${secondaryColor} for text/elements, and ${accentColor} for highlights/accents. Agent contact info: Phone: 0642176889, Email: anned@symprop.co.za. IMPORTANT: This is a QUOTE-FOCUSED design - do NOT include any property photos or property images in the design - only agent branding elements (agent photo, name, tagline, contact details).`
     } else if (designStyle === 'modern_split') {
       prompt = `Create a modern split design: Left side shows agent photo (reference provided), right side shows agent details. Include name "${agentProfile?.name || 'Agent'}", tagline "${tagline}", phone "${agentProfile?.phone || 'Phone'}", email "${agentProfile?.email || 'Email'}". Use ${orientation} orientation.`
     } else if (designStyle === 'minimal_elegant') {
