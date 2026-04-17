@@ -129,11 +129,15 @@ export async function POST(request: Request) {
       const templatesWithPropertyPhotos = ['professional', 'custom']
       const usesPropertyPhotos = templatesWithPropertyPhotos.includes(type)
       
+      // Templates that should NOT have any property photo instructions
+      const templatesWithoutPropertyPhotos = ['agent_showcase', 'holiday_promo', 'testimonial', 'infographic']
+      const skipPropertyInstructions = templatesWithoutPropertyPhotos.includes(type)
+      
       // Build gradient section with colors at TOP, then append critical instructions at END
-      // Only add for templates that use property photos
+      // Only add for templates that use property photos and have images
       let finalPrompt = userPrompt
       
-      if (usesPropertyPhotos && imageCount > 0) {
+      if (!skipPropertyInstructions && usesPropertyPhotos && imageCount > 0) {
         // Gradient section at TOP - colors directly where header gradient is specified
         const gradientSection = `--- GRADIENT HEADER SECTION ---\nUse gradient background with RE/MAX brand colors: ${remaxColorsList}\nUse ${remaxColors.red} (red), ${remaxColors.maroon} (maroon), ${remaxColors.blue} (blue), ${remaxColors.navy} (navy), ${remaxColors.black} (black), ${remaxColors.cream} (cream) for gradients.\n---------------------------\n\n`
         
