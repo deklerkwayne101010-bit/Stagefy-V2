@@ -273,7 +273,13 @@ export function InfographicWizard({
 
       // Style
       if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
-        prompt += `Color palette: ${agencyBrandColors.join(', ')}. Style: ${agencyBrandName || 'Agency'} branded. `
+        // RE/MAX brand colors - use 60/30/10 rule
+        const remaxColors = ['#000000', '#00102e', '#ff1300']
+        const shuffled = [...remaxColors].sort(() => Math.random() - 0.5)
+        const mainColor = shuffled[0]
+        const secondaryColor = shuffled[1]
+        const accentColor = shuffled[2]
+        prompt += `Color palette: Use ${mainColor} as dominant (60%), ${secondaryColor} as secondary (30%), ${accentColor} as accent (10%) following 60/30/10 design rule. Brand colors: ${remaxColors.join(', ')}. `
       } else {
         const scheme = colorSchemes.find(c => c.id === colorScheme)
         if (scheme) {
@@ -365,7 +371,13 @@ export function InfographicWizard({
 
     // Style
     if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
-      prompt += `Color palette: ${agencyBrandColors.join(', ')}. Style: ${agencyBrandName || 'Agency'} branded. `
+      // RE/MAX brand colors - use 60/30/10 rule
+      const remaxColors = ['#000000', '#00102e', '#ff1300']
+      const shuffled = [...remaxColors].sort(() => Math.random() - 0.5)
+      const mainColor = shuffled[0]
+      const secondaryColor = shuffled[1]
+      const accentColor = shuffled[2]
+      prompt += `Color palette: Use ${mainColor} as dominant (60%), ${secondaryColor} as secondary (30%), ${accentColor} as accent (10%) following 60/30/10 design rule. Brand colors: ${remaxColors.join(', ')}. `
     } else {
       const scheme = colorSchemes.find(c => c.id === colorScheme)
       if (scheme) {
