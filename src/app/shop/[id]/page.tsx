@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import { useCart } from '@/lib/cart-context'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import Image from 'next/image'
@@ -28,12 +29,14 @@ export default function ProductPage() {
   const router = useRouter()
   const params = useParams()
   const { user, loading: authLoading } = useAuth()
+  const { addItem } = useCart()
   const [product, setProduct] = useState<ShopProduct | null>(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [selectedColor, setSelectedColor] = useState('')
   const [selectedSize, setSelectedSize] = useState('')
   const [customNotes, setCustomNotes] = useState('')
+  const [addedToCart, setAddedToCart] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -57,7 +60,26 @@ export default function ProductPage() {
     }
   }
 
-  const handlePurchase = async () => {
+  const handleAddToCart = () => {
+    if (!product) return
+
+    addItem({
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      salePrice: product.sale_price,
+      imageUrl: product.image_url,
+      quantity,
+      selectedColor,
+      selectedSize,
+      customNotes,
+    })
+
+    setAddedToCart(true)
+    setTimeout(() => setAddedToCart(false), 2000)
+  }
+
+  const handleBuyNow = async () => {
     if (!user) {
       alert('Please login to make a purchase')
       return
@@ -347,14 +369,24 @@ export default function ProductPage() {
               </div>
             </div>
 
-            {/* Buy Button */}
-            <Button 
-              onClick={handlePurchase}
-              className="w-full py-4 text-lg"
-              disabled={product.status !== 'active'}
-            >
-              {product.status === 'active' ? 'Buy Now' : 'Out of Stock'}
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleAddToCart}
+                className="flex-1 py-4 text-lg"
+                variant="outline"
+                disabled={product.status !== 'active'}
+              >
+                {addedToCart ? '✓ Added!' : 'Add to Cart'}
+              </Button>
+              <Button 
+                onClick={handleBuyNow}
+                className="flex-1 py-4 text-lg"
+                disabled={product.status !== 'active'}
+              >
+                {product.status === 'active' ? 'Buy Now' : 'Out of Stock'}
+              </Button>
+            </div>
 
             {/* Status */}
             {product.status !== 'active' && (
