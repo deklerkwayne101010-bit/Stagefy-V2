@@ -1474,12 +1474,19 @@ export default function TemplatesPage() {
           }
           const layoutSuggestion = layouts[data.photoFrames] || 'One large main image with two smaller below'
           
-          // Get agency brand info
+          // Get agency brand info or use wizard's selected colors
           const agencyInfo = agencyBrands.find(b => b.slug === agentAgency)
           const agencyName = agencyInfo ? agencyInfo.name : 'RE/MAX'
-          const brandColors = agencyInfo 
-            ? [agencyInfo.primary_color, agencyInfo.secondary_color, agencyInfo.accent_color].filter(Boolean).join(', ')
-            : '#ff1300 (red), #00102e (navy), #000000 (black)'
+          
+          // Use wizard selected colors or fall back to agency brand colors
+          let brandColors: string
+          if (data.selectedColors && data.selectedColors.length > 0) {
+            brandColors = data.selectedColors.join(', ')
+          } else if (agencyInfo) {
+            brandColors = [agencyInfo.primary_color, agencyInfo.secondary_color, agencyInfo.accent_color].filter(Boolean).join(', ')
+          } else {
+            brandColors = '#ff1300 (red), #00102e (navy), #000000 (black)'
+          }
           
           // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
