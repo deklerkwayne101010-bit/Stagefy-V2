@@ -168,7 +168,7 @@ export function ProfessionalTemplateWizard({
       uploadedImages,
       includeAgent,
       propertyDetails,
-      generatedPrompt: null // page.tsx will build the full prompt
+      generatedPrompt: undefined // page.tsx will build the full prompt
     })
     onClose()
   }
