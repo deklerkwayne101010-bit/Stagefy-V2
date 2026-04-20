@@ -1484,7 +1484,16 @@ export default function TemplatesPage() {
           // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
-HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using brand colors: ${brandColors}, with subtle geometric patterns.`
+HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using brand colors: ${brandColors}, with subtle geometric patterns.
+
+PROPERTY DETAILS:
+- Price: ${data.propertyDetails.price || 'Not specified'}
+- Location: ${data.propertyDetails.location || 'Not specified'}
+- Property Type: ${data.propertyDetails.propertyType || 'Property'}
+- Bedrooms: ${data.propertyDetails.bedrooms || 'Not specified'}
+- Bathrooms: ${data.propertyDetails.bathrooms || 'Not specified'}
+- Square Meters: ${data.propertyDetails.squareMeters || 'Not specified'}
+- Key Features: ${data.propertyDetails.keyFeatures || 'Not specified'}`
           
           // Add logo instruction if logo is uploaded
           if (agentLogo) {
@@ -1496,6 +1505,13 @@ HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing
 PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Use EACH property photo exactly ONCE - do NOT duplicate or repeat any image. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
 IMPORTANT - Property Images: The first ${data.photoFrames} image(s) in the provided images are the ONLY property photos to use in the template photo frames. Use each exactly once - do NOT repeat any image.
+
+PROPERTY INFO SECTION: Display the following property details clearly on the flyer:
+- Price: ${data.propertyDetails.price} prominently displayed in large bold typography
+- Location: ${data.propertyDetails.location}
+- Property Type: ${data.propertyDetails.propertyType}
+- Stats row: ${data.propertyDetails.bedrooms} beds, ${data.propertyDetails.bathrooms} baths, ${data.propertyDetails.squareMeters}m²
+- Key Features list: ${data.propertyDetails.keyFeatures}
 
 `
            
