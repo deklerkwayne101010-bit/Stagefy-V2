@@ -1501,11 +1501,8 @@ PROPERTY DETAILS:
 - Bathrooms: ${data.propertyDetails.bathrooms || 'Not specified'}
 - Square Meters: ${data.propertyDetails.squareMeters || 'Not specified'}
 - Key Features: ${data.propertyDetails.keyFeatures || 'Not specified'}`
-          
-          // Add logo instruction if logo is uploaded
-          if (agentLogo) {
-            prompt += ` Use the exact image uploaded in reference image 2 as the logo picture, do not alter, change at all, just use it exactly as is.`
-          }
+           
+          // Add logo instruction if logo is uploaded (removed per user request)
           
           prompt += `
 
