@@ -8,6 +8,7 @@ import React, { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
+import { StyleSelector } from './StyleSelector'
 
 type InfographicType =
   | 'market-stats'
@@ -38,6 +39,7 @@ interface InfographicWizardProps {
       visualStyle: string
     }
     generatedPrompt: string
+    selectedColors?: string[]
   }) => void
   agentProfile?: {
     name: string
@@ -241,6 +243,7 @@ export function InfographicWizard({
   const [colorScheme, setColorScheme] = useState('professional')
   const [orientation, setOrientation] = useState('portrait')
   const [visualStyle, setVisualStyle] = useState('clean')
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
 
   if (!isOpen) return null
 
@@ -443,6 +446,7 @@ export function InfographicWizard({
       agentPlacement,
       style: { colorScheme, orientation, visualStyle },
       generatedPrompt: buildPrompt(),
+      selectedColors
     })
   }
 
@@ -964,46 +968,10 @@ export function InfographicWizard({
                 <h3 className="text-lg font-medium text-gray-900">Style & Layout</h3>
                 <p className="text-sm text-gray-500">Choose how your infographic looks and feels.</p>
 
-                {/* Color Scheme */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Color Scheme</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {colorSchemes.map(scheme => (
-                      <button
-                        key={scheme.id}
-                        onClick={() => setColorScheme(scheme.id)}
-                        className={`p-3 rounded-lg border-2 text-center transition-all ${
-                          colorScheme === scheme.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        } ${scheme.id === 'agency' && !agencyBrandColors?.length ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={scheme.id === 'agency' && !agencyBrandColors?.length}
-                      >
-                        {scheme.id === 'agency' && agencyBrandColors?.length ? (
-                          <div className="flex gap-1 justify-center mb-2">
-                            {agencyBrandColors.map((c, i) => (
-                              <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        ) : 'colors' in scheme && (scheme.colors as string[]).length ? (
-                          <div className="flex gap-1 justify-center mb-2">
-                            {(scheme.colors as string[]).map((c, i) => (
-                              <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-gray-100 flex items-center justify-center text-lg">
-                            🏢
-                          </div>
-                        )}
-                        <p className="text-xs font-medium text-gray-900">{scheme.label}</p>
-                        <p className="text-xs text-gray-500">
-                          {scheme.id === 'agency' && !agencyBrandColors?.length ? 'No agency set' : (scheme.description || '')}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <StyleSelector 
+                  selectedColors={selectedColors}
+                  onSelectColors={setSelectedColors}
+                />
 
                 {/* Orientation */}
                 <div>

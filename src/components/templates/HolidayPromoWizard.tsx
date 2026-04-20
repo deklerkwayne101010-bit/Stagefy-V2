@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { StyleSelector } from './StyleSelector'
 
 interface HolidayPromoWizardProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ interface HolidayPromoWizardProps {
       orientation: string
     }
     generatedPrompt: string
+    selectedColors?: string[]
   }) => void
   agentProfile?: {
     name: string
@@ -401,6 +403,7 @@ export function HolidayPromoWizard({
   const [agentPlacement, setAgentPlacement] = useState('bottom-bar')
   const [colorScheme, setColorScheme] = useState('holiday-default')
   const [orientation, setOrientation] = useState('portrait')
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'public' | 'celebration'>('all')
 
   if (!isOpen) return null
@@ -458,6 +461,7 @@ export function HolidayPromoWizard({
       agentPlacement,
       style: { colorScheme, orientation },
       generatedPrompt: buildPrompt(),
+      selectedColors
     })
   }
 
@@ -713,48 +717,10 @@ export function HolidayPromoWizard({
                 <h3 className="text-lg font-medium text-gray-900">Style & Layout</h3>
                 <p className="text-sm text-gray-500">Choose how your poster looks.</p>
 
-                {/* Color Scheme */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Colour Scheme</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {colorSchemes.map(scheme => (
-                      <button
-                        key={scheme.id}
-                        onClick={() => setColorScheme(scheme.id)}
-                        className={`p-3 rounded-lg border-2 text-center transition-all ${
-                          colorScheme === scheme.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        } ${scheme.id === 'agency' && !agencyBrandColors?.length ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={scheme.id === 'agency' && !agencyBrandColors?.length}
-                      >
-                        {scheme.id === 'agency' && agencyBrandColors?.length ? (
-                          <div className="flex gap-1 justify-center mb-2">
-                            {agencyBrandColors.map((c, i) => (
-                              <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        ) : scheme.colors ? (
-                          <div className="flex gap-1 justify-center mb-2">
-                            {scheme.colors.map((c, i) => (
-                              <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex gap-1 justify-center mb-2">
-                            {selectedHoliday?.colors.map((c, i) => (
-                              <div key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-xs font-medium text-gray-900">{scheme.label}</p>
-                        <p className="text-xs text-gray-500">
-                          {scheme.id === 'agency' && !agencyBrandColors?.length ? 'No agency set' : scheme.description}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <StyleSelector 
+                  selectedColors={selectedColors}
+                  onSelectColors={setSelectedColors}
+                />
 
                 {/* Orientation */}
                 <div>

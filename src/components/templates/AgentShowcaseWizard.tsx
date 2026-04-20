@@ -8,6 +8,7 @@ import React, { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
+import { StyleSelector } from './StyleSelector'
 
 interface AgentShowcaseWizardProps {
   isOpen: boolean
@@ -22,6 +23,7 @@ interface AgentShowcaseWizardProps {
       orientation: string
     }
     generatedPrompt: string
+    selectedColors?: string[]
   }) => void
   agentProfile?: {
     name: string
@@ -90,6 +92,7 @@ export function AgentShowcaseWizard({
   const [selectedTagline, setSelectedTagline] = useState('')
   const [colorScheme, setColorScheme] = useState('agency')
   const [orientation, setOrientation] = useState('square')
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
 
   if (!isOpen) return null
@@ -158,6 +161,7 @@ export function AgentShowcaseWizard({
         orientation,
       },
       generatedPrompt: prompt,
+      selectedColors
     }
 
     setTimeout(() => {
