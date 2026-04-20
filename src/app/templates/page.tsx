@@ -1493,15 +1493,6 @@ export default function TemplatesPage() {
 
 HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using brand colors: ${brandColors}, with subtle geometric patterns.
 
-PROPERTY DETAILS:
-- Price: ${data.propertyDetails.price || 'Not specified'}
-- Location: ${data.propertyDetails.location || 'Not specified'}
-- Property Type: ${data.propertyDetails.propertyType || 'Property'}
-- Bedrooms: ${data.propertyDetails.bedrooms || 'Not specified'}
-- Bathrooms: ${data.propertyDetails.bathrooms || 'Not specified'}
-- Square Meters: ${data.propertyDetails.squareMeters || 'Not specified'}
-- Key Features: ${data.propertyDetails.keyFeatures || 'Not specified'}`
-           
           // Add logo instruction if logo is uploaded (removed per user request)
           
           prompt += `
