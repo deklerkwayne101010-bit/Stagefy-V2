@@ -1,6 +1,6 @@
 // ProfessionalTemplateWizard Component
 // Multi-step wizard for professional template creation
-// Step 1: Photo Frames → Step 2: Upload Photos → Step 3: Agent Profile → Step 4: Property Details → Generate Prompt
+// Step 1: Photo Frames → Step 2: Upload Photos → Step 3: Agent Profile → Step 4: Style → Step 5: Property Details
 
 'use client'
 
@@ -8,6 +8,7 @@ import React, { useState, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
+import { StyleSelector, colorSchemes } from './StyleSelector'
 
 interface PropertyDetails {
   header: string
@@ -42,20 +43,6 @@ interface ProfessionalTemplateWizardProps {
 
 type WizardStep = 'frames' | 'upload' | 'agent' | 'style' | 'details'
 
-// Pre-built color schemes
-const colorSchemes = [
-  { name: 'Modern Blue', primary: '#1e40af', secondary: '#3b82f6', accent: '#60a5fa' },
-  { name: 'Elegant Navy', primary: '#00102e', secondary: '#1e3a8a', accent: '#3b82f6' },
-  { name: 'Luxury Gold', primary: '#b45309', secondary: '#d97706', accent: '#fbbf24' },
-  { name: 'Fresh Green', primary: '#047857', secondary: '#10b981', accent: '#34d399' },
-  { name: 'Bold Red', primary: '#b91c1c', secondary: '#dc2626', accent: '#f87171' },
-  { name: 'Royal Purple', primary: '#581c87', secondary: '#7c3aed', accent: '#a78bfa' },
-  { name: 'Modern Teal', primary: '#0f766e', secondary: '#14b8a6', accent: '#2dd4bf' },
-  { name: 'Warm Orange', primary: '#c2410c', secondary: '#ea580c', accent: '#fb923c' },
-  { name: 'Classic Black', primary: '#000000', secondary: '#1f2937', accent: '#4b5563' },
-  { name: 'Soft Pink', primary: '#9f1239', secondary: '#e11d48', accent: '#f43f5e' },
-]
-
 export function ProfessionalTemplateWizard({
   isOpen,
   onClose,
@@ -67,11 +54,7 @@ export function ProfessionalTemplateWizard({
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState<boolean>(false)
   const [includeAgent, setIncludeAgent] = useState<boolean>(hasAgentProfile)
-  const [selectedScheme, setSelectedScheme] = useState<string>('')
-  const [customPrimary, setCustomPrimary] = useState<string>('')
-  const [customSecondary, setCustomSecondary] = useState<string>('')
-  const [customAccent, setCustomAccent] = useState<string>('')
-  const [useCustomColors, setUseCustomColors] = useState<boolean>(false)
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [propertyDetails, setPropertyDetails] = useState<PropertyDetails>({
     header: '',
     price: '',
@@ -185,24 +168,13 @@ export function ProfessionalTemplateWizard({
 
   // Complete wizard - let page.tsx build the full prompt from wizard data
   const handleComplete = () => {
-    // Get selected colors
-    let colors: string[] = []
-    if (useCustomColors && customPrimary) {
-      colors = [customPrimary, customSecondary || customPrimary, customAccent || customPrimary]
-    } else if (selectedScheme) {
-      const scheme = colorSchemes.find(s => s.name === selectedScheme)
-      if (scheme) {
-        colors = [scheme.primary, scheme.secondary, scheme.accent]
-      }
-    }
-    
     onComplete({
       photoFrames,
       uploadedImages,
       includeAgent,
       propertyDetails,
       generatedPrompt: undefined,
-      selectedColors: colors
+      selectedColors
     })
     onClose()
   }
@@ -518,103 +490,10 @@ export function ProfessionalTemplateWizard({
                   </p>
                 </div>
 
-                {/* Use Custom Colors Toggle */}
-                <div className="mb-6">
-                  <label className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-gray-300">
-                    <input
-                      type="checkbox"
-                      checked={useCustomColors}
-                      onChange={(e) => setUseCustomColors(e.target.checked)}
-                      className="w-5 h-5 text-blue-600"
-                    />
-                    <span className="font-medium text-gray-700">Use Custom Colors</span>
-                  </label>
-                </div>
-
-                {!useCustomColors ? (
-                  /* Pre-built Color Schemes */
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    {colorSchemes.map((scheme) => (
-                      <button
-                        key={scheme.name}
-                        onClick={() => setSelectedScheme(scheme.name)}
-                        className={`p-3 rounded-lg border-2 text-left transition-all ${
-                          selectedScheme === scheme.name
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: scheme.primary }}
-                          />
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: scheme.secondary }}
-                          />
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: scheme.accent }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">{scheme.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  /* Custom Color Picker */
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={customPrimary}
-                          onChange={(e) => setCustomPrimary(e.target.value)}
-                          className="w-12 h-10 rounded cursor-pointer"
-                        />
-                        <Input
-                          placeholder="#000000"
-                          value={customPrimary}
-                          onChange={(e) => setCustomPrimary(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Color</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={customSecondary || customPrimary || '#000000'}
-                          onChange={(e) => setCustomSecondary(e.target.value)}
-                          className="w-12 h-10 rounded cursor-pointer"
-                        />
-                        <Input
-                          placeholder="#000000"
-                          value={customSecondary}
-                          onChange={(e) => setCustomSecondary(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Accent Color</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={customAccent || customPrimary || '#000000'}
-                          onChange={(e) => setCustomAccent(e.target.value)}
-                          className="w-12 h-10 rounded cursor-pointer"
-                        />
-                        <Input
-                          placeholder="#000000"
-                          value={customAccent}
-                          onChange={(e) => setCustomAccent(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <StyleSelector 
+                  selectedColors={selectedColors}
+                  onSelectColors={setSelectedColors}
+                />
               </div>
             )}
 
