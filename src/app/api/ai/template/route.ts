@@ -122,23 +122,9 @@ export async function POST(request: Request) {
       const templatesWithoutPropertyPhotos = ['agent_showcase', 'holiday_promo', 'testimonial', 'infographic']
       const skipPropertyInstructions = templatesWithoutPropertyPhotos.includes(type)
       
-      // Use the wizard's prompt as-is without adding extra sections
-      // The wizard should include all necessary instructions
+      // Use the wizard's prompt as-is - don't add any extra sections
+      // The final prompt should be exactly what the wizard builds
       let finalPrompt = userPrompt
-      
-      // Only add critical image instructions for professional/custom if needed
-      // This ensures the AI uses the correct number of property photos
-      if (usesPropertyPhotos && imageCount > 0 && !skipPropertyInstructions) {
-        finalPrompt += `\n\n--- CRITICAL IMAGE INSTRUCTIONS ---\n`
-        finalPrompt += `IMPORTANT: Exactly ${propertyImageCount} property photo(s) provided. `
-        finalPrompt += `Use EXACTLY ${propertyImageCount} photo frame(s) - no more, no less. `
-        finalPrompt += `Use EACH property photo exactly ONCE - do NOT duplicate or repeat any. `
-        finalPrompt += `The property photos are at positions 1 to ${propertyImageCount}. `
-        finalPrompt += `If agent photo is at position ${agentPhotoPosition}, use it exactly ONCE in the agent profile section only. `
-        finalPrompt += `If agency logo is at position ${logoPosition}, use it exactly ONCE in the agent profile section only. `
-        finalPrompt += `Do NOT use any images in the property photo frames except the first ${propertyImageCount} images. `
-        finalPrompt += `Do NOT add any extra photos, random images, or placeholder images.`
-      }
       
       const replicateInput = {
         prompt: finalPrompt,
