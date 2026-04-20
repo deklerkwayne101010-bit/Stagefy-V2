@@ -102,17 +102,6 @@ export async function POST(request: Request) {
     }
 
     try {
-      // RE/MAX brand colors
-      const remaxColors = {
-        red: '#ff1300',
-        maroon: '#5b0204',
-        blue: '#003bff',
-        navy: '#00102e',
-        black: '#000000',
-        cream: '#f5f3ed'
-      }
-      const remaxColorsList = Object.entries(remaxColors).map(([name, hex]) => `${hex} (${name})`).join(', ')
-      
       // Get the exact number of property images uploaded
       const imageCount = images && images.length > 0 ? images.length : 0
       
@@ -133,15 +122,13 @@ export async function POST(request: Request) {
       const templatesWithoutPropertyPhotos = ['agent_showcase', 'holiday_promo', 'testimonial', 'infographic']
       const skipPropertyInstructions = templatesWithoutPropertyPhotos.includes(type)
       
-      // Build gradient section with colors at TOP, then append critical instructions at END
-      // Only add for templates that use property photos and have images
+      // Use the wizard's prompt as-is without adding extra sections
+      // The wizard should include all necessary instructions
       let finalPrompt = userPrompt
       
-      if (!skipPropertyInstructions && usesPropertyPhotos && imageCount > 0) {
-        // Gradient section at TOP - colors directly where header gradient is specified
-        const gradientSection = `--- GRADIENT HEADER SECTION ---\nUse gradient background with RE/MAX brand colors: ${remaxColorsList}\nUse ${remaxColors.red} (red), ${remaxColors.maroon} (maroon), ${remaxColors.blue} (blue), ${remaxColors.navy} (navy), ${remaxColors.black} (black), ${remaxColors.cream} (cream) for gradients.\n---------------------------\n\n`
-        
-        finalPrompt = gradientSection + userPrompt
+      // Only add critical image instructions for professional/custom if needed
+      // This ensures the AI uses the correct number of property photos
+      if (usesPropertyPhotos && imageCount > 0 && !skipPropertyInstructions) {
         finalPrompt += `\n\n--- CRITICAL IMAGE INSTRUCTIONS ---\n`
         finalPrompt += `IMPORTANT: Exactly ${propertyImageCount} property photo(s) provided. `
         finalPrompt += `Use EXACTLY ${propertyImageCount} photo frame(s) - no more, no less. `

@@ -1472,11 +1472,14 @@ export default function TemplatesPage() {
           // Get agency brand info
           const agencyInfo = agencyBrands.find(b => b.slug === agentAgency)
           const agencyName = agencyInfo ? agencyInfo.name : 'RE/MAX'
+          const brandColors = agencyInfo 
+            ? [agencyInfo.primary_color, agencyInfo.secondary_color, agencyInfo.accent_color].filter(Boolean).join(', ')
+            : '#ff1300 (red), #00102e (navy), #000000 (black)'
           
           // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
-HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using ${agencyName} brand colors, with subtle geometric patterns.`
+HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using brand colors: ${brandColors}, with subtle geometric patterns.`
           
           // Add logo instruction if logo is uploaded
           if (agentLogo) {
@@ -1495,9 +1498,10 @@ IMPORTANT - Property Images: The first ${data.photoFrames} image(s) in the provi
             const totalImages = data.photoFrames + (agentPhoto ? 1 : 0) + (agentLogo ? 1 : 0)
             const agentPhotoIndex = data.photoFrames + 1
             const agentLogoIndex = data.photoFrames + (agentPhoto ? 2 : 1)
+            const cardColor = agencyInfo?.primary_color || '#00102e'
             
             if (data.includeAgent && agentName.trim()) {
-              prompt += `AGENT PROFILE SECTION: ${agentPhoto ? `Use the agent photo at image position ${agentPhotoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agent photo provided.'} ${agentLogo ? `Use the agency logo at image position ${agentLogoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agency logo provided.'} Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card. Do NOT use these images in the property photo frames.`
+              prompt += `AGENT PROFILE SECTION: ${agentPhoto ? `Use the agent photo at image position ${agentPhotoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agent photo provided.'} ${agentLogo ? `Use the agency logo at image position ${agentLogoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agency logo provided.'} Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card using brand color ${cardColor}. Do NOT use these images in the property photo frames.`
             } else {
               prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
             }
