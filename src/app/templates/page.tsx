@@ -146,6 +146,7 @@ export default function TemplatesPage() {
   const [includeAgentProfile, setIncludeAgentProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
   
   // Agency brands for dropdown
   const [agencyBrands, setAgencyBrands] = useState<{ id: string; name: string; slug: string; primary_color?: string; secondary_color?: string; accent_color?: string }[]>([])
@@ -191,6 +192,7 @@ export default function TemplatesPage() {
   useEffect(() => {
     const loadAgentProfile = async () => {
       try {
+        setProfileLoading(true)
         // Get session token for authentication
         const { supabase } = await import('@/lib/supabase')
         const { data: { session } } = await supabase.auth.getSession()
@@ -203,15 +205,18 @@ export default function TemplatesPage() {
         const response = await fetch('/api/agent-profile', { headers })
         const data = await response.json()
         if (data.profile) {
-          setAgentName(data.profile.name_surname || '')
-          setAgentEmail(data.profile.email || '')
-          setAgentPhone(data.profile.phone || '')
-          setAgentAgency(data.profile.agency_brand || '')
-          setAgentPhoto(data.profile.photo_url || null)
-          setAgentLogo(data.profile.logo_url || null)
+          // Only set if we don't have values (prevent overwrite on re-render)
+          setAgentName(prev => prev || data.profile.name_surname || '')
+          setAgentEmail(prev => prev || data.profile.email || '')
+          setAgentPhone(prev => prev || data.profile.phone || '')
+          setAgentAgency(prev => prev || data.profile.agency_brand || '')
+          setAgentPhoto(prev => prev || data.profile.photo_url || null)
+          setAgentLogo(prev => prev || data.profile.logo_url || null)
         }
       } catch (err) {
         console.error('Error loading agent profile:', err)
+      } finally {
+        setProfileLoading(false)
       }
     }
     
