@@ -1493,10 +1493,6 @@ export default function TemplatesPage() {
 
 HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using brand colors: ${brandColors}, with subtle geometric patterns.
 
-          // Add logo instruction if logo is uploaded (removed per user request)
-          
-          prompt += `
-
 PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Use EACH property photo exactly ONCE - do NOT duplicate or repeat any image. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
 PROPERTY INFO SECTION: Display the following property details clearly on the flyer:
