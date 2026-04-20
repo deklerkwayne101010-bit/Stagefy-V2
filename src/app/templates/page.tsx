@@ -1464,15 +1464,43 @@ export default function TemplatesPage() {
           
           // Build prompt directly from wizard data (skip GPT-4.1-nano)
           // Use the exact format the user provided
-          const layouts: Record<number, string> = {
-            1: 'Single large hero image with full-width banner',
-            2: 'Two equal columns side by side',
-            3: 'One large main image with two smaller below',
-            4: '2x2 grid with equal square images',
-            5: 'One large featured image with 4 smaller in grid',
-            6: '2x3 grid with uniform rectangle images',
+          const layouts: Record<number, string[]> = {
+            1: [
+              'Full-width hero image spanning entire flyer',
+              'Single large hero image with overlay text',
+              'One main image taking 90% of flyer space'
+            ],
+            2: [
+              'Two equal columns side by side',
+              'Split layout with left image right image',
+              'Horizontal split 50/50 design'
+            ],
+            3: [
+              'One large main image with two smaller below',
+              'Featured image top, two smaller bottom',
+              'Hero image with two columns below'
+            ],
+            4: [
+              '2x2 grid with equal square images',
+              'Four equal quadrants classic grid',
+              'Two-by-two symmetrical arrangement'
+            ],
+            5: [
+              'One large featured image with 4 smaller in grid',
+              'Main image with 2x2 grid below',
+              'Featured property with four supporting images'
+            ],
+            6: [
+              '2x3 grid with uniform rectangle images',
+              'Three columns by two rows clean grid',
+              'Six equal photos in symmetrical layout'
+            ],
           }
-          const layoutSuggestion = layouts[data.photoFrames] || 'One large main image with two smaller below'
+          
+          // Randomly pick a layout variation
+          const layoutOptions = layouts[data.photoFrames] || layouts[3]
+          const randomLayoutIndex = Math.floor(Math.random() * layoutOptions.length)
+          const layoutSuggestion = layoutOptions[randomLayoutIndex]
           
           // Get agency brand info or use wizard's selected colors
           const agencyInfo = agencyBrands.find(b => b.slug === agentAgency)
@@ -1491,7 +1519,7 @@ export default function TemplatesPage() {
           // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
-HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using brand colors: ${brandColors}, with subtle geometric patterns.
+HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography using brand colors: ${brandColors}.
 
 PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Use EACH property photo exactly ONCE - do NOT duplicate or repeat any image. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
