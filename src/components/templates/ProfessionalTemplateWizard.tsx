@@ -62,8 +62,6 @@ export function ProfessionalTemplateWizard({
     squareMeters: '',
     propertyType: '',
   })
-  const [isGenerating, setIsGenerating] = useState<boolean>(false)
-  const [generatedPrompt, setGeneratedPrompt] = useState<GeneratedPrompt | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
@@ -163,53 +161,16 @@ export function ProfessionalTemplateWizard({
     }
   }
 
-  const handleGeneratePrompt = async () => {
-    setIsGenerating(true)
-    
-    try {
-      // Call the API to generate the prompt using Replicate AI
-      const response = await fetch('/api/ai/template/generate-prompt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          photoFrames,
-          includeAgent,
-          propertyDetails,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate prompt')
-      }
-
-      const data = await response.json()
-      
-      setGeneratedPrompt(data)
-      
-      // Complete the wizard with the generated prompt and uploaded images
-      onComplete({
-        photoFrames,
-        uploadedImages,  // Pass the uploaded image URLs
-        includeAgent,
-        propertyDetails,
-        generatedPrompt: data,
-      })
-      onClose()
-    } catch (error) {
-      console.error('Error generating prompt:', error)
-      // Still complete with the data, but without the generated prompt
-      onComplete({
-        photoFrames,
-        uploadedImages,
-        includeAgent,
-        propertyDetails,
-      })
-      onClose()
-    } finally {
-      setIsGenerating(false)
-    }
+  // Complete wizard - let page.tsx build the full prompt from wizard data
+  const handleComplete = () => {
+    onComplete({
+      photoFrames,
+      uploadedImages,
+      includeAgent,
+      propertyDetails,
+      generatedPrompt: null // page.tsx will build the full prompt
+    })
+    onClose()
   }
 
   const handleBack = () => {
@@ -657,7 +618,7 @@ export function ProfessionalTemplateWizard({
               </button>
               <button
                 type="button"
-                onClick={step === 'details' ? handleGeneratePrompt : handleNext}
+                onClick={step === 'details' ? handleComplete : handleNext}
                 disabled={
                   (step === 'upload' && uploadedImages.length < photoFrames) ||
                   (step === 'details' && (
@@ -669,8 +630,7 @@ export function ProfessionalTemplateWizard({
                     !propertyDetails.bathrooms.trim() ||
                     !propertyDetails.squareMeters.trim() ||
                     !propertyDetails.keyFeatures.trim()
-                  )) ||
-                  isGenerating
+                  ))
                 }
                 className={`px-6 py-2 rounded-lg text-white font-medium transition-all ${
                   step === 'details' 
@@ -678,20 +638,12 @@ export function ProfessionalTemplateWizard({
                     : 'bg-blue-600 hover:bg-blue-700'
                 } disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
               >
-                {isGenerating ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Generating...
-                  </>
-                ) : step === 'details' ? (
+                {step === 'details' ? (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                    Generate Prompt
+                    Complete Wizard
                   </>
                 ) : step === 'upload' ? (
                   uploadedImages.length < photoFrames 
