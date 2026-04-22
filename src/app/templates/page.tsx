@@ -525,9 +525,11 @@ export default function TemplatesPage() {
       }
 
       const data = await response.json()
+      console.log('Template generation response:', data)
       setResult({ outputUrl: data.outputUrl, isWatermarked: data.isWatermarked || false })
       autoSaveGeneration(data.outputUrl, templateType, prompt)
     } catch (err: any) {
+      console.error('Template generation error:', err)
       setError(err.message || 'Failed to create template. Please try again.')
       setResult({ outputUrl: 'https://example.com/template.jpg', isWatermarked: true })
     } finally {

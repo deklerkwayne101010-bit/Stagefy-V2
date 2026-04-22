@@ -159,15 +159,30 @@ export async function POST(request: Request) {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create template')
+        const errorText = await response.text()
+        console.error('Replicate API error:', response.status, errorText)
+        throw new Error(`Failed to create template: ${response.status}`)
       }
 
       const prediction = await response.json()
       console.log('GPT Image 2 response:', prediction)
+      console.log('GPT Image 2 output:', prediction.output)
 
       // Success! Return response
       // GPT Image 2 returns output as an array with the image URL
       let outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
+      
+      // Check if outputUrl is valid
+      if (!outputUrl || typeof outputUrl !== 'string') {
+        console.error('Invalid output URL:', outputUrl)
+        return NextResponse.json({ 
+          outputUrl: null,
+          error: 'Failed to generate image - no output received',
+          debug: prediction 
+        })
+      }
+      
+      console.log('Generated image URL:', outputUrl)
       
       // Upload to Supabase storage for permanent URL
       try {
