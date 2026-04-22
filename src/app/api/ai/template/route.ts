@@ -174,13 +174,13 @@ export async function POST(request: Request) {
         }
       }
 
-      // Call Replicate API for template generation (5 minute timeout for long-running generations)
+      // Call Replicate API for template generation
+      // Use async polling approach for longer running generations
       const response = await fetch(`https://api.replicate.com/v1/models/${modelId}/predictions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait=300', // Wait up to 5 minutes
         },
         body: JSON.stringify({
           input: gptImageInput,
@@ -193,9 +193,37 @@ export async function POST(request: Request) {
         throw new Error(`Failed to create template: ${response.status}`)
       }
 
-      const prediction = await response.json()
+      let prediction = await response.json()
       console.log(`${modelId} response:`, prediction)
+
+      // Poll for completion if prediction is not yet complete
+      if (prediction.status === 'starting' || prediction.status === 'processing') {
+        console.log('Prediction status:', prediction.status, '- polling for completion...')
+        
+        const maxAttempts = 60 // Poll for up to 60 attempts
+        let attempts = 0
+        
+        while (prediction.status !== 'succeeded' && prediction.status !== 'failed' && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds between polls
+          
+          const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+            headers: {
+              'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
+            }
+          })
+          
+          prediction = await statusResponse.json()
+          console.log('Prediction status:', prediction.status)
+          attempts++
+        }
+      }
+
       console.log(`${modelId} output:`, prediction.output)
+
+      // Check if prediction succeeded
+      if (prediction.status === 'failed') {
+        throw new Error(`Template generation failed: ${prediction.error || 'Unknown error'}`)
+      }
 
       // Success! Return response
       // Different models return output differently
