@@ -33,7 +33,19 @@ async function getUserFromAuthHeader(request: Request) {
 }
 
 // Check if running in demo mode (no Supabase configured)
-const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Check if running in demo mode (server-side check)
+// Demo mode if critical API keys are missing
+const isDemoMode = !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.REPLICATE_API_TOKEN
+
+// Also check public config
+const hasPublicSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+console.log('API Environment check:', {
+  isDemoMode,
+  hasPublicSupabase,
+  hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  hasReplicateToken: !!process.env.REPLICATE_API_TOKEN
+})
 
 export async function POST(request: Request) {
   try {
@@ -65,8 +77,10 @@ export async function POST(request: Request) {
 
     const userIdStr = user.id
 
-    // Demo mode: skip credit check and return demo response
-    if (isDemoMode) {
+    console.log('User authenticated:', userIdStr)
+
+    // Check if running in demo mode (skip if user is authenticated and API keys exist)
+    if (isDemoMode && !process.env.REPLICATE_API_TOKEN) {
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 2000))
 
