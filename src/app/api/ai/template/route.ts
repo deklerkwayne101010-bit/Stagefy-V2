@@ -152,11 +152,10 @@ export async function POST(request: Request) {
         quality: 'high',
         background: 'auto',
         moderation: 'auto',
-        aspect_ratio: '4:3',
-        input_images: images && images.length > 0 ? images.map((img: string) => ({ value: { path: img } })) : [],
+        aspect_ratio: '1:1',
+        input_images: images && images.length > 0 ? images : [],
         output_format: 'webp',
         number_of_images: 1,
-        output_compression: 90,
       }
 
       // Call Replicate API for template generation
