@@ -154,7 +154,7 @@ export async function POST(request: Request) {
         moderation: 'auto',
         aspect_ratio: '1:1',
         input_images: images && images.length > 0 ? images : [],
-        output_format: 'webp',
+        output_format: 'png',
         number_of_images: 1,
       }
 
@@ -205,12 +205,12 @@ export async function POST(request: Request) {
           const imageResponse = await fetch(outputUrl)
           if (imageResponse.ok) {
             const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
-            const fileName = `templates/${userIdStr}/${Date.now()}.webp`
+            const fileName = `templates/${userIdStr}/${Date.now()}.png`
 
             const { error: uploadError } = await adminClient.storage
               .from('ai-outputs')
               .upload(fileName, imageBuffer, {
-                contentType: 'image/webp',
+                contentType: 'image/png',
                 upsert: true,
               })
 
