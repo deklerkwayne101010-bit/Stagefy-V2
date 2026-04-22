@@ -126,32 +126,24 @@ export async function POST(request: Request) {
       // The final prompt should be exactly what the wizard builds
       let finalPrompt = userPrompt
       
-      const replicateInput = {
-        prompt: finalPrompt,
-        resolution: '1K',
-        image_input: images && images.length > 0 ? images : [],
-        aspect_ratio: '4:3',
-        output_format: 'png',
-        google_search: false,
-        image_search: true,
-        safety_filter_level: 'block_only_high'
-      }
-
       console.log(`Template generation: ${propertyImageCount} property photo(s) uploaded`)
 
-      // Add custom template options if provided
-      if (type === 'custom' && customOptions) {
-        if (customOptions.colorTheme) {
-          replicateInput.prompt += ` Use color theme: ${customOptions.colorTheme}`
-        }
-        if (customOptions.aspectRatio) {
-          replicateInput.aspect_ratio = customOptions.aspectRatio
-        }
-      }
-
-      // Select model based on version
-      const modelId = isPro ? 'google/nano-banana-pro' : 'google/nano-banana-2'
+      // Select model - using GPT Image 2
+      const modelId = 'openai/gpt-image-2'
       console.log(`Using model: ${modelId} for ${templateVersion} version`)
+
+      // Build input for GPT Image 2
+      const gptImageInput = {
+        prompt: finalPrompt,
+        quality: 'high',
+        background: 'auto',
+        moderation: 'auto',
+        aspect_ratio: '4:3',
+        input_images: images && images.length > 0 ? images.map((img: string) => ({ value: { path: img } })) : [],
+        output_format: 'webp',
+        number_of_images: 1,
+        output_compression: 90,
+      }
 
       // Call Replicate API for template generation
       const response = await fetch(`https://api.replicate.com/v1/models/${modelId}/predictions`, {
@@ -162,7 +154,7 @@ export async function POST(request: Request) {
           'Prefer': 'wait',
         },
         body: JSON.stringify({
-          input: replicateInput,
+          input: gptImageInput,
         }),
       })
 
@@ -171,10 +163,10 @@ export async function POST(request: Request) {
       }
 
       const prediction = await response.json()
-      console.log('Nano Banana Pro response:', prediction)
+      console.log('GPT Image 2 response:', prediction)
 
       // Success! Return response
-      // Nano Banana Pro returns output as an array with the image URL
+      // GPT Image 2 returns output as an array with the image URL
       let outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
       
       // Upload to Supabase storage for permanent URL
@@ -185,12 +177,12 @@ export async function POST(request: Request) {
           const imageResponse = await fetch(outputUrl)
           if (imageResponse.ok) {
             const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
-            const fileName = `templates/${userIdStr}/${Date.now()}.png`
+            const fileName = `templates/${userIdStr}/${Date.now()}.webp`
 
             const { error: uploadError } = await adminClient.storage
               .from('ai-outputs')
               .upload(fileName, imageBuffer, {
-                contentType: 'image/png',
+                contentType: 'image/webp',
                 upsert: true,
               })
 
