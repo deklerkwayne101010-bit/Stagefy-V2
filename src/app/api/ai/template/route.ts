@@ -142,29 +142,45 @@ export async function POST(request: Request) {
       
       console.log(`Template generation: ${propertyImageCount} property photo(s) uploaded`)
 
-      // Select model - using GPT Image 2
-      const modelId = 'openai/gpt-image-2'
+      // Select model based on version - standard uses nano-banana-2, pro uses gpt-image-2
+      const modelId = isPro ? 'openai/gpt-image-2' : 'google/nano-banana-2'
       console.log(`Using model: ${modelId} for ${templateVersion} version`)
 
-      // Build input for GPT Image 2
-      const gptImageInput = {
-        prompt: finalPrompt,
-        quality: 'high',
-        background: 'auto',
-        moderation: 'auto',
-        aspect_ratio: '1:1',
-        input_images: images && images.length > 0 ? images : [],
-        output_format: 'png',
-        number_of_images: 1,
+      let gptImageInput: any
+
+      if (isPro) {
+        // GPT Image 2 input format
+        gptImageInput = {
+          prompt: finalPrompt,
+          quality: 'high',
+          background: 'auto',
+          moderation: 'auto',
+          aspect_ratio: '1:1',
+          input_images: images && images.length > 0 ? images : [],
+          output_format: 'png',
+          number_of_images: 1,
+        }
+      } else {
+        // Nano Banana 2 input format
+        gptImageInput = {
+          prompt: finalPrompt,
+          resolution: '1K',
+          image_input: images && images.length > 0 ? images : [],
+          aspect_ratio: '4:3',
+          output_format: 'png',
+          google_search: false,
+          image_search: true,
+          safety_filter_level: 'block_only_high'
+        }
       }
 
-      // Call Replicate API for template generation
+      // Call Replicate API for template generation (5 minute timeout for long-running generations)
       const response = await fetch(`https://api.replicate.com/v1/models/${modelId}/predictions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait',
+          'Prefer': 'wait=300', // Wait up to 5 minutes
         },
         body: JSON.stringify({
           input: gptImageInput,
@@ -178,11 +194,11 @@ export async function POST(request: Request) {
       }
 
       const prediction = await response.json()
-      console.log('GPT Image 2 response:', prediction)
-      console.log('GPT Image 2 output:', prediction.output)
+      console.log(`${modelId} response:`, prediction)
+      console.log(`${modelId} output:`, prediction.output)
 
       // Success! Return response
-      // GPT Image 2 returns output as an array with the image URL
+      // Different models return output differently
       let outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
       
       // Check if outputUrl is valid

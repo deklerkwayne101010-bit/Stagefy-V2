@@ -81,6 +81,7 @@ export default function TemplatesPage() {
   const [templateType, setTemplateType] = useState('professional')
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showGenTooltip, setShowGenTooltip] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ outputUrl: string; isWatermarked?: boolean } | null>(null)
   const [savedTemplates, setSavedTemplates] = useState<{ id: number; name: string; type: string; thumbnail: string }[]>([])
@@ -1032,12 +1033,33 @@ export default function TemplatesPage() {
                 <Button
                   fullWidth
                   size="lg"
-                  className="mt-4"
+                  className="mt-4 relative"
                   loading={loading}
                   disabled={!prompt.trim() || !hasEnoughCredits}
                   onClick={() => setShowVersionPopup(true)}
+                  onMouseEnter={() => loading && setShowGenTooltip(true)}
+                  onMouseLeave={() => setShowGenTooltip(false)}
                 >
                   {loading ? 'Creating Template...' : 'Generate Template'}
+                  {/* Loading tooltip */}
+                  {loading && showGenTooltip && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs p-2 rounded-lg text-center whitespace-normal z-50">
+                      Generating your template with AI. This may take up to 5 minutes for high-quality results. Please wait...
+                    </div>
+                  )}
+                </Button>
+                
+                {/* Loading progress bar */}
+                {loading && (
+                  <div className="mt-3">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      Generating your template... this may take up to 5 minutes
+                    </p>
+                  </div>
+                )}
                 </Button>
 
                 {error && (
