@@ -81,7 +81,6 @@ export default function TemplatesPage() {
   const [templateType, setTemplateType] = useState('professional')
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showGenTooltip, setShowGenTooltip] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ outputUrl: string; isWatermarked?: boolean } | null>(null)
   const [savedTemplates, setSavedTemplates] = useState<{ id: number; name: string; type: string; thumbnail: string }[]>([])
@@ -1033,22 +1032,23 @@ export default function TemplatesPage() {
                 <Button
                   fullWidth
                   size="lg"
-                  className="mt-4 relative"
+                  className="mt-4"
                   loading={loading}
                   disabled={!prompt.trim() || !hasEnoughCredits}
                   onClick={() => setShowVersionPopup(true)}
-                  onMouseEnter={() => loading && setShowGenTooltip(true)}
-                  onMouseLeave={() => setShowGenTooltip(false)}
                 >
                   {loading ? 'Creating Template...' : 'Generate Template'}
-                  {/* Loading tooltip */}
-                  {loading && showGenTooltip && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs p-2 rounded-lg text-center whitespace-normal z-50">
-                      Generating your template with AI. This may take up to 5 minutes for high-quality results. Please wait...
-                    </div>
-                  )}
                 </Button>
-                
+
+                {/* Loading tooltip */}
+                {loading && (
+                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
+                    <p className="text-xs text-blue-700">
+                      Generating your template with AI. This may take up to 5 minutes for high-quality results. Please wait...
+                    </p>
+                  </div>
+                )}
+
                 {/* Loading progress bar */}
                 {loading && (
                   <div className="mt-3">
