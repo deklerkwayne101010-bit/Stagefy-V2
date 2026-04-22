@@ -1060,7 +1060,6 @@ export default function TemplatesPage() {
                     </p>
                   </div>
                 )}
-                </Button>
 
                 {error && (
                   <p className="text-red-400 text-sm mt-3">{error}</p>
