@@ -9,16 +9,32 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/lib/auth-context'
 
+// Helper to get auth headers for API calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { 'Content-Type': 'application/json' }
+}
+
 interface Contact {
   id: string
   name: string
   email: string
   phone: string
-  contact_type: string
+  type: string  // DB column is 'type'
+  contact_type?: string  // legacy field name
   status: string
   notes: string
-  address?: string
-  company?: string
   created_at: string
 }
 
@@ -40,9 +56,7 @@ export default function ContactsPage() {
     phone: '',
     contact_type: 'buyer',
     status: 'lead',
-    notes: '',
-    address: '',
-    company: ''
+    notes: ''
   })
 
   // Fetch contacts from API
@@ -56,7 +70,8 @@ export default function ContactsPage() {
       if (filterType !== 'all') params.set('type', filterType)
       if (filterStatus !== 'all') params.set('status', filterStatus)
       
-      const response = await fetch(`/api/crm/contacts?${params}`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`/api/crm/contacts?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setContacts(data.contacts || [])
@@ -80,9 +95,7 @@ export default function ContactsPage() {
       phone: '',
       contact_type: 'buyer',
       status: 'lead',
-      notes: '',
-      address: '',
-      company: ''
+      notes: ''
     })
     setEditingContact(null)
   }
@@ -100,11 +113,9 @@ export default function ContactsPage() {
       name: contact.name || '',
       email: contact.email || '',
       phone: contact.phone || '',
-      contact_type: contact.contact_type || 'buyer',
+      contact_type: contact.type || contact.contact_type || 'buyer',
       status: contact.status || 'lead',
-      notes: contact.notes || '',
-      address: contact.address || '',
-      company: contact.company || ''
+      notes: contact.notes || ''
     })
     setShowModal(true)
   }
@@ -120,10 +131,11 @@ export default function ContactsPage() {
         : '/api/crm/contacts'
       
       const method = editingContact ? 'PUT' : 'POST'
+      const headers = await getAuthHeaders()
       
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(formData)
       })
 
@@ -148,8 +160,10 @@ export default function ContactsPage() {
     if (!confirm('Are you sure you want to delete this contact?')) return
     
     try {
+      const headers = await getAuthHeaders()
       const response = await fetch(`/api/crm/contacts/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       })
       
       if (response.ok) {
@@ -225,7 +239,7 @@ export default function ContactsPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-semibold text-gray-900">{contact.name}</h3>
-                        <p className="text-sm text-gray-500 capitalize">{contact.contact_type}</p>
+                        <p className="text-sm text-gray-500 capitalize">{contact.type || contact.contact_type}</p>
                       </div>
                       <Badge 
                         variant={contact.status === 'active' ? 'success' : contact.status === 'lead' ? 'warning' : 'info'}
@@ -236,7 +250,6 @@ export default function ContactsPage() {
                     </div>
                     {contact.email && <p className="text-sm text-gray-600 mt-2">{contact.email}</p>}
                     {contact.phone && <p className="text-sm text-gray-500">{contact.phone}</p>}
-                    {contact.company && <p className="text-sm text-gray-500">{contact.company}</p>}
                     {contact.notes && <p className="text-sm text-gray-500 mt-2 line-clamp-2">{contact.notes}</p>}
                     <div className="flex gap-2 mt-3">
                       <Button size="sm" variant="outline" onClick={() => handleEdit(contact)}>Edit</Button>
@@ -316,20 +329,6 @@ export default function ContactsPage() {
                     ]}
                   />
                 </div>
-
-                <Input
-                  label="Company"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  placeholder="Company name"
-                />
-
-                <Input
-                  label="Address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Physical address"
-                />
 
                 <Textarea
                   label="Notes"

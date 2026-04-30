@@ -11,15 +11,78 @@ import { Input } from '@/components/ui/Input'
 export default function SettingsPage() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security'>('profile')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({
     fullName: user?.full_name || '',
     email: user?.email || '',
     brokerage: user?.brokerage || '',
     market: user?.market || '',
   })
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleSaveProfile = async () => {
+    setSaving(true)
+    setMessage('')
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
+        setMessage('Not authenticated')
+        return
+      }
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          full_name: formData.fullName,
+          brokerage: formData.brokerage,
+          market: formData.market,
+        })
+        .eq('id', session.user.id)
+
+      if (error) throw error
+      setMessage('Profile updated successfully!')
+    } catch (err: any) {
+      setMessage(err.message || 'Failed to update profile')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword.length < 8) {
+      setMessage('Password must be at least 8 characters')
+      return
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage('Passwords do not match')
+      return
+    }
+
+    setSaving(true)
+    setMessage('')
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      })
+      if (error) throw error
+      setMessage('Password updated successfully!')
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err: any) {
+      setMessage(err.message || 'Failed to update password')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -49,6 +112,11 @@ export default function SettingsPage() {
             <Card>
               <CardHeader title="Profile Information" subtitle="Update your personal details" />
               <div className="space-y-4">
+                {message && (
+                  <div className={`p-3 rounded-lg text-sm ${message.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                    {message}
+                  </div>
+                )}
                 <Input
                   label="Full Name"
                   name="fullName"
@@ -74,7 +142,7 @@ export default function SettingsPage() {
                   value={formData.market}
                   onChange={handleChange}
                 />
-                <Button>Save Changes</Button>
+                <Button onClick={handleSaveProfile} loading={saving}>Save Changes</Button>
               </div>
             </Card>
           </div>
@@ -116,18 +184,24 @@ export default function SettingsPage() {
                   label="Current Password"
                   type="password"
                   placeholder="••••••••"
+                  value={passwordData.currentPassword}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                 />
                 <Input
                   label="New Password"
                   type="password"
                   placeholder="••••••••"
+                  value={passwordData.newPassword}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                 />
                 <Input
                   label="Confirm New Password"
                   type="password"
                   placeholder="••••••••"
+                  value={passwordData.confirmPassword}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                 />
-                <Button>Update Password</Button>
+                <Button onClick={handleChangePassword} loading={saving}>Update Password</Button>
               </div>
             </Card>
 

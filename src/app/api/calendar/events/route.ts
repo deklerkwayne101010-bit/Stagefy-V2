@@ -58,8 +58,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    // Build query
-    let query = supabase
+    // Build query - use client with auth token for RLS
+    const token = authHeader.replace('Bearer ', '')
+    const supabaseWithAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+
+    let query = supabaseWithAuth
       .from('calendar_events')
       .select('*')
       .eq('user_id', user.id)
@@ -183,8 +188,13 @@ export async function POST(request: NextRequest) {
       priority: priority || 'normal'
     })
 
-    // Create the event
-    const { data: event, error } = await supabase
+    // Create the event - use client with auth token for RLS
+    const token = authHeader.replace('Bearer ', '')
+    const supabaseWithAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    })
+
+    const { data: event, error } = await supabaseWithAuth
       .from('calendar_events')
       .insert({
         user_id: user.id,

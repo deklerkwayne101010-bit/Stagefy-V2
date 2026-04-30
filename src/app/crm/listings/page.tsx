@@ -9,9 +9,25 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/lib/auth-context'
 
+// Helper to get auth headers for API calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { 'Content-Type': 'application/json' }
+}
+
 interface Listing {
   id: string
-  title: string
   address: string
   price: number
   description?: string
@@ -36,7 +52,6 @@ export default function ListingsPage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    title: '',
     address: '',
     price: '',
     description: '',
@@ -58,7 +73,8 @@ export default function ListingsPage() {
       if (filterStatus !== 'all') params.set('status', filterStatus)
       if (filterType !== 'all') params.set('property_type', filterType)
       
-      const response = await fetch(`/api/crm/listings?${params}`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`/api/crm/listings?${params}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setListings(data.listings || [])
@@ -84,7 +100,6 @@ export default function ListingsPage() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      title: '',
       address: '',
       price: '',
       description: '',
@@ -107,7 +122,6 @@ export default function ListingsPage() {
   const handleEdit = (listing: Listing) => {
     setEditingListing(listing)
     setFormData({
-      title: listing.title || '',
       address: listing.address || '',
       price: listing.price?.toString() || '',
       description: listing.description || '',
@@ -122,7 +136,7 @@ export default function ListingsPage() {
 
   // Save listing (create or update)
   const handleSave = async () => {
-    if (!formData.title || !formData.address) return
+    if (!formData.address) return
     
     setIsSaving(true)
     try {
@@ -132,12 +146,13 @@ export default function ListingsPage() {
       
       const method = editingListing ? 'PUT' : 'POST'
       
+      const headers = await getAuthHeaders()
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           ...formData,
-          price: formData.price ? parseFloat(formData.price) : null,
+          price: formData.price ? parseFloat(formData.price.replace(/[^0-9.]/g, '')) : null,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
           bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null
         })
@@ -164,8 +179,10 @@ export default function ListingsPage() {
     if (!confirm('Are you sure you want to delete this listing?')) return
     
     try {
+      const headers = await getAuthHeaders()
       const response = await fetch(`/api/crm/listings/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       })
       
       if (response.ok) {
@@ -249,8 +266,8 @@ export default function ListingsPage() {
                     <tr key={listing.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
-                          <p className="font-medium text-gray-900">{listing.title}</p>
-                          <p className="text-sm text-gray-500">{listing.address}</p>
+                          <p className="font-medium text-gray-900">{listing.address}</p>
+                          {listing.description && <p className="text-sm text-gray-500 truncate max-w-xs">{listing.description}</p>}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -306,14 +323,6 @@ export default function ListingsPage() {
               
               <div className="space-y-4">
                 <Input
-                  label="Title *"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g., Beautiful Family Home"
-                  required
-                />
-                
-                <Input
                   label="Address *"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -324,10 +333,10 @@ export default function ListingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="Price (ZAR)"
-                    type="number"
+                    type="text"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="e.g., 1500000"
+                    placeholder="e.g., 1,500,000"
                   />
                   <Select
                     label="Listing Type"

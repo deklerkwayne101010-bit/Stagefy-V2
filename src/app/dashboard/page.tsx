@@ -93,7 +93,15 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const response = await fetch('/api/dashboard/stats')
+        // Get auth token
+        const { supabase } = await import('@/lib/supabase')
+        const { data: { session } } = await supabase.auth.getSession()
+
+        const response = await fetch('/api/dashboard/stats', {
+          headers: session?.access_token
+            ? { 'Authorization': `Bearer ${session.access_token}` }
+            : {},
+        })
         if (response.ok) {
           const data = await response.json()
           setStats(data)
@@ -129,7 +137,7 @@ export default function DashboardPage() {
               </p>
               <p className="text-blue-100 text-base mt-2">
                 {stats?.subscriptionTier === 'free' 
-                  ? '50 free credits included' 
+                   ? '10 free credits included'
                   : `${stats?.subscriptionTier || user?.subscription_tier || 'Free'} plan - monthly credits`}
               </p>
             </div>

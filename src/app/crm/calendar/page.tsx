@@ -10,6 +10,23 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { useAuth } from '@/lib/auth-context'
 
+// Helper to get auth headers for API calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { 'Content-Type': 'application/json' }
+}
+
 // Event types with colors
 const EVENT_TYPES = {
   appointment: { label: 'Appointment', color: 'bg-purple-500', icon: '📅' },
@@ -115,18 +132,11 @@ export default function CalendarPage() {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59)
 
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session?.access_token) return
+      const headers = await getAuthHeaders()
 
       const response = await fetch(
         `/api/calendar/events?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        }
+        { headers }
       )
 
       if (response.ok) {
@@ -242,12 +252,10 @@ export default function CalendarPage() {
       console.log('Request body:', JSON.stringify(requestBody, null, 2))
       console.log('Auth token exists:', !!session?.access_token)
 
+      const headers = await getAuthHeaders()
       const response = await fetch('/api/calendar/events', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
@@ -313,12 +321,10 @@ export default function CalendarPage() {
         ? `${formData.end_date}T23:59:59`
         : `${formData.end_date}T${formData.end_time}:00`
 
+      const headers = await getAuthHeaders()
       const response = await fetch(`/api/calendar/events/${selectedEvent.id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
@@ -368,11 +374,10 @@ export default function CalendarPage() {
         return
       }
 
+      const headers = await getAuthHeaders()
       const response = await fetch(`/api/calendar/events/${selectedEvent.id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
+        headers
       })
 
       if (response.ok) {
@@ -552,9 +557,19 @@ export default function CalendarPage() {
 
       {/* Event Modal with Full Form */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <CardHeader title={selectedEvent ? 'Edit Event' : 'New Event'} />
+        <div className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEventModal(false)}>
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 pt-6">
+              <h2 className="text-lg font-semibold text-gray-900">{selectedEvent ? 'Edit Event' : 'New Event'}</h2>
+              <button
+                onClick={() => setShowEventModal(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <div className="p-4 space-y-4">
               {/* Error message */}
               {error && (
@@ -744,7 +759,7 @@ export default function CalendarPage() {
                 )}
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </div>

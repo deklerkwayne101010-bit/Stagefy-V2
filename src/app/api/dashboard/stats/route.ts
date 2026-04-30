@@ -1,13 +1,35 @@
 // Dashboard Stats API Endpoint
 // Fetches real user statistics for the dashboard
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
-import { supabase, getAdminClient } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+import { getAdminClient } from '@/lib/supabase'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 // Check if running in demo mode
 const isDemoMode =
   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch {
+    return null
+  }
+}
 
 interface DashboardStats {
   credits: number
@@ -32,14 +54,14 @@ interface DashboardStats {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Get current user
+    // Get current user from auth header
     let user: any = null
     
     if (!isDemoMode) {
       try {
-        user = await getCurrentUser()
+        user = await getUserFromAuthHeader(request)
       } catch (err) {
         console.error('Error getting user:', err)
       }
@@ -51,7 +73,7 @@ export async function GET() {
     }
 
     // Get the appropriate client
-    const client = getAdminClient() || supabase
+    const client = getAdminClient() || createClient(supabaseUrl, supabaseAnonKey)
 
     // Fetch all stats in parallel
     const [

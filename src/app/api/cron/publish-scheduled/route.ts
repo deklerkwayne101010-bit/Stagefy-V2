@@ -1,116 +1,211 @@
-// Cron job to auto-publish scheduled content
-// Triggered by Vercel Cron or external scheduler
-import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { refundCredits } from '@/lib/credits'
+// Cron Job: Auto-publish scheduled content
+// Runs every minute via Vercel Cron
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export const runtime = 'edge' // Use edge runtime for fast cold starts
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-export async function POST(request: Request) {
+// Use service role for cron job
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Max retry attempts before marking as failed
+const MAX_RETRIES = 3;
+
+export async function GET(request: Request) {
+  // Only allow Vercel Cron to access this endpoint
+  const cronSecret = request.headers.get('x-vercel-cron-secret');
+  const expectedSecret = process.env.CRON_SECRET;
+
+  if (process.env.NODE_ENV === 'production' && cronSecret !== expectedSecret) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
-    // Verify CRON_SECRET for security
-    const cronSecret = request.headers.get('x-cron-secret') || request.headers.get('cron-secret')
-    const expectedSecret = process.env.CRON_SECRET
+    console.log('🚀 Publish cron job starting...');
 
-    if (!expectedSecret || cronSecret !== expectedSecret) {
-      console.error('Unauthorized cron attempt')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const now = new Date().toISOString()
-
-    // Fetch scheduled posts ready to publish (scheduled_for <= now, status='scheduled')
-    const { data: scheduledPosts, error: fetchError } = await supabase
+    // Find all scheduled posts that are due and haven't exceeded retry limit
+    const { data: duePosts, error: fetchError } = await supabase
       .from('content_calendar')
       .select('*')
-      .lte('scheduled_for', now)
       .eq('status', 'scheduled')
-      .order('scheduled_for', { ascending: true })
+      .lte('scheduled_date', new Date().toISOString())
+      .lte('publish_attempts', MAX_RETRIES - 1)
+      .order('scheduled_date', { ascending: true })
+      .limit(20); // Process max 20 at a time
 
     if (fetchError) {
-      console.error('Error fetching scheduled posts:', fetchError)
-      return NextResponse.json({ error: 'Failed to fetch scheduled posts' }, { status: 500 })
+      console.error('Error fetching scheduled posts:', fetchError);
+      return NextResponse.json(
+        { error: 'Failed to fetch scheduled posts' },
+        { status: 500 }
+      );
     }
 
-    if (!scheduledPosts || scheduledPosts.length === 0) {
+    if (!duePosts || duePosts.length === 0) {
+      console.log('✅ No posts due for publishing.');
       return NextResponse.json({
         success: true,
-        message: 'No scheduled posts to publish',
-        published: 0,
-        failed: 0,
-      })
+        processed: 0,
+        message: 'No posts due',
+      });
     }
 
-    const results = []
-    let successCount = 0
-    let failCount = 0
+    console.log(`📦 Processing ${duePosts.length} scheduled posts...`);
 
-    for (const entry of scheduledPosts) {
+    const results = {
+      total: duePosts.length,
+      published: 0,
+      failed: 0,
+      skipped: 0,
+    };
+
+    for (const post of duePosts) {
       try {
-        // Determine which platforms to publish to
-        const platformsToPublish = entry.platform === 'both'
+        console.log(`  📄 Publishing post: ${post.id} (${post.title})`);
+
+        // Check if social account is connected for required platform
+        const platforms = post.platform === 'both'
           ? ['facebook', 'instagram']
-          : [entry.platform]
+          : [post.platform];
 
-        // For 'both', verify both accounts exist before publishing
-        if (entry.platform === 'both') {
-          const { data: bothAccounts } = await supabase
-            .from('social_accounts')
-            .select('platform')
-            .eq('user_id', entry.user_id)
-            .in('platform', ['facebook', 'instagram'])
-            .eq('is_active', true)
+        let publishSuccess = true;
+        let publishedUrls: string[] = [];
 
-          const platformsFound = (bothAccounts || []).map((a: any) => a.platform)
-          if (!platformsFound.includes('facebook') || !platformsFound.includes('instagram')) {
-            throw new Error('Cannot publish to both platforms: one or both accounts not connected')
-          }
-        }
-
-        for (const pubPlatform of platformsToPublish) {
-          // Find active account
-          const { data: accounts } = await supabase
+        for (const platform of platforms) {
+          // Get social account
+          const { data: account } = await supabase
             .from('social_accounts')
             .select('*')
-            .eq('user_id', entry.user_id)
-            .eq('platform', pubPlatform)
+            .eq('user_id', post.user_id)
+            .eq('platform', platform)
             .eq('is_active', true)
-            .limit(1)
+            .single();
 
-          if (!accounts || accounts.length === 0) {
-            throw new Error(`No ${pubPlatform} account connected`)
+          if (!account) {
+            console.warn(`  ⚠️  No ${platform} account connected for user ${post.user_id}`);
+            publishSuccess = false;
+            continue;
           }
 
-          const account = accounts[0]
-
-          // Call Meta API to publish
-          if (pubPlatform === 'facebook') {
-            await publishToFacebook(entry, account)
-          } else {
-            await publishToInstagram(entry, account)
+          // Check if image exists
+          if (!post.generated_image_url) {
+            console.error(`  ❌ No image for post ${post.id}`);
+            publishSuccess = false;
+            continue;
           }
+
+          // Publish based on platform
+          let postUrl: string | null = null;
+
+          if (platform === 'facebook') {
+            // Facebook Graph API
+            const formData = new FormData();
+            formData.append('url', post.generated_image_url);
+            formData.append('caption', post.caption || '');
+            formData.append('published', 'true');
+
+            // Use stored access token
+            const fbResponse = await fetch(
+              `https://graph.facebook.com/v18.0/${account.page_id}/photos`,
+              {
+                method: 'POST',
+                // Note: In production, use Meta SDK or proper token management
+                // This is simplified - tokens expire and need refreshing
+                headers: {
+                  Authorization: `Bearer ${account.access_token}`,
+                },
+                body: formData,
+              }
+            );
+
+            const fbResult = await fbResponse.json();
+            if (!fbResponse.ok) {
+              throw new Error(`Facebook: ${fbResult.error?.message || 'Unknown error'}`);
+            }
+            postUrl = `https://www.facebook.com/${fbResult.id}`;
+          }
+
+          if (platform === 'instagram') {
+            // Instagram 2-step publish
+            // Step 1: Create container
+            const containerResponse = await fetch(
+              `https://graph.facebook.com/v18.0/${account.page_id}/media`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${account.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  image_url: post.generated_image_url,
+                  caption: post.caption || '',
+                  media_type: 'IMAGE',
+                }),
+              }
+            );
+
+            const containerResult = await containerResponse.json();
+            if (!containerResponse.ok) {
+              throw new Error(`Instagram container: ${containerResult.error?.message || 'Unknown error'}`);
+            }
+
+            // Step 2: Publish
+            const publishResponse = await fetch(
+              `https://graph.facebook.com/v18.0/${account.page_id}/media_publish`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${account.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  creation_id: containerResult.id,
+                }),
+              }
+            );
+
+            const publishResult = await publishResponse.json();
+            if (!publishResponse.ok) {
+              throw new Error(`Instagram publish: ${publishResult.error?.message || 'Unknown error'}`);
+            }
+            postUrl = `https://www.instagram.com/p/${publishResult.id}`;
+          }
+
+          publishedUrls.push(postUrl);
         }
 
-        // Mark as published
-        await supabase
-          .from('content_calendar')
-          .update({
-            status: 'published',
-            published_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', entry.id)
+        if (publishSuccess) {
+          // Update status to published
+          await supabase
+            .from('content_calendar')
+            .update({
+              status: 'published',
+              published_url: publishedUrls.join(', '),
+              publish_attempts: post.publish_attempts + 1,
+            })
+            .eq('id', post.id);
 
-        successCount++
-        results.push({ id: entry.id, success: true })
-
-        // Handle recurrence: create next occurrence if recurring
-        if (entry.is_recurring && entry.recurrence_rule) {
-          await createNextOccurrence(entry)
+          results.published++;
+          console.log(`  ✅ Published: ${post.id} → ${publishedUrls.join(', ')}`);
+        } else {
+          // Partial failure
+          await supabase
+            .from('content_calendar')
+            .update({
+              status: 'failed',
+              publish_error: 'One or more platforms failed to publish',
+              publish_attempts: post.publish_attempts + 1,
+            })
+            .eq('id', post.id);
+          results.failed++;
         }
 
       } catch (err: any) {
-        console.error(`Failed to publish entry ${entry.id}:`, err)
+        console.error(`  ❌ Error publishing post ${post.id}:`, err.message);
 
         // Mark as failed
         await supabase
@@ -118,145 +213,25 @@ export async function POST(request: Request) {
           .update({
             status: 'failed',
             publish_error: err.message,
-            updated_at: new Date().toISOString(),
+            publish_attempts: post.publish_attempts + 1,
           })
-          .eq('id', entry.id)
+          .eq('id', post.id);
 
-        // Refund 5 credits
-        await refundCredits(entry.user_id, 'template_generation', `cron-publish-${entry.id}`)
-
-        failCount++
-        results.push({ id: entry.id, success: false, error: err.message })
+        results.failed++;
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Cron job completed: ${successCount} published, ${failCount} failed`,
-      published: successCount,
-      failed: failCount,
-      results,
-    })
+      ...results,
+      message: `Processed ${results.total} posts: ${results.published} published, ${results.failed} failed`,
+    });
 
-  } catch (error) {
-    console.error('Cron publish error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error: any) {
+    console.error('Cron job error:', error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
-}
-
-// Facebook publishing logic
-async function publishToFacebook(entry: any, account: any) {
-  const pageId = account.account_id
-  const pageAccessToken = account.access_token
-
-  const message = entry.caption + '\n\n' + (entry.callToAction || '')
-
-  const response = await fetch(
-    `https://graph.facebook.com/v18.0/${pageId}/feed?access_token=${pageAccessToken}&message=${encodeURIComponent(message)}`,
-    { method: 'POST' }
-  )
-
-  const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data.error?.message || 'Facebook publish failed')
-  }
-
-  // Insert analytics
-  await supabase.from('content_analytics').insert({
-    content_calendar_id: entry.id,
-    platform: 'facebook',
-    date: new Date().toISOString().split('T')[0],
-    impressions: 0,
-    reach: 0,
-    engagements: 0,
-    likes: 0,
-    comments: 0,
-    shares: 0,
-  })
-
-  return data.id
-}
-
-// Instagram publishing logic
-async function publishToInstagram(entry: any, account: any) {
-  const igUserId = account.account_id
-  const pageAccessToken = account.access_token
-
-  const caption = entry.caption + '\n\n' + (entry.callToAction || '')
-
-  // Step 1: Create media container
-  const mediaResponse = await fetch(
-    `https://graph.facebook.com/v18.0/${igUserId}/media?access_token=${pageAccessToken}`,
-    {
-      method: 'POST',
-      body: new URLSearchParams({
-        image_url: entry.image_url || '',
-        caption: caption,
-      }),
-    }
-  )
-
-  const mediaData = await mediaResponse.json()
-  if (!mediaResponse.ok) {
-    throw new Error(mediaData.error?.message || 'Instagram media creation failed')
-  }
-
-  const creationId = mediaData.id
-
-  // Step 2: Publish
-  const publishResponse = await fetch(
-    `https://graph.facebook.com/v18.0/${igUserId}/media_publish?access_token=${pageAccessToken}`,
-    {
-      method: 'POST',
-      body: new URLSearchParams({ creation_id: creationId }),
-    }
-  )
-
-  const publishData = await publishResponse.json()
-  if (!publishResponse.ok) {
-    throw new Error(publishData.error?.message || 'Instagram publish failed')
-  }
-
-  // Insert analytics
-  await supabase.from('content_analytics').insert({
-    content_calendar_id: entry.id,
-    platform: 'instagram',
-    date: new Date().toISOString().split('T')[0],
-    impressions: 0,
-    reach: 0,
-    engagements: 0,
-    likes: 0,
-    comments: 0,
-    shares: 0,
-  })
-
-  return publishData.id
-}
-
-// Create next occurrence for recurring posts
-async function createNextOccurrence(entry: any) {
-  // Simple recurrence: weekly or monthly based on recurrence_rule (iCal format)
-  // For MVP, we'll infer from recurrence_rule or add 7 days if not specified
-  const nextDate = new Date(entry.scheduled_for)
-  nextDate.setDate(nextDate.getDate() + 7) // default weekly recurrence
-
-  if (entry.recurrence_end_date && nextDate > new Date(entry.recurrence_end_date)) {
-    // Recurrence ended
-    return
-  }
-
-  await supabase.from('content_calendar').insert({
-    user_id: entry.user_id,
-    title: entry.title,
-    caption: entry.caption,
-    image_url: entry.image_url,
-    platform: entry.platform,
-    scheduled_for: nextDate.toISOString(),
-    status: 'scheduled',
-    is_recurring: true,
-    recurrence_rule: entry.recurrence_rule,
-    recurrence_end_date: entry.recurrence_end_date,
-    visual_type: entry.visual_type,
-  })
 }

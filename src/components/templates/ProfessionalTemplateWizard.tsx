@@ -1,6 +1,6 @@
 // ProfessionalTemplateWizard Component
 // Multi-step wizard for professional template creation
-// Step 1: Photo Frames → Step 2: Upload Photos → Step 3: Agent Profile → Step 4: Property Details → Generate Prompt
+// Step 1: Photo Frames → Step 2: Upload Photos → Step 3: Agent Profile → Step 4: Style → Step 5: Property Details
 
 'use client'
 
@@ -8,6 +8,7 @@ import React, { useState, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
+import { StyleSelector, colorSchemes } from './StyleSelector'
 
 interface PropertyDetails {
   header: string
@@ -35,11 +36,12 @@ interface ProfessionalTemplateWizardProps {
     includeAgent: boolean
     propertyDetails: PropertyDetails
     generatedPrompt?: GeneratedPrompt
+    selectedColors?: string[]
   }) => void
   hasAgentProfile?: boolean  // Whether user has a saved agent profile
 }
 
-type WizardStep = 'frames' | 'upload' | 'agent' | 'details'
+type WizardStep = 'frames' | 'upload' | 'agent' | 'style' | 'details'
 
 export function ProfessionalTemplateWizard({
   isOpen,
@@ -52,6 +54,7 @@ export function ProfessionalTemplateWizard({
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState<boolean>(false)
   const [includeAgent, setIncludeAgent] = useState<boolean>(hasAgentProfile)
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [propertyDetails, setPropertyDetails] = useState<PropertyDetails>({
     header: '',
     price: '',
@@ -62,8 +65,6 @@ export function ProfessionalTemplateWizard({
     squareMeters: '',
     propertyType: '',
   })
-  const [isGenerating, setIsGenerating] = useState<boolean>(false)
-  const [generatedPrompt, setGeneratedPrompt] = useState<GeneratedPrompt | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
@@ -159,57 +160,23 @@ export function ProfessionalTemplateWizard({
     } else if (step === 'upload') {
       setStep('agent')
     } else if (step === 'agent') {
+      setStep('style')
+    } else if (step === 'style') {
       setStep('details')
     }
   }
 
-  const handleGeneratePrompt = async () => {
-    setIsGenerating(true)
-    
-    try {
-      // Call the API to generate the prompt using Replicate AI
-      const response = await fetch('/api/ai/template/generate-prompt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          photoFrames,
-          includeAgent,
-          propertyDetails,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate prompt')
-      }
-
-      const data = await response.json()
-      
-      setGeneratedPrompt(data)
-      
-      // Complete the wizard with the generated prompt and uploaded images
-      onComplete({
-        photoFrames,
-        uploadedImages,  // Pass the uploaded image URLs
-        includeAgent,
-        propertyDetails,
-        generatedPrompt: data,
-      })
-      onClose()
-    } catch (error) {
-      console.error('Error generating prompt:', error)
-      // Still complete with the data, but without the generated prompt
-      onComplete({
-        photoFrames,
-        uploadedImages,
-        includeAgent,
-        propertyDetails,
-      })
-      onClose()
-    } finally {
-      setIsGenerating(false)
-    }
+  // Complete wizard - let page.tsx build the full prompt from wizard data
+  const handleComplete = () => {
+    onComplete({
+      photoFrames,
+      uploadedImages,
+      includeAgent,
+      propertyDetails,
+      generatedPrompt: undefined,
+      selectedColors
+    })
+    onClose()
   }
 
   const handleBack = () => {
@@ -217,8 +184,10 @@ export function ProfessionalTemplateWizard({
       setStep('frames')
     } else if (step === 'agent') {
       setStep('upload')
-    } else if (step === 'details') {
+    } else if (step === 'style') {
       setStep('agent')
+    } else if (step === 'details') {
+      setStep('style')
     }
   }
 
@@ -230,6 +199,7 @@ export function ProfessionalTemplateWizard({
     { key: 'frames', label: 'Photo Frames' },
     { key: 'upload', label: 'Upload Photos' },
     { key: 'agent', label: 'Agent Profile' },
+    { key: 'style', label: 'Style' },
     { key: 'details', label: 'Property Details' },
   ]
 
@@ -505,6 +475,28 @@ export function ProfessionalTemplateWizard({
               </div>
             )}
 
+            {/* Step: Style */}
+            {step === 'style' && (
+              <div>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl flex items-center justify-center mb-4">
+                    <span className="text-3xl">🎨</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Choose Your Style
+                  </h3>
+                  <p className="text-gray-500">
+                    Pick a color scheme or create custom colors
+                  </p>
+                </div>
+
+                <StyleSelector 
+                  selectedColors={selectedColors}
+                  onSelectColors={setSelectedColors}
+                />
+              </div>
+            )}
+
             {/* Step 3: Property Details */}
             {step === 'details' && (
               <div>
@@ -552,7 +544,7 @@ export function ProfessionalTemplateWizard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Price
+                        Price *
                       </label>
                       <Input
                         placeholder="e.g., R2,950,000"
@@ -562,7 +554,7 @@ export function ProfessionalTemplateWizard({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Location
+                        Location *
                       </label>
                       <Input
                         placeholder="e.g., Sandton, Johannesburg"
@@ -576,7 +568,7 @@ export function ProfessionalTemplateWizard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Property Type
+                        Property Type *
                       </label>
                       <select
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -591,7 +583,7 @@ export function ProfessionalTemplateWizard({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Square Meters
+                        Square Meters *
                       </label>
                       <Input
                         placeholder="e.g., 250m²"
@@ -604,7 +596,7 @@ export function ProfessionalTemplateWizard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bedrooms
+                        Bedrooms *
                       </label>
                       <Input
                         placeholder="e.g., 4"
@@ -614,7 +606,7 @@ export function ProfessionalTemplateWizard({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Bathrooms
+                        Bathrooms *
                       </label>
                       <Input
                         placeholder="e.g., 3"
@@ -627,7 +619,7 @@ export function ProfessionalTemplateWizard({
                   {/* Key Features */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Key Features
+                      Key Features *
                     </label>
                     <Textarea
                       placeholder="Enter key features, one per line..."
@@ -657,11 +649,19 @@ export function ProfessionalTemplateWizard({
               </button>
               <button
                 type="button"
-                onClick={step === 'details' ? handleGeneratePrompt : handleNext}
+                onClick={step === 'details' ? handleComplete : handleNext}
                 disabled={
                   (step === 'upload' && uploadedImages.length < photoFrames) ||
-                  (step === 'details' && !propertyDetails.header.trim()) ||
-                  isGenerating
+                  (step === 'details' && (
+                    !propertyDetails.header.trim() || 
+                    !propertyDetails.price.trim() || 
+                    !propertyDetails.location.trim() ||
+                    !propertyDetails.propertyType ||
+                    !propertyDetails.bedrooms.trim() ||
+                    !propertyDetails.bathrooms.trim() ||
+                    !propertyDetails.squareMeters.trim() ||
+                    !propertyDetails.keyFeatures.trim()
+                  ))
                 }
                 className={`px-6 py-2 rounded-lg text-white font-medium transition-all ${
                   step === 'details' 
@@ -669,20 +669,12 @@ export function ProfessionalTemplateWizard({
                     : 'bg-blue-600 hover:bg-blue-700'
                 } disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
               >
-                {isGenerating ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Generating...
-                  </>
-                ) : step === 'details' ? (
+                {step === 'details' ? (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                    Generate Prompt
+                    Complete Wizard
                   </>
                 ) : step === 'upload' ? (
                   uploadedImages.length < photoFrames 

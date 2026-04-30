@@ -1,6 +1,29 @@
 // CRM Activities API Route
 import { NextResponse } from 'next/server'
-import { supabase, getCurrentUser } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch { return null }
+}
+
+function getSupabaseClient(request: Request) {
+  const authHeader = request.headers.get('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '')
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  })
+}
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +34,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50')
 
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     if (!user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -20,7 +43,7 @@ export async function GET(request: Request) {
     }
 
     // Build query
-    let query = supabase
+    let query = getSupabaseClient(request)
       .from('crm_activities')
       .select(`
         *,
@@ -55,20 +78,20 @@ export async function GET(request: Request) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const { count: todayCount } = await supabase
+    const { count: todayCount } = await getSupabaseClient(request)
       .from('crm_activities')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gte('created_at', today.toISOString())
 
-    const { count: callsCount } = await supabase
+    const { count: callsCount } = await getSupabaseClient(request)
       .from('crm_activities')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('activity_type', 'call')
       .gte('created_at', today.toISOString())
 
-    const { count: emailsCount } = await supabase
+    const { count: emailsCount } = await getSupabaseClient(request)
       .from('crm_activities')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
@@ -116,7 +139,7 @@ export async function POST(request: Request) {
     }
 
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     if (!user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -125,7 +148,7 @@ export async function POST(request: Request) {
     }
 
     // Insert activity
-    const { data: activity, error } = await supabase
+    const { data: activity, error } = await getSupabaseClient(request)
       .from('crm_activities')
       .insert({
         user_id: user.id,
@@ -153,7 +176,7 @@ export async function POST(request: Request) {
     // Update last_contacted_at on contact if this is a communication activity
     const communicationTypes = ['call', 'email', 'sms', 'whatsapp', 'meeting', 'showing']
     if (contact_id && communicationTypes.includes(activity_type)) {
-      await supabase
+      await getSupabaseClient(request)
         .from('crm_contacts')
         .update({ last_contacted_at: new Date().toISOString() })
         .eq('id', contact_id)
@@ -162,14 +185,14 @@ export async function POST(request: Request) {
 
     // Increment inquiry_count on listing if inbound inquiry
     if (listing_id && direction === 'inbound') {
-      const { data: listing } = await supabase
+      const { data: listing } = await getSupabaseClient(request)
         .from('crm_listings')
         .select('inquiry_count')
         .eq('id', listing_id)
         .single()
       
       if (listing) {
-        await supabase
+        await getSupabaseClient(request)
           .from('crm_listings')
           .update({ inquiry_count: (listing.inquiry_count || 0) + 1 })
           .eq('id', listing_id)

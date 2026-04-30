@@ -11,7 +11,7 @@ export const demoUsers: User[] = [
     market: 'New York',
     use_case: 'all',
     role: 'agent',
-    credits: 50,
+        credits: 10,
     subscription_tier: 'free',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

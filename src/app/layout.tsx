@@ -16,7 +16,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Stagefy - AI-Powered Real Estate Media",
-  description: "Professional real estate photos, videos, and templates powered by AI",
+  description: "Elevate Your Listings. Simplify Your Success. AI-powered real estate media tools.",
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

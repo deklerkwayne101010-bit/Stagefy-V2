@@ -26,18 +26,18 @@ export async function checkUserCredits(userId: string): Promise<number> {
 
   if (error) {
     console.error('Error fetching user credits:', error, 'UserId:', userId, 'isAdmin:', isAdmin)
-    // If profile doesn't exist, return 50 credits as fallback
-    return 50
+    // If profile doesn't exist, return 10 credits as fallback
+    return 10
   }
 
-  // User not found - return 50 credits as fallback for new users
+  // User not found - return 10 credits as fallback for new users
   if (!user) {
-    console.warn('User profile not found in users table:', userId, '- returning 50 credits as fallback (isAdmin:', isAdmin + ')')
-    return 50
+    console.warn('User profile not found in users table:', userId, '- returning 10 credits as fallback (isAdmin:', isAdmin + ')')
+    return 10
   }
 
   console.log('User credits:', userId, 'credits:', user.credits)
-  return (user as User).credits || 50
+  return typeof user.credits === 'number' ? user.credits : 10
 }
 
 // Check if user can perform an AI action (based solely on credit balance)
@@ -73,10 +73,11 @@ export async function canPerformAction(userId: string, creditCost: number): Prom
 export async function reserveCredits(
   userId: string,
   operation: CreditOperation,
-  projectId: string
+  projectId: string,
+  customAmount?: number
 ): Promise<{ success: boolean; error?: string; creditsReserved?: number }> {
   const { client, isAdmin } = getCreditClient()
-  const creditCost = CREDIT_COSTS[operation]
+  const creditCost = customAmount ?? CREDIT_COSTS[operation]
   
   // Check current balance
   const currentCredits = await checkUserCredits(userId)
@@ -127,10 +128,11 @@ export async function reserveCredits(
 export async function refundCredits(
   userId: string,
   operation: CreditOperation,
-  projectId: string
+  projectId: string,
+  customAmount?: number
 ): Promise<{ success: boolean; error?: string }> {
   const { client } = getCreditClient()
-  const creditCost = CREDIT_COSTS[operation]
+  const creditCost = customAmount ?? CREDIT_COSTS[operation]
   const currentCredits = await checkUserCredits(userId)
 
   // Log the refund
@@ -215,7 +217,7 @@ export async function addCredits(
 // Get credit transaction history for a user
 export async function getCreditHistory(
   userId: string,
-  limit = 50
+  limit = 10
 ): Promise<{ data: any[]; error: any }> {
   const { data, error } = await (supabase.from as any)('credit_transactions')
     .select('*')

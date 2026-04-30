@@ -1,163 +1,216 @@
 'use client'
 
-'use client'
+import React, { useState, useEffect, useCallback } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { useAuth } from '@/lib/auth-context';
+import ContentPlannerWizard from '@/components/content/ContentPlannerWizard';
+import { showToast } from '@/lib/toast';
 
-import React, { useEffect, useState, useCallback } from 'react'
-import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction'
-import dynamic from 'next/dynamic'
-import { Header } from '@/components/layout/Header'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { useToast } from '@/lib/toast'
-
-// Dynamically import ContentPlannerWizard to avoid SSR issues
-const ContentPlannerWizard = dynamic(() => import('@/components/content/ContentPlannerWizard'), {
-  ssr: false,
-})
-
-// Interface for calendar event
-interface CalendarEvent {
-  id: string
-  title: string
-  start: string
-  allDay?: boolean
-  extendedProps: {
-    caption: string
-    platform: 'facebook' | 'instagram' | 'both'
-    status: string
-    visual_type?: string | null
-    image_url?: string | null
-  }
-}
-
-// Interface for API response
 interface CalendarEntry {
-  id: string
-  title: string
-  caption: string
-  image_url: string | null
-  platform: string
-  scheduled_for: string
-  status: string
-  visual_type: string | null
+  id: string;
+  title: string;
+  content_type: string;
+  platform: 'facebook' | 'instagram' | 'both';
+  caption: string;
+  hashtags: string[];
+  generated_image_url: string | null;
+  scheduled_date: string;
+  status: 'scheduled' | 'published' | 'failed' | 'cancelled' | 'draft';
+  published_url: string | null;
+  publish_error: string | null;
 }
 
 export default function CalendarPage() {
-  const { toast } = useToast()
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [showWizard, setShowWizard] = useState(false)
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const [entries, setEntries] = useState<CalendarEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showWizard, setShowWizard] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [connectedAccounts, setConnectedAccounts] = useState<{
+    facebook?: boolean;
+    instagram?: boolean;
+  }>({});
 
   // Fetch calendar entries
   const fetchEntries = useCallback(async () => {
     try {
-      const res = await fetch('/api/content/calendar')
-      if (res.ok) {
-        const data = await res.json()
-        const formatted = (data.data || []).map((entry: CalendarEntry) => ({
-          id: entry.id,
-          title: entry.title,
-          start: entry.scheduled_for,
-          allDay: true,
-          extendedProps: {
-            caption: entry.caption,
-            platform: entry.platform as 'facebook' | 'instagram' | 'both',
-            status: entry.status,
-            visual_type: entry.visual_type,
-            image_url: entry.image_url,
-          },
-        }))
-        setEvents(formatted)
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.push('/login?redirect=/calendar');
+        return;
+      }
+
+      const response = await fetch('/api/content/calendar', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEntries(data.entries || []);
       }
     } catch (error) {
-      console.error('Failed to fetch calendar:', error)
-      toast('Failed to load calendar', 'error')
+      console.error('Error fetching calendar:', error);
     } finally {
-      setIsLoading(false)
+      setLoading(false);
     }
-  }, [toast])
+  }, [router]);
+
+  // Fetch connected accounts
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) return;
+
+      const response = await fetch('/api/social/accounts', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const accounts = data.accounts || [];
+        setConnectedAccounts({
+          facebook: accounts.some((a: any) => a.platform === 'facebook'),
+          instagram: accounts.some((a: any) => a.platform === 'instagram'),
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchEntries()
-  }, [fetchEntries])
+    fetchEntries();
+    fetchAccounts();
+  }, [fetchEntries, fetchAccounts]);
 
-  // Handle event click
-  const handleEventClick = (info: any) => {
-    const { event } = info
-    const props = event.extendedProps
-
-    // Simple confirmation to delete or edit
-    const confirmMsg = `"${event.title}"\nPlatform: ${props.platform}\nStatus: ${props.status}\n\nDelete this post?`
-    if (confirm(confirmMsg)) {
-      deleteEntry(event.id)
-    }
-  }
-
-  // Delete calendar entry
-  const deleteEntry = async (id: string) => {
+  // Handle wizard completion
+  const handleWizardComplete = async (plan: any) => {
     try {
-      const res = await fetch(`/api/content/calendar/${id}`, {
-        method: 'DELETE',
-      })
-      if (res.ok) {
-        setEvents(prev => prev.filter(e => e.id !== id))
-        toast('Post deleted successfully', 'success')
-      } else {
-        toast('Failed to delete post', 'error')
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        showToast.error('Please login to continue');
+        return;
       }
+
+      // Create calendar entries for each post in plan
+      for (const post of plan.posts) {
+        await fetch('/api/content/calendar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            title: post.title,
+            content_type: post.category,
+            platform: post.platform,
+            caption: post.suggested_caption,
+            hashtags: post.hashtags,
+            template_type: post.visual_type,
+            template_prompt: post.visual_style_description,
+            scheduled_date: new Date(post.suggested_date).toISOString(),
+            is_recurring: post.is_recurring || false,
+            recurrence_pattern: post.recurrence_pattern || {},
+          }),
+        });
+      }
+
+      setShowWizard(false);
+      showToast.success(`Scheduled ${plan.posts.length} posts!`);
+      fetchEntries(); // Refresh calendar
     } catch (error) {
-      toast('Error deleting post', 'error')
+      console.error('Error creating plan:', error);
+      showToast.error('Failed to schedule posts');
     }
-  }
+  };
 
-  // Refresh after wizard completes
-  const handleWizardComplete = () => {
-    setShowWizard(false)
-    fetchEntries()
-    toast('Content plan created!', 'success')
-  }
+  // Custom event rendering
+  const eventContent = (eventInfo: any) => {
+    const platformColors = {
+      facebook: 'bg-blue-500',
+      instagram: 'bg-pink-500',
+      both: 'bg-purple-500',
+    };
 
-   // Color based on platform
-   const eventColor = (platform: string) => {
-     switch (platform) {
-       case 'facebook':
-         return '#1877F2' // Facebook blue
-       case 'instagram':
-         return '#E4405F' // Instagram pink
-       case 'both':
-         return '#8B5CF6' // Purple for both platforms
-       default:
-         return '#3b82f6'
-     }
-   }
+    const platform = eventInfo.event.extendedProps.platform as string;
+    const colorClass = platformColors[platform as keyof typeof platformColors] || 'bg-gray-500';
 
-  return (
-    <div className="p-8">
-      <Header title="Content Calendar" subtitle="Plan and schedule your social media posts" />
+    return (
+      <div className={`${colorClass} text-white p-1 rounded text-xs overflow-hidden`}>
+        <div className="font-bold truncate">{eventInfo.event.title}</div>
+        <div className="truncate opacity-80">{eventInfo.event.extendedProps.caption?.substring(0, 50)}...</div>
+      </div>
+    );
+  };
 
-      <div className="mt-6 flex justify-between items-center">
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setShowWizard(true)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            New Content Plan
-          </Button>
+  // Check if user can create content
+  const canCreateContent = connectedAccounts.facebook && connectedAccounts.instagram;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading calendar...</p>
         </div>
       </div>
+    );
+  }
 
-      <Card className="mt-6 p-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Content Calendar</h1>
+            <p className="text-gray-600">Plan and schedule your social media content</p>
           </div>
-        ) : (
+          <div className="flex items-center gap-4">
+            {/* Connected accounts status */}
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${connectedAccounts.facebook ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
+              <span className="text-sm text-gray-600">FB</span>
+              <div className={`w-3 h-3 rounded-full ${connectedAccounts.instagram ? 'bg-pink-500' : 'bg-gray-300'} ml-2`}></div>
+              <span className="text-sm text-gray-600">IG</span>
+            </div>
+
+            {!canCreateContent && (
+              <div className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
+                Connect FB & IG to publish
+              </div>
+            )}
+
+            <Button
+              onClick={() => setShowWizard(true)}
+              disabled={!canCreateContent}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              + Content Planner
+            </Button>
+          </div>
+        </div>
+
+        {/* Calendar */}
+        <Card className="p-6">
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
@@ -166,33 +219,66 @@ export default function CalendarPage() {
               center: 'title',
               right: 'dayGridMonth,timeGridWeek',
             }}
-            events={events}
-            eventClick={handleEventClick}
-            eventDidMount={(info) => {
-              // Add custom styling based on platform
-              const platform = info.event.extendedProps.platform
-              let color = '#3b82f6'
-              if (platform === 'facebook') color = '#1877F2'
-              if (platform === 'instagram') color = '#E4405F'
-              if (platform === 'both') color = '#8B5CF6'
-
-              info.el.style.backgroundColor = color
-              info.el.style.borderColor = color
-            }}
+            events={entries.map(entry => ({
+              id: entry.id,
+              title: entry.title,
+              start: entry.scheduled_date,
+              end: entry.scheduled_date,
+              extendedProps: {
+                platform: entry.platform,
+                caption: entry.caption,
+                status: entry.status,
+                published_url: entry.published_url,
+                publish_error: entry.publish_error,
+                generated_image_url: entry.generated_image_url,
+              },
+            }))}
+            eventContent={eventContent}
             height="auto"
-            aspectRatio={1.8}
+            editable={false}
+            selectable={true}
+            dateClick={(info) => {
+              setSelectedDate(info.date);
+            }}
+            eventClick={(info) => {
+              const entry = entries.find(e => e.id === info.event.id);
+              if (entry) {
+                showPostDetails(entry);
+              }
+            }}
           />
-        )}
-      </Card>
+        </Card>
 
-      {/* Wizards Modal */}
+        {/* Legend */}
+        <div className="mt-4 flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-blue-500"></div>
+            <span>Facebook</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-pink-500"></div>
+            <span>Instagram</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-purple-500"></div>
+            <span>Both</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content Planner Wizard Modal */}
       {showWizard && (
         <ContentPlannerWizard
-          isOpen={showWizard}
           onClose={() => setShowWizard(false)}
           onComplete={handleWizardComplete}
         />
       )}
     </div>
-  )
+  );
+}
+
+// Helper to show post details (toast for now, could be modal)
+function showPostDetails(entry: CalendarEntry) {
+  console.log('Post details:', entry);
+  // TODO: Implement detailed view modal
 }

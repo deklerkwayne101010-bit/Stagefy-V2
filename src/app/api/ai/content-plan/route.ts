@@ -1,291 +1,318 @@
-// API route for AI Content Plan Generation
-// Uses Replicate's GPT-4.1-nano to generate a month's worth of social media content ideas
-import { NextResponse } from 'next/server'
-import {
-  checkUserCredits,
-  reserveCredits,
-  refundCredits,
-  CREDIT_COSTS,
-  canPerformAction
-} from '@/lib/credits'
-import { getCurrentUser } from '@/lib/supabase'
+// AI Content Plan Generation API
+// Uses GPT-4.1-nano to generate diversified social media content plans
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 // Check if running in demo mode
-const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const isDemoMode =
+  !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+// Replicate model for content planning
+const REPLICATE_MODEL = 'openai/gpt-4.1-nano';
+
+interface GenerateContentPlanRequest {
+  duration: '1_week' | '2_weeks' | '1_month';
+  frequency: 'twice_week' | 'three_times_week' | 'daily' | 'weekdays_only';
+  topics?: string[]; // optional: ["buyers_guide", "market_update", ...]
+  platforms: string[]; // ['facebook', 'instagram'] or ['facebook'] or ['instagram']
+  start_date?: string; // ISO date
+  agent_profile?: {
+    name?: string;
+    agency?: string;
+    specialization?: string;
+    location?: string;
+  };
+}
+
+// Calculate number of posts based on duration and frequency
+function calculatePostCount(duration: string, frequency: string): number {
+  const days = {
+    '1_week': 7,
+    '2_weeks': 14,
+    '1_month': 30,
+  }[duration] || 7;
+
+  const postsPerWeek = {
+    'twice_week': 2,
+    'three_times_week': 3,
+    'daily': 7,
+    'weekdays_only': 5,
+  }[frequency] || 2;
+
+  return Math.ceil((days / 7) * postsPerWeek);
+}
 
 export async function POST(request: Request) {
   try {
-    const { duration, frequency, agentDetails } = await request.json()
+    const body: GenerateContentPlanRequest = await request.json();
 
     // Validate input
-    if (!duration || !['1w', '2w', '1mo'].includes(duration)) {
+    if (!body.duration || !body.frequency || !body.platforms?.length) {
       return NextResponse.json(
-        { error: 'Invalid duration. Must be one of: 1w, 2w, 1mo' },
+        { error: 'Missing required fields: duration, frequency, platforms' },
         { status: 400 }
-      )
+      );
     }
 
-    if (!frequency || !['2-3', 'daily'].includes(frequency)) {
-      return NextResponse.json(
-        { error: 'Invalid frequency. Must be one of: 2-3, daily' },
-        { status: 400 }
-      )
-    }
-
-    // Get user from auth
-    const user = await getCurrentUser()
-    if (!user?.id) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
-
-    const userId = user.id
-    const creditCost = CREDIT_COSTS.content_plan_generation
-
-    // Demo mode: return mock content plan
-    if (isDemoMode) {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      const mockPlan = generateMockPlan(duration, frequency)
-      return NextResponse.json({
-        plan: mockPlan,
-        creditsUsed: 0,
-        remainingCredits: 50,
-        demo: true,
-        demoMessage: 'Demo mode: Content plan generation requires Supabase and Replicate API configuration.',
-      })
-    }
-
-    // Check credits
-    const canPerform = await canPerformAction(userId, creditCost)
-    if (!canPerform.canPerform) {
-      return NextResponse.json(
-        { error: canPerform.error || 'Cannot perform action' },
-        { status: 402 }
-      )
-    }
-
-    // Reserve credits
-    const reservation = await reserveCredits(userId, 'content_plan_generation', `content-plan-${Date.now()}`)
-    if (!reservation.success) {
-      return NextResponse.json(
-        { error: reservation.error || 'Failed to reserve credits' },
-        { status: 402 }
-      )
-    }
-
+    // Get current user
+    let user: any = null;
     try {
-      // Calculate number of posts based on duration and frequency
-      const weeks = duration === '1w' ? 1 : duration === '2w' ? 2 : 4
-      const postsPerWeek = frequency === 'daily' ? 7 : 2.5 // 2-3 posts/week average to 2.5
-      const totalPosts = Math.round(weeks * postsPerWeek)
+      user = await getUserFromAuthHeader(request);
+      if (!user?.id) {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+    } catch (err) {
+      console.error('Error getting user:', err);
+    }
 
-      // Build agent context
-      const agentContext = agentDetails
-        ? `Agent details:
-- Name: ${agentDetails.name || 'Real Estate Agent'}
-- Brokerage: ${agentDetails.brokerage || 'Independent'}
-- Specialties: ${(agentDetails.specialties || []).join(', ') || 'General real estate'}
-- Target Market: ${agentDetails.targetMarket || 'Local buyers and sellers'}`
-        : 'Agent: Real estate agent serving local buyers and sellers'
+    // Check Replicate API token
+    const replicateToken = process.env.REPLICATE_API_TOKEN;
+    if (!replicateToken && !isDemoMode) {
+      return NextResponse.json(
+        { error: 'Replicate API not configured' },
+        { status: 500 }
+      );
+    }
 
-      // System prompt for content plan generation
-      const systemPrompt = `You are an expert social media strategist for real estate agents. Generate a comprehensive content calendar plan for a real estate agent.
+    // Calculate post count
+    const postCount = calculatePostCount(body.duration, body.frequency);
 
-CREDIT COST: 2 credits for the full plan (+ 5 credits per visual if auto-generated).`
+    // Build system prompt for GPT-4.1-nano
+    const systemPrompt = `You are an expert real estate social media strategist. Generate diverse, engaging social media post ideas for a real estate agent.
 
-      const userPrompt = `Create a ${duration} content plan with approximately ${totalPosts} social media posts (${frequency === 'daily' ? 'posting daily' : '2-3 posts per week'}).
+IMPORTANT: Return ONLY valid JSON, no other text.`;
 
-${agentContext}
+    // Build user prompt
+    const platformText = body.platforms.join(' and ');
+    const durationText = {
+      '1_week': '1 week',
+      '2_weeks': '2 weeks',
+      '1_month': '1 month',
+    }[body.duration];
 
-Generate exactly ${totalPosts} post ideas spanning diverse content types:
-1. Educational (buyer/seller guides, market updates, tips)
-2. Community-focused (local events, neighborhood highlights)
-3. Testimonial showcases
-4. Behind-the-scenes (day in the life, office culture)
-5. Property highlights (listings, open houses)
-6. Personal branding (agent introduction, values, awards)
-7. Interactive (polls, questions, user-generated content)
-8. Seasonal/holiday content
+    const frequencyText = {
+      'twice_week': '2 times per week',
+      'three_times_week': '3 times per week',
+      'daily': 'every day',
+      'weekdays_only': 'on weekdays only',
+    }[body.frequency];
 
-For EACH post, provide a JSON object with these exact fields:
-{
-  "title": "Short catchy title (3-8 words)",
-  "postType": "educational|community|testimonial|behind-the-scenes|listing|personal|interactive|seasonal",
-  "caption": " engaging caption (100-200 words with emojis)",
-  "hashtags": ["#hashtag1", "#hashtag2", ...] (8-12 relevant hashtags),
-  "visualType": "professional|agent_showcase|testimonial|listing_promo|community|custom",
-  "suggestedDay": 1-7 (relative day number within the first week, will be distributed across timeline),
-  "callToAction": "Clear CTA text (e.g., 'Comment your questions below', 'Book a free consultation')"
-}
+    const topicsFilter = body.topics?.length
+      ? `Focus on these content categories: ${body.topics.join(', ')}.`
+      : 'Create diverse content across all categories: educational (tips, market updates, buyer guides), community-focused (local events, neighborhood highlights), social proof (testimonials, success stories), personal branding (agent intro, achievements), and promotional (listings, open houses).';
+
+    const userPrompt = `Generate ${postCount} social media post ideas for a real estate agent.
+
+AGENT PROFILE:
+- Name: ${body.agent_profile?.name || 'Real Estate Agent'}
+- Agency: ${body.agent_profile?.agency || 'Real Estate Agency'}
+- Specialization: ${body.agent_profile?.specialization || 'General Real Estate'}
+- Location: ${body.agent_profile?.location || 'Local Area'}
+- Target audience: First-time homebuyers, investors, and local families
+
+CONTENT PLAN:
+- Duration: ${durationText}
+- Frequency: ${frequencyText}
+- Platforms: ${platformText}
+- ${topicsFilter}
+
+For EACH post idea, provide:
+1. title: Short catchy title (max 50 chars)
+2. description: 1-2 sentence summary of the post content
+3. category: One of [listing, market_update, testimonial, buyers_guide, open_house, community, tip, promo, personal_brand]
+4. suggested_caption: Full caption text with appropriate emojis, line breaks, and call-to-action. Keep it platform-appropriate (Instagram: shorter with emojis, Facebook: longer with engagement hooks)
+5. hashtags: Array of 10-15 relevant hashtags (include location-specific and real estate tags)
+6. visual_type: Which AI template type to use for the visual [professional, agent_showcase, testimonial, infographic, holiday]
+7. visual_style_description: Brief description of what the visual should look like (e.g., "Modern clean layout with property photo prominent", "Agent portrait with quote overlay", "Infographic with market stats")
+8. suggested_date: Date this post should be published (YYYY-MM-DD format) - spaced out according to frequency
 
 CRITICAL REQUIREMENTS:
-- Vary the visualType appropriately for each post type
-- Include South African real estate context where relevant
-- Use professional yet approachable tone
-- Captions should be engaging and encourage interaction
-- Hashtags should mix popular (#realestate) and niche (#CapeTownHomes) tags
-- NO markdown formatting, raw JSON only
+- Space posts evenly across the duration
+- Mix up categories (don't post same type consecutively)
+- Vary visual types for visual diversity
+- Include local flavor (mention local area, landmarks, events when relevant)
+- Make captions engaging and authentic (not salesy)
+- Include clear call-to-actions
+- Hashtags should be relevant and not repetitive
 
-Return a single JSON object:
+OUTPUT FORMAT (JSON only):
 {
-  "plan": [array of ${totalPosts} post objects as described above],
-  "summary": {
-    "totalPosts": ${totalPosts},
-    "duration": "${duration}",
-    "frequency": "${frequency}",
-    "postTypeBreakdown": {counts per type}
-  }
-}`
+  "plan": [
+    {
+      "title": "...",
+      "description": "...",
+      "category": "...",
+      "suggested_caption": "...",
+      "hashtags": ["#tag1", "#tag2", ...],
+      "visual_type": "professional",
+      "visual_style_description": "...",
+      "suggested_date": "2025-05-01"
+    },
+    ...
+  ],
+  "total_posts": N,
+  "duration": "1_week",
+  "platforms": ["facebook", "instagram"]
+}`;
 
-      // Call Replicate API for GPT-4.1-nano
-      const response = await fetch(
-        'https://api.replicate.com/v1/models/openai/gpt-4.1-nano/predictions',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'wait',
-          },
-          body: JSON.stringify({
-            input: {
-              top_p: 1,
-              prompt: userPrompt,
-              messages: [{ role: 'system', content: systemPrompt }],
-              image_input: [],
-              temperature: 0.8,
-              presence_penalty: 0,
-              frequency_penalty: 0,
-              max_completion_tokens: 8192,
-            },
-          }),
-        }
-      )
+    // Demo mode: return mock response
+    if (isDemoMode || !replicateToken) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      if (!response.ok) {
-        throw new Error('Failed to generate content plan')
+      // Generate mock plan
+      const mockPlan = [];
+      const startDate = body.start_date
+        ? new Date(body.start_date)
+        : new Date();
+
+      const categories = ['listing', 'market_update', 'testimonial', 'buyers_guide', 'community', 'tip', 'personal_brand'];
+      const visualTypes = ['professional', 'agent_showcase', 'testimonial', 'infographic'];
+
+      for (let i = 0; i < postCount; i++) {
+        const postDate = new Date(startDate);
+        postDate.setDate(startDate.getDate() + Math.floor(i * (30 / postCount)));
+
+        const category = categories[Math.floor(Math.random() * categories.length)];
+        const visualType = visualTypes[Math.floor(Math.random() * visualTypes.length)];
+
+        mockPlan.push({
+          title: `Post ${i + 1}: ${category.replace('_', ' ')}`,
+          description: `A engaging ${category.replace('_', ' ')} post perfect for your audience.`,
+          category,
+          suggested_caption: `🏠 Check out this amazing ${category.replace('_', ' ')}!\n\nPerfect for ${body.agent_profile?.name || 'real estate agents'} looking to engage with their audience. #RealEstate #HomeGoals`,
+          hashtags: ['#RealEstate', '#HomeGoals', '#DreamHome', '#Property', '#HouseHunting', '#LocationMatters'],
+          visual_type: visualType,
+          visual_style_description: `Professional ${visualType} template with modern design and clear typography.`,
+          suggested_date: postDate.toISOString().split('T')[0],
+        });
       }
-
-      const prediction = await response.json()
-      console.log('GPT-4.1-nano content plan response:', prediction)
-
-      // Parse the output
-      let output = prediction.output
-
-      // Handle different output formats
-      if (typeof output === 'string') {
-        // Extract JSON from string
-        const jsonMatch = output.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          try {
-            output = JSON.parse(jsonMatch[0])
-          } catch {
-            throw new Error('Failed to parse JSON from AI response')
-          }
-        } else {
-          throw new Error('No JSON found in AI response')
-        }
-      } else if (Array.isArray(output)) {
-        output = output[output.length - 1]
-      }
-
-      if (!output || !output.plan || !Array.isArray(output.plan)) {
-        throw new Error('Invalid response format from AI')
-      }
-
-      // Validate and normalize the plan
-      const validatedPlan = output.plan.map((post: any, index: number) => ({
-        title: post.title || `Post ${index + 1}`,
-        postType: post.postType || 'educational',
-        caption: post.caption || '',
-        hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
-        visualType: post.visualType || 'custom',
-        suggestedDay: Math.min(Math.max(post.suggestedDay || 1, 1), 7),
-        callToAction: post.callToAction || 'Share your thoughts in the comments!',
-      }))
 
       return NextResponse.json({
-        plan: validatedPlan,
-        summary: output.summary || {
-          totalPosts: validatedPlan.length,
-          duration,
-          frequency,
-          postTypeBreakdown: {}
-        },
-        creditsUsed: creditCost,
-        remainingCredits: await checkUserCredits(userId),
-      })
-
-    } catch (aiError: any) {
-      console.error('AI content plan generation error:', aiError)
-
-      // Refund credits on failure
-      await refundCredits(userId, 'content_plan_generation', `content-plan-${Date.now()}`)
-
-      return NextResponse.json(
-        { error: aiError.message || 'Failed to generate content plan' },
-        { status: 500 }
-      )
+        plan: mockPlan,
+        total_posts: postCount,
+        duration: body.duration,
+        platforms: body.platforms,
+        demo: true,
+      });
     }
 
-  } catch (error) {
-    console.error('Content plan generation error:', error)
+    // Call Replicate API
+    const response = await fetch(`https://api.replicate.com/v1/models/${REPLICATE_MODEL}/predictions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${replicateToken}`,
+        'Content-Type': 'application/json',
+        Prefer: 'wait=300',
+      },
+      body: JSON.stringify({
+        input: {
+          prompt: userPrompt,
+          system_prompt: systemPrompt,
+          top_p: 1,
+          temperature: 0.7,
+          max_completion_tokens: 4096,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Replicate API error:', response.status, errorText);
+      return NextResponse.json(
+        { error: 'Failed to generate content plan', details: errorText },
+        { status: 500 }
+      );
+    }
+
+    const prediction = await response.json();
+    console.log('Content plan prediction:', prediction);
+
+    // Parse output
+    let output = prediction.output;
+    if (typeof output === 'string') {
+      const jsonMatch = output.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          output = JSON.parse(jsonMatch[0]);
+        } catch {
+          console.error('Failed to parse JSON from output');
+        }
+      }
+    } else if (Array.isArray(output)) {
+      output = output[output.length - 1];
+    }
+
+    // Extract plan
+    let plan = [];
+    if (output?.plan) {
+      plan = output.plan;
+    } else if (typeof output === 'object') {
+      plan = Object.values(output)[0] || [];
+    }
+
+    // Validate plan structure
+    if (!Array.isArray(plan) || plan.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid plan format received from AI' },
+        { status: 500 }
+      );
+    }
+
+    // Ensure each post has required fields
+    const validatedPlan = plan.map((post: any, index: number) => {
+      const postDate = new Date(body.start_date || new Date());
+      postDate.setDate(postDate.getDate() + Math.floor(index * (30 / postCount)));
+
+      return {
+        title: post.title || `Post ${index + 1}`,
+        description: post.description || '',
+        category: post.category || 'tip',
+        suggested_caption: post.suggested_caption || '',
+        hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+        visual_type: post.visual_type || 'professional',
+        visual_style_description: post.visual_style_description || 'Professional real estate template',
+        suggested_date: post.suggested_date || postDate.toISOString().split('T')[0],
+      };
+    });
+
+    return NextResponse.json({
+      plan: validatedPlan,
+      total_posts: validatedPlan.length,
+      duration: body.duration,
+      platforms: body.platforms,
+    });
+
+  } catch (error: any) {
+    console.error('Content plan generation error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
-}
-
-// Helper function to generate mock content plan for demo/fallback
-function generateMockPlan(duration: string, frequency: string) {
-  const weeks = duration === '1w' ? 1 : duration === '2w' ? 2 : 4
-  const postsPerWeek = frequency === 'daily' ? 7 : 3
-  const totalPosts = weeks * postsPerWeek
-
-  const mockPosts = [
-    {
-      title: "5 Tips for First-Time Home Buyers in 2026",
-      postType: "educational",
-      caption: "Buying your first home? Here are 5 essential tips to make the process smooth and successful! 🏠✨",
-      hashtags: ["#FirstTimeHomeBuyer", "#HomeBuyingTips", "#RealEstateAdvice", "#PropertyTips", "#Homeownership"],
-      visualType: "buyer_guide",
-      suggestedDay: 1,
-      callToAction: "Save this post for later! Which tip would you add?"
-    },
-    {
-      title: "Market Update: This Month's Trends",
-      postType: "educational",
-      caption: "📊 Local market update: Inventory is up 15% and average days on market are down! Great news for buyers!",
-      hashtags: ["#MarketUpdate", "#RealEstateMarket", "#PropertyNews", "#HomePrices", "#MarketTrends"],
-      visualType: "professional",
-      suggestedDay: 3,
-      callToAction: "Questions about the market? Drop them below!"
-    },
-    {
-      title: "Happy Client Alert! 🎉",
-      postType: "testimonial",
-      caption: "Thrilled to help Sarah & John find their dream home! Their smiles say it all 😊",
-      hashtags: ["#ClientTestimonial", "#HappyClients", "#RealEstateSuccess", "#HomeSold", "#ClientLove"],
-      visualType: "testimonial",
-      suggestedDay: 5,
-      callToAction: "Ready to find your dream home? DM me!"
-    },
-  ]
-
-  // Duplicate and vary posts to reach totalPosts count
-  const plan = []
-  for (let i = 0; i < totalPosts; i++) {
-    const base = mockPosts[i % mockPosts.length]
-    plan.push({
-      ...JSON.parse(JSON.stringify(base)),
-      title: i < mockPosts.length ? base.title : `${base.title} (Part ${Math.floor(i/mockPosts.length)+1})`,
-      suggestedDay: ((i % 7) + 1)
-    })
-  }
-
-  return plan
 }

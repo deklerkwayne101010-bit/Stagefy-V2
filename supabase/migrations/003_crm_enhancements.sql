@@ -68,18 +68,22 @@ CREATE TABLE IF NOT EXISTS crm_tasks (
 ALTER TABLE crm_tasks ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for tasks
+DROP POLICY IF EXISTS "Users can view their own tasks" ON crm_tasks;
 CREATE POLICY "Users can view their own tasks" 
   ON crm_tasks FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own tasks" ON crm_tasks;
 CREATE POLICY "Users can insert their own tasks" 
   ON crm_tasks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own tasks" ON crm_tasks;
 CREATE POLICY "Users can update their own tasks" 
   ON crm_tasks FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own tasks" ON crm_tasks;
 CREATE POLICY "Users can delete their own tasks" 
   ON crm_tasks FOR DELETE
   USING (auth.uid() = user_id);
@@ -114,18 +118,22 @@ CREATE TABLE IF NOT EXISTS crm_activities (
 ALTER TABLE crm_activities ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for activities
+DROP POLICY IF EXISTS "Users can view their own activities" ON crm_activities;
 CREATE POLICY "Users can view their own activities" 
   ON crm_activities FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own activities" ON crm_activities;
 CREATE POLICY "Users can insert their own activities" 
   ON crm_activities FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own activities" ON crm_activities;
 CREATE POLICY "Users can update their own activities" 
   ON crm_activities FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own activities" ON crm_activities;
 CREATE POLICY "Users can delete their own activities" 
   ON crm_activities FOR DELETE
   USING (auth.uid() = user_id);

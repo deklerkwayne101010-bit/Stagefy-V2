@@ -8,6 +8,7 @@ import { useAuth, getDemoUsers } from '@/lib/auth-context'
 import { isDemoMode } from '@/lib/demo-users'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Logo } from '@/components/Logo'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -42,7 +43,17 @@ export default function LoginPage() {
       ]) as any
       
       if (authError) {
-        setError(authError.message || 'Login failed. Please try again.')
+        // Provide clear, user-friendly error messages
+        const msg = authError.message || ''
+        if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+          setError('Incorrect email or password. Please check your credentials and try again.')
+        } else if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+          setError('Please verify your email address before signing in. Check your inbox for a confirmation link.')
+        } else if (msg.includes('Too many requests') || msg.includes('rate_limit')) {
+          setError('Too many login attempts. Please wait a few minutes and try again.')
+        } else {
+          setError(msg || 'Login failed. Please try again.')
+        }
       } else {
         router.push('/dashboard')
       }
@@ -57,13 +68,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <Link href="/" className="flex items-center justify-center gap-3 mb-12">
-          <div className="w-12 h-12 bg-[#1A1A2E] rounded-xl flex items-center justify-center">
-            <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-            </svg>
-          </div>
-          <span className="text-2xl font-semibold text-[#1A1A2E]">Stagefy</span>
+        <Link href="/" className="flex justify-center mb-12">
+          <Logo size="lg" />
         </Link>
 
         {/* Demo Mode Banner */}

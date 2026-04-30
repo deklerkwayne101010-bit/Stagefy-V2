@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 
 export default function LandingPage() {
   return (
@@ -11,12 +12,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              </div>
-              <span className="text-xl font-bold text-slate-900">Stagefy</span>
+              <Logo size="sm" />
             </div>
             <div className="hidden md:flex items-center gap-8">
               <a href="#benefits" className="text-slate-600 hover:text-slate-900 transition-colors">Benefits</a>
@@ -45,7 +41,7 @@ export default function LandingPage() {
               AI-Powered Real Estate Media
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-              Make Your Listings Look <span className="text-gradient">Incredible</span> in Minutes
+              Elevate Your Listings. <span className="text-gradient">Simplify Your Success.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
               AI-powered photo edits, videos, and templates built specifically for real estate agents. No design skills needed.
@@ -58,7 +54,7 @@ export default function LandingPage() {
                 See How It Works
               </a>
             </div>
-            <p className="text-sm text-slate-500 mt-4">Free to try • No credit card required • 3 free edits</p>
+            <p className="text-sm text-slate-500 mt-4">Free to try • No credit card required • 10 free credits</p>
           </div>
           
           {/* Hero Visual */}
@@ -262,7 +258,7 @@ export default function LandingPage() {
                       <svg className="w-5 h-5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      3 free AI edits every month
+                      10 free credits to start
                     </li>
                     <li className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,7 +309,7 @@ export default function LandingPage() {
               Already a member? Log In
             </Link>
           </div>
-          <p className="text-sm text-blue-200 mt-4">No credit card required • 3 free edits • Cancel anytime</p>
+          <p className="text-sm text-blue-200 mt-4">No credit card required • 10 free credits • Buy more anytime</p>
         </div>
       </section>
 
@@ -322,13 +318,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                </div>
-                <span className="text-xl font-bold text-white">Stagefy</span>
+              <div className="mb-4">
+                <Logo size="md" className="[&_span]:text-white" />
               </div>
               <p className="text-sm">AI-powered media creation for real estate professionals.</p>
             </div>

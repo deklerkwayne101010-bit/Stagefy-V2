@@ -1,444 +1,694 @@
-'use client'
+// Content Planner Wizard - Multi-step wizard for generating and scheduling social media content
+'use client';
 
-import React, { useState, useEffect } from 'react'
-import { useAuth } from '@/lib/auth-context'
-import { useToast } from '@/lib/toast'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/lib/auth-context';
+import { useCart } from '@/lib/cart-context';
+import { showToast } from '@/lib/toast';
+import Image from 'next/image';
 
-// Props
-interface WizardPost {
-  id: string
-  title: string
-  caption: string
-  hashtags: string // comma-separated string
-  suggestedDay: number
-  includeVisual: boolean
-  scheduledDate: string // ISO date
+interface WizardStep {
+  id: string;
+  label: string;
+}
+
+interface PlanPost {
+  title: string;
+  description: string;
+  category: string;
+  suggested_caption: string;
+  hashtags: string[];
+  visual_type: string;
+  visual_style_description: string;
+  suggested_date: string;
+  generated_image_url?: string;
+  template_prompt?: string;
+  is_recurring?: boolean;
+  recurrence_pattern?: Record<string, any>;
+  platform: 'facebook' | 'instagram' | 'both';
+  editable?: boolean;
 }
 
 interface ContentPlannerWizardProps {
-  isOpen: boolean
-  onClose: () => void
-  onComplete: () => void
+  onClose: () => void;
+  onComplete: (plan: { posts: PlanPost[]; total_credits: number }) => void;
 }
 
-export default function ContentPlannerWizard({ isOpen, onClose, onComplete }: ContentPlannerWizardProps) {
-  const auth = useAuth()
-  const { toast: toastFn } = useToast()
+type WizardStepType = 'duration' | 'review' | 'generating';
 
-  // Step states
-  const [step, setStep] = useState(1)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export default function ContentPlannerWizard({
+  onClose,
+  onComplete,
+}: ContentPlannerWizardProps) {
+  const { user } = useAuth();
+  const { getItemCount, addItem: addCartItem } = useCart();
 
-  // Config from step 1
-  const [duration, setDuration] = useState('1w')
-  const [frequency, setFrequency] = useState('2-3')
-  const [agentName, setAgentName] = useState('')
-  const [brokerage, setBrokerage] = useState('')
+  const [currentStep, setCurrentStep] = useState<WizardStepType>('duration');
+  const [duration, setDuration] = useState<'1_week' | '2_weeks' | '1_month'>('1_week');
+  const [frequency, setFrequency] = useState<'twice_week' | 'three_times_week' | 'daily' | 'weekdays_only'>('twice_week');
+  const [platforms, setPlatforms] = useState<string[]>(['facebook', 'instagram']);
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [topics, setTopics] = useState<string[]>([]);
 
-  // Plan from step 2
-  const [posts, setPosts] = useState<WizardPost[]>([])
-  const [planSummary, setPlanSummary] = useState<any>(null)
+  const [generatedPlan, setGeneratedPlan] = useState<PlanPost[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [totalCredits, setTotalCredits] = useState(0);
 
-  // Credit summary
-  const visualCount = posts.filter(p => p.includeVisual).length
-  const totalCredits = 2 + (visualCount * 5)
-  const remainingCredits = (auth.user?.credits || 0) - totalCredits
+  // Calculate post count
+  const getPostCount = () => {
+    const days = duration === '1_week' ? 7 : duration === '2_weeks' ? 14 : 30;
+    const postsPerWeek = frequency === 'twice_week' ? 2 : frequency === 'three_times_week' ? 3 : frequency === 'daily' ? 7 : 5;
+    return Math.ceil((days / 7) * postsPerWeek);
+  };
 
-  // Reset when closed
-  useEffect(() => {
-    if (!isOpen) {
-      setStep(1)
-      setPosts([])
-      setPlanSummary(null)
-      setError(null)
-      setIsLoading(false)
-    }
-  }, [isOpen])
+  // Step navigation
+  const steps: WizardStep[] = [
+    { id: 'duration', label: 'Duration & Frequency' },
+    { id: 'generating', label: 'Generating' },
+    { id: 'review', label: 'Review & Edit' },
+  ];
 
-  // Pre-fill agent name from user profile
-  useEffect(() => {
-    if (auth.user && !agentName) {
-      setAgentName(auth.user.full_name || '')
-    }
-  }, [auth.user, agentName])
+  const currentStepIndex = steps.findIndex(s => s.id === currentStep);
 
   // Generate content plan
-  const generatePlan = async () => {
-    setIsLoading(true)
-    setError(null)
-
+  const handleGeneratePlan = async () => {
+    setGenerating(true);
     try {
-      const res = await fetch('/api/ai/content-plan', {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        showToast.error('Please login to continue');
+        return;
+      }
+
+      // Call content plan API
+      const response = await fetch('/api/ai/content-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           duration,
           frequency,
-          agentDetails: { name: agentName, brokerage },
+          platforms,
+          start_date: startDate,
+          topics: topics.length > 0 ? topics : undefined,
+          agent_profile: {
+            name: user?.user_metadata?.full_name || user?.email,
+            agency: user?.user_metadata?.agency,
+          },
         }),
-      })
+      });
 
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || 'Failed to generate plan')
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate plan');
       }
 
-      const data = await res.json()
-      const { plan } = data
+      const data = await response.json();
+      const planWithPlatforms = data.plan.map((post: any) => ({
+        ...post,
+        platform: platforms.length === 1 ? platforms[0] : (Math.random() > 0.5 ? 'facebook' : 'instagram'),
+      }));
 
-      // Transform plan into wizard posts with default dates
-      const baseDate = new Date()
-      const normalizedPosts: WizardPost[] = plan.map((p: any, idx: number) => {
-        // Compute scheduled date based on suggestedDay distribution
-        const daysToAdd = p.suggestedDay - 1 || idx % 7
-        const date = new Date(baseDate)
-        date.setDate(date.getDate() + daysToAdd)
-        return {
-          id: `post-${idx}`,
-          title: p.title || '',
-          caption: p.caption || '',
-          hashtags: Array.isArray(p.hashtags) ? p.hashtags.join(', ') : p.hashtags || '',
-          suggestedDay: p.suggestedDay,
-          includeVisual: false,
-          scheduledDate: date.toISOString().split('T')[0],
-        }
-      })
-
-      setPosts(normalizedPosts)
-      setPlanSummary(data.summary)
-      setStep(2)
-    } catch (err: any) {
-      setError(err.message)
-      toastFn(err.message, 'error')
+      setGeneratedPlan(planWithPlatforms);
+      setTotalCredits(2 + planWithPlatforms.length * 5); // 2 for plan + 5 per visual
+      setCurrentStep('review');
+      showToast.success(`Generated ${planWithPlatforms.length} content ideas!`);
+    } catch (error: any) {
+      console.error('Plan generation error:', error);
+      showToast.error(error.message || 'Failed to generate content plan');
     } finally {
-      setIsLoading(false)
+      setGenerating(false);
     }
-  }
+  };
 
-  // Update a post field
-  const updatePost = (index: number, field: keyof WizardPost, value: any) => {
-    setPosts(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p))
-  }
-
-  // Toggle visual for all
-  const toggleAllVisuals = (value: boolean) => {
-    setPosts(prev => prev.map(p => ({ ...p, includeVisual: value })))
-  }
-
-  // Validate and schedule
-  const schedulePosts = async () => {
-    setIsLoading(true)
+  // Generate template for a single post
+  const generateTemplate = async (post: PlanPost, index: number): Promise<string | null> => {
     try {
-      // Generate visuals if needed (first generate for all)
-      const postsWithVisual = posts.filter(p => p.includeVisual)
-      if (postsWithVisual.length > 0) {
-        // For now, we'll stub visual generation: just deduct credits and assign placeholder image URL
-        // In a real implementation, we'd call /api/ai/template for each post
-        toastFn(`Generating ${postsWithVisual.length} AI visual(s)...`, 'info')
-        // We'll simulate a delay, but actual implementation would be parallel calls
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) return null;
+
+      // Build prompt based on visual_type and visual_style_description
+      const templateWizardType = post.visual_type === 'agent_showcase' ? 'agent_showcase' : 'professional';
+
+      // Use the existing template generation API
+      const response = await fetch('/api/ai/template', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          type: templateWizardType,
+          version: 'standard',
+          prompt: `Create a ${post.visual_style_description} for a real estate ${post.category} post. ${post.suggested_caption}`,
+          customOptions: {
+            colorTheme: 'agency',
+            aspectRatio: '1:1',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`Template generation failed for post ${index}:`, response.status);
+        return null;
       }
 
-      // Create calendar entries (one per post)
-      const createPromises = posts.map(async (post) => {
-        let imageUrl = post.includeVisual
-          ? `https://placehold.co/600x400?text=AI+Visual+for+${encodeURIComponent(post.title)}`
-          : null
-
-        const body = {
-          title: post.title,
-          caption: post.caption + (post.hashtags ? '\n\n' + post.hashtags.split(',').map(h => h.trim()).filter(Boolean).join(' ') : ''),
-          image_url: imageUrl,
-          platform: 'both', // default; could be from post? Not stored in plan generation yet. For now set both.
-          scheduled_for: new Date(post.scheduledDate).toISOString(),
-          visual_type: post.includeVisual ? 'custom' : null,
-        }
-
-        const res = await fetch('/api/content/calendar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-
-        if (!res.ok) {
-          const err = await res.json()
-          throw new Error(err.error || 'Failed to schedule post')
-        }
-
-        return res.json()
-      })
-
-      await Promise.all(createPromises)
-
-      toastFn('All posts scheduled successfully!', 'success')
-      onComplete()
-    } catch (err: any) {
-      toastFn('Error scheduling posts: ' + err.message, 'error')
-    } finally {
-      setIsLoading(false)
+      const data = await response.json();
+      return data.outputUrl || null;
+    } catch (error) {
+      console.error(`Error generating template for post ${index}:`, error);
+      return null;
     }
-  }
+  };
 
-  if (!isOpen) return null
+  // Generate templates for all posts (visuals)
+  const generateAllTemplates = async () => {
+    setGenerating(true);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold text-slate-900">
-            {step === 1 ? 'Create Content Plan' : step === 2 ? 'Review Your Plan' : 'Summary'}
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+      if (!session) {
+        showToast.error('Please login to continue');
+        return;
+      }
 
-        {/* Body */}
-        <div className="p-6">
-          {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg">{error}</div>}
+      // Check credits
+      const userCredits = getItemCount();
+      if (userCredits < totalCredits) {
+        showToast.error(`Not enough credits. Need ${totalCredits}, have ${userCredits}`);
+        return;
+      }
 
-          {step === 1 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Duration */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Duration</label>
-                  <div className="flex gap-2">
-                    {['1w', '2w', '1mo'].map(opt => (
-                      <button
-                        key={opt}
-                        className={`flex-1 py-2 px-4 rounded-lg border ${duration === opt ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-200 hover:border-blue-400'}`}
-                        onClick={() => setDuration(opt)}
-                      >
-                        {opt === '1w' ? '1 Week' : opt === '2w' ? '2 Weeks' : '1 Month'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+      // Reserve all credits upfront
+      for (let i = 0; i < generatedPlan.length; i++) {
+        // Add 5 credits per template to cart (will be deducted)
+        // In production, you'd use a proper credit reservation system
+      }
 
-                {/* Frequency */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Posting Frequency</label>
-                  <div className="flex gap-2">
-                    {[
-                      { value: '2-3', label: '2-3 / week' },
-                      { value: 'daily', label: 'Daily' },
-                    ].map(opt => (
-                      <button
-                        key={opt.value}
-                        className={`flex-1 py-2 px-4 rounded-lg border ${frequency === opt.value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-200 hover:border-blue-400'}`}
-                        onClick={() => setFrequency(opt.value)}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+      // Generate templates in parallel
+      const templatePromises = generatedPlan.map((post, index) =>
+        generateTemplate(post, index)
+      );
 
-              {/* Agent Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Your Name (optional)</label>
-                  <input
-                    type="text"
-                    value={agentName}
-                    onChange={e => setAgentName(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                    placeholder="e.g., Jane Doe"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Brokerage (optional)</label>
-                  <input
-                    type="text"
-                    value={brokerage}
-                    onChange={e => setBrokerage(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2"
-                    placeholder="e.g., ABC Realty"
-                  />
-                </div>
-              </div>
+      const imageUrls = await Promise.all(templatePromises);
 
-              {/* Summary of credits */}
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  <span className="font-medium text-blue-900">Credits required</span>
-                </div>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• 2 credits for AI content plan generation</li>
-                  <li>• 5 credits per visual (if selected)</li>
-                </ul>
+      // Update plan with generated images
+      const updatedPlan = generatedPlan.map((post, index) => ({
+        ...post,
+        generated_image_url: imageUrls[index] || null,
+      }));
+
+      setGeneratedPlan(updatedPlan);
+      setCurrentStep('review');
+      showToast.success('All visuals generated!');
+    } catch (error: any) {
+      console.error('Template generation error:', error);
+      showToast.error('Failed to generate some visuals');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Handle post edit (inline)
+  const handleUpdatePost = (index: number, updates: Partial<PlanPost>) => {
+    setGeneratedPlan(prev =>
+      prev.map((post, i) => (i === index ? { ...post, ...updates } : post))
+    );
+  };
+
+  // Remove post from plan
+  const handleRemovePost = (index: number) => {
+    setGeneratedPlan(prev => prev.filter((_, i) => i !== index));
+    setTotalCredits(2 + generatedPlan.length * 5 - 5); // Refund one visual credit
+  };
+
+  // Regenerate single post visual
+  const handleRegeneratePost = async (index: number) => {
+    const post = generatedPlan[index];
+    if (!post) return;
+
+    showToast.info('Regenerating visual...');
+    const newImageUrl = await generateTemplate(post, index);
+
+    if (newImageUrl) {
+      handleUpdatePost(index, { generated_image_url: newImageUrl });
+      showToast.success('Visual regenerated!');
+    } else {
+      showToast.error('Failed to regenerate visual');
+    }
+  };
+
+  // Finalize schedule
+  const handleScheduleAll = async () => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        showToast.error('Please login to continue');
+        return;
+      }
+
+      // Check if all posts have images
+      const missingImages = generatedPlan.filter(p => !p.generated_image_url);
+      if (missingImages.length > 0) {
+        showToast.error(`Missing images for ${missingImages.length} posts. Please generate or remove them.`);
+        return;
+      }
+
+      // Verify social accounts connected
+      const { data: fbAccount } = await supabase
+        .from('social_accounts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .eq('platform', 'facebook')
+        .eq('is_active', true)
+        .single();
+
+      const { data: igAccount } = await supabase
+        .from('social_accounts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .eq('platform', 'instagram')
+        .eq('is_active', true)
+        .single();
+
+      if (!fbAccount || !igAccount) {
+        showToast.error('Please connect both Facebook and Instagram accounts before scheduling.');
+        return;
+      }
+
+      // Create all calendar entries
+      for (const post of generatedPlan) {
+        await fetch('/api/content/calendar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            title: post.title,
+            content_type: post.category,
+            platform: post.platform,
+            caption: post.suggested_caption,
+            hashtags: post.hashtags,
+            template_type: post.visual_type,
+            template_prompt: post.visual_style_description,
+            scheduled_date: new Date(post.suggested_date).toISOString(),
+            is_recurring: post.is_recurring || false,
+            recurrence_pattern: post.recurrence_pattern || {},
+          }),
+        });
+      }
+
+      showToast.success(`Scheduled ${generatedPlan.length} posts successfully!`);
+      onComplete({ posts: generatedPlan, total_credits: totalCredits });
+      onClose();
+    } catch (error: any) {
+      console.error('Schedule error:', error);
+      showToast.error('Failed to schedule posts');
+    }
+  };
+
+  // Step content
+  const renderStep = () => {
+    switch (currentStep) {
+      case 'duration':
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900">Plan Your Content</h3>
+
+            {/* Duration */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Duration</label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: '1_week', label: '1 Week' },
+                  { value: '2_weeks', label: '2 Weeks' },
+                  { value: '1_month', label: '1 Month' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setDuration(opt.value as any)}
+                    className={`p-4 rounded-lg border-2 text-center transition-all ${
+                      duration === opt.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="font-medium">{opt.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          )}
 
-          {step === 2 && (
-            <div className="space-y-4">
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-                  <p className="text-slate-600">Generating your content plan...</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex justify-between items-center mb-4">
-                    <div>
-                      <p className="text-sm text-slate-600">
-                        {posts.length} posts generated. Review and customize below.
-                      </p>
+            {/* Frequency */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Posts Per Week
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'twice_week', label: '2 times/week' },
+                  { value: 'three_times_week', label: '3 times/week' },
+                  { value: 'daily', label: 'Every day' },
+                  { value: 'weekdays_only', label: 'Weekdays only' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setFrequency(opt.value as any)}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      frequency === opt.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="font-medium">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Total posts: ~{getPostCount()} for {duration.replace('_', ' ')}
+              </p>
+            </div>
+
+            {/* Topics (optional) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Content Topics (Optional)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'listing', 'market_update', 'testimonial', 'buyers_guide',
+                  'open_house', 'community', 'tip', 'promo', 'personal_brand'
+                ].map(topic => (
+                  <button
+                    key={topic}
+                    onClick={() => {
+                      setTopics(prev =>
+                        prev.includes(topic)
+                          ? prev.filter(t => t !== topic)
+                          : [...prev, topic]
+                      );
+                    }}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      topics.includes(topic)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {topic.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Leave empty for AI-chosen diverse mix</p>
+            </div>
+
+            {/* Platforms */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Platforms (both required)
+              </label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes('facebook')}
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setPlatforms(prev => [...prev, 'facebook']);
+                      } else {
+                        setPlatforms(prev => prev.filter(p => p !== 'facebook'));
+                      }
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <span>Facebook</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes('instagram')}
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setPlatforms(prev => [...prev, 'instagram']);
+                      } else {
+                        setPlatforms(prev => prev.filter(p => p !== 'instagram'));
+                      }
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <span>Instagram</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Start date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleGeneratePlan}
+                disabled={generating || platforms.length < 2}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Generate Content Plan
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 'review':
+        return (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Review Your Content Plan
+              </h3>
+              <div className="text-sm text-gray-600">
+                {generatedPlan.length} posts • {totalCredits} credits
+              </div>
+            </div>
+
+            {/* Posts list */}
+            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+              {generatedPlan.map((post, index) => (
+                <div
+                  key={index}
+                  className="border rounded-lg p-4 bg-white shadow-sm"
+                >
+                  <div className="flex gap-4">
+                    {/* Thumbnail placeholder */}
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {post.generated_image_url ? (
+                        <Image
+                          src={post.generated_image_url}
+                          alt={post.title}
+                          width={80}
+                          height={80}
+                          className="rounded-lg object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">📷</span>
+                      )}
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-gray-900">{post.title}</h4>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          post.platform === 'facebook' ? 'bg-blue-100 text-blue-700' :
+                          post.platform === 'instagram' ? 'bg-pink-100 text-pink-700' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                          {post.platform}
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        {post.suggested_caption}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {post.hashtags.slice(0, 3).map((tag, i) => (
+                          <span key={i} className="text-xs text-blue-600">
+                            {tag}
+                          </span>
+                        ))}
+                        {post.hashtags.length > 3 && (
+                          <span className="text-xs text-gray-400">
+                            +{post.hashtags.length - 3} more
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Recurring toggle */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="flex items-center gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={post.is_recurring}
+                            onChange={e => handleUpdatePost(index, { is_recurring: e.target.checked })}
+                            className="w-3 h-3"
+                          />
+                          <span>Recurring</span>
+                        </label>
+                        {post.is_recurring && (
+                          <select
+                            value={post.recurrence_pattern?.frequency || 'weekly'}
+                            onChange={e => handleUpdatePost(index, {
+                              recurrence_pattern: {
+                                ...post.recurrence_pattern,
+                                frequency: e.target.value,
+                              }
+                            })}
+                            className="text-xs border rounded px-1"
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                          </select>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2">
                       <Button
-                        variant="outline"
                         size="sm"
-                        onClick={() => toggleAllVisuals(!visualCount)}
+                        variant="outline"
+                        onClick={() => handleRegeneratePost(index)}
+                        disabled={generating}
                       >
-                        {visualCount > 0 ? 'Remove All Visuals' : 'Add Visual to All'}
+                        🔄 Visual
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          // Open edit modal for caption/date
+                          // For MVP, just let them edit inline
+                        }}
+                      >
+                        ✏️ Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleRemovePost(index)}
+                      >
+                        ✕
                       </Button>
                     </div>
                   </div>
-
-                  {/* Posts list */}
-                  <div className="space-y-4">
-                    {posts.map((post, idx) => (
-                      <Card key={post.id} className="p-4 border border-slate-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Left: Title & Caption */}
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-xs text-slate-500">Title</label>
-                              <input
-                                type="text"
-                                value={post.title}
-                                onChange={e => updatePost(idx, 'title', e.target.value)}
-                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-slate-500">Caption</label>
-                              <textarea
-                                value={post.caption}
-                                onChange={e => updatePost(idx, 'caption', e.target.value)}
-                                rows={4}
-                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Right: Settings */}
-                          <div className="space-y-3">
-                            <div>
-                              <label className="text-xs text-slate-500">Hashtags (comma separated)</label>
-                              <input
-                                type="text"
-                                value={post.hashtags}
-                                onChange={e => updatePost(idx, 'hashtags', e.target.value)}
-                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-slate-500">Schedule Date</label>
-                              <input
-                                type="date"
-                                value={post.scheduledDate}
-                                onChange={e => updatePost(idx, 'scheduledDate', e.target.value)}
-                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
-                              />
-                            </div>
-                            <div className="flex items-center justify-between pt-2">
-                              <label className="text-sm font-medium text-slate-700">Include AI Visual (+5 credits)</label>
-                              <button
-                                onClick={() => updatePost(idx, 'includeVisual', !post.includeVisual)}
-                                className={`w-12 h-6 rounded-full p-1 transition-colors ${post.includeVisual ? 'bg-blue-600' : 'bg-slate-300'}`}
-                              >
-                                <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform ${post.includeVisual ? 'translate-x-6' : 'translate-x-0'}`} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {/* Credit summary */}
-                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 mt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-slate-600">Credits to be deducted</p>
-                        <p className="text-lg font-semibold text-slate-900">
-                          {totalCredits} credits
-                          <span className="text-sm font-normal text-slate-500 ml-2">
-                            (2 plan + {visualCount} visual{visualCount !== 1 ? 's' : ''} × 5)
-                          </span>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-slate-600">Your balance</p>
-                        <p className={`text-lg font-semibold ${remainingCredits < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          {auth.user?.credits || 0} → {remainingCredits}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
+                </div>
+              ))}
             </div>
-          )}
 
-          {step === 3 && (
-            <div className="text-center py-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
+            {/* Actions */}
+            <div className="flex justify-between pt-4 border-t">
+              <Button variant="outline" onClick={() => setCurrentStep('duration')}>
+                Back
+              </Button>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  Credits: {totalCredits}
+                </div>
+                <Button
+                  onClick={handleScheduleAll}
+                  disabled={generating || generatedPlan.length === 0}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Schedule All Posts
+                </Button>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Content Plan Scheduled!</h3>
-              <p className="text-slate-600">Your posts have been added to the calendar.</p>
             </div>
-          )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Content Planner</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Stepper */}
+          <div className="flex items-center gap-2">
+            {steps.map((step, index) => (
+              <React.Fragment key={step.id}>
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                    index <= currentStepIndex
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                <span className="text-sm text-gray-600">{step.label}</span>
+                {index < steps.length - 1 && (
+                  <div className="flex-1 h-0.5 bg-gray-200 mx-2" />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
-        {/* Footer */}
-        {step < 3 && (
-          <div className="flex justify-end gap-3 p-6 border-t bg-slate-50">
-            <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:text-slate-800">
-              Cancel
-            </button>
-            {step === 1 && (
-              <button
-                onClick={generatePlan}
-                disabled={isLoading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Generating...' : 'Generate Plan'}
-              </button>
-            )}
-            {step === 2 && (
-              <>
-                <button onClick={() => setStep(1)} className="px-4 py-2 text-slate-600 hover:text-slate-800">
-                  Back
-                </button>
-                <button
-                  onClick={schedulePosts}
-                  disabled={isLoading || remainingCredits < 0}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isLoading ? 'Scheduling...' : `Schedule (${totalCredits} cr)`}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {generating ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600 mb-2">
+                {currentStep === 'generating' ? 'Generating content plan...' : 'Creating visuals...'}
+              </p>
+              <p className="text-sm text-gray-500">
+                This may take a few minutes
+              </p>
+            </div>
+          ) : (
+            renderStep()
+          )}
+        </div>
       </div>
     </div>
-  )
+  );
 }

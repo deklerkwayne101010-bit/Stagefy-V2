@@ -8,6 +8,39 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 
+interface ShopProduct {
+  id: string
+  name: string
+  description: string
+  price: number
+  sale_price: number | null
+  category: string
+  status: string
+  image_url: string | null
+  color?: string
+  size?: string
+  sku?: string
+  stock_quantity?: number
+  brand?: string
+  weight?: string
+}
+
+interface ShopOrder {
+  id: string
+  user_id: string
+  product_id: string
+  quantity: number
+  total_amount: number
+  status: string
+  customer_email: string
+  customer_name: string
+  created_at: string
+  shop_products?: {
+    name: string
+    credits_included: number | null
+  }
+}
+
 interface UserUsageStats {
   userId: string
   email: string
@@ -29,8 +62,217 @@ interface Totals {
   totalCreditsSpentLastMonth: number
 }
 
+function OrdersTab() {
+  const [orders, setOrders] = useState<ShopOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'pending' | 'paid' | 'completed'>('all')
+
+  useEffect(() => {
+    fetchOrders()
+  }, [filter])
+
+  const fetchOrders = async () => {
+    setLoading(true)
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) return
+
+      let url = '/api/shop/orders?status=all'
+      
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      })
+      const data = await response.json()
+      
+      if (data.orders) {
+        setOrders(data.orders)
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) return
+
+      const response = await fetch('/api/shop/orders', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ id: orderId, status: newStatus }),
+      })
+
+      if (response.ok) {
+        fetchOrders()
+      }
+    } catch (error) {
+      console.error('Failed to update order:', error)
+    }
+  }
+
+  const filteredOrders = filter === 'all' 
+    ? orders 
+    : orders.filter(o => o.status === filter)
+
+  const pendingOrders = orders.filter(o => o.status === 'pending').length
+  const paidOrders = orders.filter(o => o.status === 'paid' || o.status === 'completed').length
+  const totalRevenue = orders
+    .filter(o => o.status === 'paid' || o.status === 'completed')
+    .reduce((sum, o) => sum + Number(o.total_amount), 0)
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-yellow-50">
+          <p className="text-sm text-yellow-700">Pending Orders</p>
+          <p className="text-2xl font-bold text-yellow-900 mt-1">{pendingOrders}</p>
+        </Card>
+        <Card className="bg-green-50">
+          <p className="text-sm text-green-700">Completed Orders</p>
+          <p className="text-2xl font-bold text-green-900 mt-1">{paidOrders}</p>
+        </Card>
+        <Card className="bg-blue-50">
+          <p className="text-sm text-blue-700">Total Revenue</p>
+          <p className="text-2xl font-bold text-blue-900 mt-1">R{totalRevenue.toLocaleString()}</p>
+        </Card>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {['all', 'pending', 'paid', 'completed'].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f as typeof filter)}
+            className={`px-4 py-2 rounded-lg font-medium capitalize ${
+              filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader title="Shop Orders" />
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No orders found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="px-4 py-3 text-sm font-mono">{order.id.slice(0, 8)}...</td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900">{order.customer_name}</div>
+                      <div className="text-sm text-gray-500">{order.customer_email}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {order.shop_products?.name || 'Unknown'}
+                      {order.shop_products?.credits_included && (
+                        <span className="ml-2 text-green-600">+{order.shop_products.credits_included} credits</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium">R{order.total_amount}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant={
+                          order.status === 'completed' || order.status === 'paid' ? 'success' :
+                          order.status === 'pending' ? 'warning' :
+                          order.status === 'cancelled' ? 'danger' : 'secondary'
+                        }
+                      >
+                        {order.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        {order.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateOrderStatus(order.id, 'paid')}
+                          >
+                            Mark Paid
+                          </Button>
+                        )}
+                        {order.status === 'paid' && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateOrderStatus(order.id, 'completed')}
+                          >
+                            Complete
+                          </Button>
+                        )}
+                        {order.status !== 'cancelled' && order.status !== 'completed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  )
+}
+
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'usage'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'usage' | 'orders' | 'products'>('overview')
+  const [products, setProducts] = useState<ShopProduct[]>([])
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null)
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    description: '',
+    price: 0,
+    sale_price: 0,
+    category: 'other',
+    status: 'active',
+    image_url: '',
+    // Additional fields
+    color: '',
+    size: '',
+    sku: '',
+    stock_quantity: 0,
+    brand: '',
+    weight: '',
+  })
   const [userUsage, setUserUsage] = useState<UserUsageStats[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)
   const [loading, setLoading] = useState(false)
@@ -50,7 +292,14 @@ export default function AdminPage() {
         params.set('endDate', customEndDate)
       }
 
-      const response = await fetch(`/api/admin/usage?${params.toString()}`)
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const response = await fetch(`/api/admin/usage?${params.toString()}`, {
+        headers: session?.access_token
+          ? { 'Authorization': `Bearer ${session.access_token}` }
+          : {},
+      })
       const data = await response.json()
 
       if (data.users) {
@@ -69,6 +318,17 @@ export default function AdminPage() {
       fetchUsageStats()
     }
   }, [activeTab, fetchUsageStats])
+
+  useEffect(() => {
+    if (activeTab === 'products') {
+      fetch('/api/shop/products')
+        .then(res => res.json())
+        .then(data => {
+          if (data.products) setProducts(data.products)
+        })
+        .catch(console.error)
+    }
+  }, [activeTab])
 
   const filteredUsers = userUsage.filter(user => 
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -95,7 +355,7 @@ export default function AdminPage() {
       <div className="p-6">
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
-          {['overview', 'users', 'usage'].map((tab) => (
+          {['overview', 'users', 'usage', 'orders', 'products'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
@@ -412,7 +672,7 @@ export default function AdminPage() {
                 {['free', 'basic', 'pro', 'enterprise'].map((tier) => {
                   const tierUsers = userUsage.filter(u => u.subscriptionTier === tier)
                   const tierSpent = tierUsers.reduce((sum, u) => sum + u.creditsSpentThisMonth, 0)
-                  const tierLimit = tier === 'free' ? 50 : tier === 'basic' ? 200 : tier === 'pro' ? 500 : 1500
+                  const tierLimit = tier === 'free' ? 10 : tier === 'basic' ? 200 : tier === 'pro' ? 500 : 1500
                   const percentage = tierLimit > 0 ? Math.min((tierSpent / (tierLimit * tierUsers.length || 1)) * 100, 100) : 0
                   
                   return (
@@ -471,6 +731,250 @@ export default function AdminPage() {
                   )}
                 </div>
               </div>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'orders' && (
+          <OrdersTab />
+        )}
+
+        {activeTab === 'products' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Manage Products</h2>
+              <Button onClick={() => { setShowAddProduct(true); setEditingProduct(null) }}>
+                Add Product
+              </Button>
+            </div>
+
+            {showAddProduct && (
+              <Card>
+                <CardHeader title={editingProduct ? 'Edit Product' : 'Add Product'} />
+                <div className="space-y-6">
+                  {/* Basic Info */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm text-gray-600 mb-1">Product Name *</label>
+                        <Input placeholder="Enter product name" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm text-gray-600 mb-1">Description</label>
+                        <textarea placeholder="Product description..." value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} className="w-full px-3 py-2 border rounded-lg" rows={3} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">SKU / Product Code</label>
+                        <Input placeholder="e.g., PROD-001" value={newProduct.sku} onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Brand</label>
+                        <Input placeholder="Brand name" value={newProduct.brand} onChange={(e) => setNewProduct({...newProduct, brand: e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pricing */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Pricing</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Regular Price (R) *</label>
+                        <Input type="number" placeholder="0" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Sale Price (R)</label>
+                        <Input type="number" placeholder="0" value={newProduct.sale_price} onChange={(e) => setNewProduct({...newProduct, sale_price: Number(e.target.value)})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Inventory */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Inventory</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Stock Quantity</label>
+                        <Input type="number" placeholder="0" value={newProduct.stock_quantity} onChange={(e) => setNewProduct({...newProduct, stock_quantity: Number(e.target.value)})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Status</label>
+                        <select className="w-full px-3 py-2 border rounded-lg" value={newProduct.status} onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}>
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                          <option value="draft">Draft</option>
+                          <option value="out_of_stock">Out of Stock</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Product Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Color</label>
+                        <Input placeholder="e.g., Red, Blue, Black" value={newProduct.color} onChange={(e) => setNewProduct({...newProduct, color: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Size</label>
+                        <Input placeholder="e.g., Small, Medium, Large" value={newProduct.size} onChange={(e) => setNewProduct({...newProduct, size: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Weight</label>
+                        <Input placeholder="e.g., 500g" value={newProduct.weight} onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Category</label>
+                        <select className="w-full px-3 py-2 border rounded-lg" value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}>
+                          <option value="other">Other</option>
+                          <option value="credits">Credits</option>
+                          <option value="subscription">Subscription</option>
+                          <option value="service">Service</option>
+                          <option value="merchandise">Merchandise</option>
+                          <option value="clothing">Clothing</option>
+                          <option value="accessories">Accessories</option>
+                          <option value="promo">Promotional</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Image */}
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Product Image</h3>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Image URL</label>
+                      <Input placeholder="https://example.com/image.jpg" value={newProduct.image_url} onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})} />
+                      <p className="text-xs text-gray-500 mt-1">Paste a URL to an image (from Supabase Storage, Google Drive, etc.)</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button onClick={async () => {
+                    try {
+                      const { supabase } = await import('@/lib/supabase')
+                      const { data: { session } } = await supabase.auth.getSession()
+                      if (!session) {
+                        alert('Please login')
+                        return
+                      }
+                      
+                      const url = editingProduct ? '/api/shop/products' : '/api/shop/products'
+                      const method = editingProduct ? 'PUT' : 'POST'
+                      const payload = editingProduct ? { id: editingProduct.id, ...newProduct } : newProduct
+                      
+                      console.log('Saving product:', payload)
+                      
+                      const response = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                        body: JSON.stringify(payload),
+                      })
+                      
+                      const resData = await response.json()
+                      console.log('Save response:', resData)
+                      
+                      if (response.ok) {
+                        alert(editingProduct ? 'Product updated!' : 'Product added!')
+                        setShowAddProduct(false)
+                        setEditingProduct(null)
+                        setNewProduct({ name: '', description: '', price: 0, sale_price: 0, category: 'other', status: 'active', image_url: '', color: '', size: '', sku: '', stock_quantity: 0, brand: '', weight: '' })
+                        // Refresh products
+                        const res = await fetch('/api/shop/products')
+                        const data = await res.json()
+                        if (data.products) setProducts(data.products)
+                      } else {
+                        alert(resData.error || 'Failed to save product')
+                      }
+                    } catch (e: any) { 
+                      console.error(e)
+                      alert('Error: ' + (e?.message || 'Unknown error'))
+                    }
+                  }}>
+                    {editingProduct ? 'Update' : 'Add'}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowAddProduct(false); setEditingProduct(null) }}>
+                    Cancel
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            <Card>
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Name</th>
+                    <th className="px-4 py-2 text-left">Price</th>
+                    <th className="px-4 py-2 text-left">Status</th>
+                    <th className="px-4 py-2 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map(p => (
+                    <tr key={p.id} className="border-t">
+                      <td className="px-4 py-2">{p.name}</td>
+                      <td className="px-4 py-2">R{p.sale_price || p.price}</td>
+                      <td className="px-4 py-2"><Badge variant={p.status === 'active' ? 'success' : 'secondary'}>{p.status}</Badge></td>
+                      <td className="px-4 py-2">
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setEditingProduct(p)
+                            setNewProduct({ 
+                              name: p.name || '', 
+                              description: p.description || '', 
+                              price: p.price || 0, 
+                              sale_price: p.sale_price || 0, 
+                              category: p.category || 'other', 
+                              status: p.status || 'active', 
+                              image_url: p.image_url || '',
+                              color: (p as any).color || '',
+                              size: (p as any).size || '',
+                              sku: (p as any).sku || '',
+                              stock_quantity: (p as any).stock_quantity || 0,
+                              brand: (p as any).brand || '',
+                              weight: (p as any).weight || ''
+                            })
+                            setShowAddProduct(true)
+                          }}>Edit</Button>
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            if (!confirm('Are you sure you want to delete this product?')) return
+                            try {
+                              const { supabase } = await import('@/lib/supabase')
+                              const { data: { session } } = await supabase.auth.getSession()
+                              if (!session) {
+                                alert('Please login as admin')
+                                return
+                              }
+                              const response = await fetch(`/api/shop/products?id=${p.id}`, { 
+                                method: 'DELETE', 
+                                headers: { 'Authorization': `Bearer ${session.access_token}` } 
+                              })
+                              const resData = await response.json()
+                              console.log('Delete response:', resData)
+                              if (response.ok) {
+                                alert('Product deleted!')
+                                // Refresh the list
+                                const res = await fetch('/api/shop/products')
+                                const data = await res.json()
+                                if (data.products) setProducts(data.products)
+                              } else {
+                                alert(resData.error || 'Failed to delete product')
+                              }
+                            } catch (e) { 
+                              console.error(e)
+                              alert('Error deleting product')
+                            }
+                          }}>Delete</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </Card>
           </div>
         )}

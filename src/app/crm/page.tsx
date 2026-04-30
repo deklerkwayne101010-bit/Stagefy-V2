@@ -9,6 +9,23 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/lib/auth-context'
 
+// Helper to get auth headers for API calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { 'Content-Type': 'application/json' }
+}
+
 interface Contact {
   id: string
   name: string
@@ -21,7 +38,6 @@ interface Contact {
 
 interface Listing {
   id: string
-  title: string
   address: string
   price: number
   status: string
@@ -48,8 +64,10 @@ export default function CRMPage() {
     
     setIsLoading(true)
     try {
+      const headers = await getAuthHeaders()
+
       // Fetch contacts
-      const contactsRes = await fetch('/api/crm/contacts?limit=5')
+      const contactsRes = await fetch('/api/crm/contacts?limit=5', { headers })
       if (contactsRes.ok) {
         const contactsData = await contactsRes.json()
         setRecentContacts(contactsData.contacts || [])
@@ -57,7 +75,7 @@ export default function CRMPage() {
       }
 
       // Fetch listings
-      const listingsRes = await fetch('/api/crm/listings?limit=5')
+      const listingsRes = await fetch('/api/crm/listings?limit=5', { headers })
       if (listingsRes.ok) {
         const listingsData = await listingsRes.json()
         const listings = listingsData.listings || []
@@ -252,7 +270,7 @@ export default function CRMPage() {
                   <div key={listing.id} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-medium text-gray-900">{listing.title || listing.address}</p>
+                        <p className="font-medium text-gray-900">{listing.address}</p>
                         <p className="text-sm text-gray-500 mt-1">
                           {listing.bedrooms && `${listing.bedrooms} bed`}
                           {listing.bedrooms && listing.bathrooms && ' • '}

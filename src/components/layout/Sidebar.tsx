@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { CreditBadge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
+import { Logo } from '@/components/Logo'
 
 const navigation = [
   {
@@ -55,6 +56,15 @@ const navigation = [
     ),
   },
   {
+    name: 'Content Planner',
+    href: '/calendar',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
     name: 'CRM',
     href: '/crm',
     icon: (
@@ -92,7 +102,7 @@ const navigation = [
     href: '/settings',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37.724-1.724-1.066-2.572-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     ),
@@ -103,6 +113,30 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user } = useAuth()
   const [expandedItems, setExpandedItems] = useState<string[]>(['CRM'])
+  const [freshCredits, setFreshCredits] = useState<number | null>(null)
+
+  // Fetch fresh credits from database on mount
+  React.useEffect(() => {
+    async function fetchCredits() {
+      if (!user?.id) return
+      try {
+        const { supabase } = await import('@/lib/supabase')
+        const { data } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('id', user.id)
+          .single()
+        if (data?.credits !== undefined) {
+          setFreshCredits(data.credits)
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchCredits()
+  }, [user?.id])
+
+  const credits = freshCredits ?? (user?.credits || 0)
 
   const toggleExpand = (name: string) => {
     setExpandedItems(prev => 
@@ -116,19 +150,14 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-100 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-slate-100">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <span className="text-xl font-bold text-slate-900">Stagefy</span>
+        <Link href="/dashboard" className="flex items-center">
+          <Logo size="md" />
         </Link>
       </div>
 
       {/* Credit Balance */}
       <div className="px-4 py-4">
-        <CreditBadge credits={user?.credits || 0} />
+        <CreditBadge credits={credits} />
       </div>
 
       {/* Navigation */}

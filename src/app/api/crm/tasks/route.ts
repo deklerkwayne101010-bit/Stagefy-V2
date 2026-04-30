@@ -1,12 +1,29 @@
 // CRM Tasks API Route
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 
-// Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch { return null }
+}
+
+function getSupabaseClient(request: Request) {
+  const authHeader = request.headers.get('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '')
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  })
+}
 
 export async function GET(request: Request) {
   try {
@@ -17,7 +34,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50')
 
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     if (!user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -26,7 +43,7 @@ export async function GET(request: Request) {
     }
 
     // Build query
-    let query = supabase
+    let query = getSupabaseClient(request)
       .from('crm_tasks')
       .select(`
         *,
@@ -60,13 +77,13 @@ export async function GET(request: Request) {
     }
 
     // Get task counts for dashboard
-    const { count: pendingCount } = await supabase
+    const { count: pendingCount } = await getSupabaseClient(request)
       .from('crm_tasks')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('status', 'pending')
 
-    const { count: overdueCount } = await supabase
+    const { count: overdueCount } = await getSupabaseClient(request)
       .from('crm_tasks')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
@@ -113,7 +130,7 @@ export async function POST(request: Request) {
     }
 
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     if (!user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -122,7 +139,7 @@ export async function POST(request: Request) {
     }
 
     // Insert task
-    const { data: task, error } = await supabase
+    const { data: task, error } = await getSupabaseClient(request)
       .from('crm_tasks')
       .insert({
         user_id: user.id,
@@ -148,7 +165,7 @@ export async function POST(request: Request) {
     }
 
     // Log activity
-    await supabase.from('crm_activities').insert({
+    await getSupabaseClient(request).from('crm_activities').insert({
       user_id: user.id,
       contact_id: contact_id || null,
       listing_id: listing_id || null,
@@ -180,7 +197,7 @@ export async function PATCH(request: Request) {
     }
 
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     if (!user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -189,7 +206,7 @@ export async function PATCH(request: Request) {
     }
 
     // Update task
-    const { data: task, error } = await supabase
+    const { data: task, error } = await getSupabaseClient(request)
       .from('crm_tasks')
       .update({
         ...updates,
@@ -211,7 +228,7 @@ export async function PATCH(request: Request) {
 
     // Log activity if status changed
     if (updates.status === 'completed') {
-      await supabase.from('crm_activities').insert({
+      await getSupabaseClient(request).from('crm_activities').insert({
         user_id: user.id,
         contact_id: task.contact_id || null,
         listing_id: task.listing_id || null,
@@ -244,7 +261,7 @@ export async function DELETE(request: Request) {
     }
 
     // Get current user
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request)
     if (!user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -253,7 +270,7 @@ export async function DELETE(request: Request) {
     }
 
     // Delete task
-    const { error } = await supabase
+    const { error } = await getSupabaseClient(request)
       .from('crm_tasks')
       .delete()
       .eq('id', id)

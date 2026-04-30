@@ -11,12 +11,16 @@ import { CreditBadge } from '@/components/ui/Badge'
 import { uploadImage, getUploadHistory } from '@/lib/supabase'
 
 const presets = [
-  { id: 'virtual-staging', name: 'Virtual Staging', icon: '🪑', prompt: 'Add modern furniture to make this room look staged and inviting. Include a sofa, coffee table, and decorative items.' },
-  { id: 'declutter', name: 'Declutter', icon: '🧹', prompt: 'Remove all clutter and unnecessary items from this room. Keep only essential furniture and make the space look clean and spacious.' },
-  { id: 'day-to-dusk', name: 'Day to Dusk', icon: '🌅', prompt: 'Transform this daytime photo into a beautiful dusk scene with warm golden hour lighting, soft shadows, and a dramatic sky.' },
-  { id: 'sky-replace', name: 'Sky Replacement', icon: '☁️', prompt: 'Replace the current sky with a beautiful blue sky with fluffy white clouds. Match the lighting appropriately.' },
-  { id: 'enhance-lighting', name: 'Enhance Lighting', icon: '💡', prompt: 'Improve the lighting in this photo. Brighten the room, enhance natural light, and make the space look warm and welcoming.' },
-  { id: 'window-pulling', name: 'Window Pulling', icon: '🪟', prompt: 'Enhance the windows so you can clearly see the view outside. Brighten only the window glass areas to reveal the outdoor scenery without altering the room, furniture, walls, or any other elements in the photo. Keep everything else exactly as it is.' },
+  { id: 'auto-enhance', name: 'Auto Enhance', icon: '✨', prompt: 'Professionally enhance this real estate photo as if taken by a professional real estate photographer. Brighten up the rooms appropriately to make them look well-lit and inviting. Improve overall image quality, make it crystal clear and sharp, optimize brightness and contrast for perfect exposure, enhance colors to be natural and vibrant, remove any noise or imperfections, improve sharpness and clarity, and create a clean professional look. Make the property look bright, welcoming, and perfectly lit. Do not alter the property structure, furniture, or any elements - only enhance the quality, lighting, and make the photo look expertly shot.' },
+  { id: 'virtual-staging', name: 'Virtual Staging', icon: '🪑', prompt: 'Add tasteful, modern furniture to make this property look staged and inviting. Include appropriate furniture for the room type - sofa, coffee table, decorative items, plants. Make it look like a professionally decorated show home. Do not alter the property structure.' },
+  { id: 'declutter', name: 'Declutter', icon: '🧹', prompt: 'Remove all clutter, personal items, and unnecessary objects from this real estate photo. Make the space look clean, spacious, and ready for sale. Keep essential furniture that showcases the property well. Do not alter the property structure or add new items.' },
+  { id: 'day-to-dusk', name: 'Day to Dusk', icon: '🌅', prompt: 'Transform this daytime property photo into a beautiful dusk scene. Add warm golden hour lighting, soft ambient glowing lights from windows, a dramatic twilight sky with deep blue and purple hues. Create cozy, inviting atmosphere. Do not alter the property structure.' },
+  { id: 'sky-replace', name: 'Sky Replacement', icon: '☁️', prompt: 'Replace the current sky with a beautiful blue sky with fluffy white clouds. Ensure the lighting on the property matches the blue sky. Make it look natural and professional.' },
+  { id: 'enhance-lighting', name: 'Enhance Lighting', icon: '💡', prompt: 'Professionally enhance the lighting in this real estate photo. Brighten the room appropriately, enhance natural light, balance shadows and highlights, create warm and inviting atmosphere. Make each room look well-lit and welcoming. Do not alter the property structure.' },
+  { id: 'window-pulling', name: 'Window Pulling', icon: '🪟', prompt: 'Do not alter the window frame, room, or any interior elements. Only adjust the exposure and clarity of the view visible through the window so that the outdoor scenery is fully visible and natural, as if standing in the property looking outside. Keep everything inside the room exactly as it is.' },
+  { id: 'color-correct', name: 'Color Correct', icon: '🎨', prompt: 'professionally color correct this real estate photo. Optimize white balance to show accurate colors, enhance saturation slightly for vibrant but natural colors, improve color clarity and make the photo look professionally edited. Do not alter the property structure.' },
+  { id: 'hdr-merge', name: 'HDR Effect', icon: '📸', prompt: 'Create a professional HDR effect for this real estate photo. Improve dynamic range - brighten shadows, tone down highlights, enhance details in both light and dark areas. Make the photo look high-quality with balanced exposure. Do not alter the property structure.' },
+  { id: 'sharpening', name: 'Professional Sharpening', icon: '🔍', prompt: 'Apply professional sharpening to make this real estate photo crystal clear and sharp. Enhance edge definition, improve clarity for a professional look. Make the photo look like it was taken with a high-quality camera. Do not alter the property structure.' },
 ]
 
 const CREDIT_COST = 1
@@ -39,6 +43,53 @@ export default function PhotoEditPage() {
   const [uploading, setUploading] = useState(false)
   const [useReference, setUseReference] = useState(false)
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
+  const [savedPrompts, setSavedPrompts] = useState<Array<{ id: string; name: string; prompt: string }>>([])
+  const [showSavedPrompts, setShowSavedPrompts] = useState(false)
+  const [savePromptName, setSavePromptName] = useState('')
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+
+  // Load saved prompts from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('stagefy-saved-prompts')
+      if (stored) {
+        setSavedPrompts(JSON.parse(stored))
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  // Save a prompt
+  const handleSavePrompt = () => {
+    if (!customPrompt.trim() || !savePromptName.trim()) return
+
+    const newPrompt = {
+      id: Date.now().toString(),
+      name: savePromptName.trim(),
+      prompt: customPrompt.trim(),
+    }
+
+    const updated = [...savedPrompts, newPrompt]
+    setSavedPrompts(updated)
+    localStorage.setItem('stagefy-saved-prompts', JSON.stringify(updated))
+    setSavePromptName('')
+    setShowSaveDialog(false)
+  }
+
+  // Delete a saved prompt
+  const handleDeletePrompt = (id: string) => {
+    const updated = savedPrompts.filter(p => p.id !== id)
+    setSavedPrompts(updated)
+    localStorage.setItem('stagefy-saved-prompts', JSON.stringify(updated))
+  }
+
+  // Load a saved prompt
+  const handleLoadPrompt = (prompt: string) => {
+    setCustomPrompt(prompt)
+    setSelectedPreset(null)
+    setShowSavedPrompts(false)
+  }
 
   // Check if user has enough credits
   const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
@@ -47,7 +98,7 @@ export default function PhotoEditPage() {
   useEffect(() => {
     const fetchUploadHistory = async () => {
       if (user?.id) {
-        const { data } = await getUploadHistory(user.id, 5)
+        const { data } = await getUploadHistory(user.id, 10)
         if (data) {
           setUploadHistory(data)
         }
@@ -75,7 +126,7 @@ export default function PhotoEditPage() {
             // Add to upload history
             setUploadHistory(prev => [
               { id: data.id, url: data.url, created_at: new Date().toISOString() },
-              ...prev.slice(0, 4)
+              ...prev.slice(0, 9)
             ])
           }
         }
@@ -147,15 +198,21 @@ export default function PhotoEditPage() {
       const imageToProcess = targetImageUrl || targetImage
       const referenceToProcess = useReference ? (referenceImageUrl || referenceImage) : null
       
+      // Get auth token
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
       // Call the API to process the image with Qwen Image Edit 2511
       const response = await fetch('/api/ai/photo-edit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           image: imageToProcess,
           referenceImage: referenceToProcess,
           prompt: customPrompt,
-          userId: user?.id,
         }),
       })
 
@@ -167,11 +224,13 @@ export default function PhotoEditPage() {
       const data = await response.json()
       setProcessedImage(data.outputUrl)
       setIsWatermarked(false)
+      window.scrollTo(0, document.body.scrollHeight)
     } catch (err: any) {
       setError(err.message || 'Failed to process image. Please try again.')
       // For demo, show a mock processed image
       setProcessedImage(targetImage)
       setIsWatermarked(false)
+      window.scrollTo(0, document.body.scrollHeight)
     } finally {
       setLoading(false)
     }
@@ -439,6 +498,95 @@ export default function PhotoEditPage() {
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 rows={4}
               />
+
+              {/* Save/Load Prompt Buttons */}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => setShowSaveDialog(true)}
+                  disabled={!customPrompt.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  Save Prompt
+                </button>
+                {savedPrompts.length > 0 && (
+                  <button
+                    onClick={() => setShowSavedPrompts(!showSavedPrompts)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    Saved ({savedPrompts.length})
+                  </button>
+                )}
+              </div>
+
+              {/* Save Dialog */}
+              {showSaveDialog && (
+                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Save this prompt as:</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., Bright living room"
+                      value={savePromptName}
+                      onChange={(e) => setSavePromptName(e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onKeyDown={(e) => e.key === 'Enter' && handleSavePrompt()}
+                    />
+                    <button
+                      onClick={handleSavePrompt}
+                      disabled={!savePromptName.trim()}
+                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setShowSaveDialog(false)}
+                      className="px-3 py-1.5 text-sm bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Saved Prompts List */}
+              {showSavedPrompts && savedPrompts.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {savedPrompts.map((sp) => (
+                    <div
+                      key={sp.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 group"
+                    >
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-sm font-medium text-gray-900 truncate">{sp.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{sp.prompt}</p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleLoadPrompt(sp.prompt)}
+                          className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                          Use
+                        </button>
+                        <button
+                          onClick={() => handleDeletePrompt(sp.id)}
+                          className="px-2.5 py-1 text-xs bg-red-100 text-red-600 rounded-md hover:bg-red-200"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <p className="text-sm text-gray-500 mt-2">
                 💡 Tip: Be specific about what you want. {useReference && "Mention which image provides the reference."}
               </p>

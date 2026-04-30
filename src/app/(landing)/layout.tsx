@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Stagefy - AI-Powered Real Estate Media Platform",
-  description: "Create stunning listing photos, videos, and templates in minutes. Built specifically for real estate agents.",
+  description: "Elevate Your Listings. Simplify Your Success. AI-powered real estate media tools.",
   keywords: ["real estate", "property", "listing photos", "AI photo editing", "real estate marketing"],
 };
 

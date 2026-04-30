@@ -71,12 +71,12 @@ export const SUBSCRIPTION_PLANS = {
   },
 }
 
-// Credit packages for one-time purchases (prices in ZAR, R1.75 per credit)
+// Credit packages for one-time purchases (prices in ZAR, R1.30-R2.00 per credit)
 export const CREDIT_PACKAGES = [
-  { id: '50_credits', name: '50 Credits', price: 87.50, credits: 50 },
+  { id: '50_credits', name: '50 Credits', price: 100, credits: 50 },
   { id: '100_credits', name: '100 Credits', price: 175, credits: 100 },
-  { id: '250_credits', name: '250 Credits', price: 437.50, credits: 250 },
-  { id: '500_credits', name: '500 Credits', price: 875, credits: 500 },
+  { id: '250_credits', name: '250 Credits', price: 375, credits: 250, badge: 'Most Popular' },
+  { id: '500_credits', name: '500 Credits', price: 650, credits: 500, badge: 'Best Value' },
 ]
 
 export type SubscriptionPlanId = keyof typeof SUBSCRIPTION_PLANS

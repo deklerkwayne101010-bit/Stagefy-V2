@@ -1,7 +1,6 @@
 // API route for Professional Template Prompt Generation
 // Uses Replicate AI (GPT-4.1-nano model) to generate a unique prompt for Nano Banana Pro
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
 import {
   canPerformAction,
   reserveCredits,
@@ -23,8 +22,8 @@ function getAgencyInfo(agencySlug: string | null): AgencyBrandInfo | null {
   const agencyMap: Record<string, AgencyBrandInfo> = {
     'remax': {
       name: 'RE/MAX',
-      colors: 'RE/MAX Red (#E41E26) and White (#FFFFFF)',
-      style: 'Professional, bold, with signature red accents'
+      colors: 'RE/MAX Red (#ff1300), Maroon (#5b0204), Blue (#003bff), Navy (#00102e), Black (#000000), Cream (#f5f3ed)',
+      style: 'Professional, bold, with signature red accents and brand gradient'
     },
     'pam-golding': {
       name: 'Pam Golding Properties',
@@ -96,6 +95,28 @@ function getAgencyInfo(agencySlug: string | null): AgencyBrandInfo | null {
 const isDemoMode =
   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
   !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+  const client = createClient(supabaseUrl, supabaseAnonKey)
+
+  try {
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return user
+  } catch {
+    return null
+  }
+}
 
 // Replicate model configuration for GPT-4.1-nano
 const REPLICATE_MODEL = 'openai/gpt-4.1-nano'
@@ -171,12 +192,18 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get current user
+    // Get current user from Authorization header
     let user: any = null
-    
+
     try {
       if (!isDemoMode) {
-        user = await getCurrentUser()
+        user = await getUserFromAuthHeader(request)
+        if (!user?.id) {
+          return NextResponse.json(
+            { error: 'Authentication required' },
+            { status: 401 }
+          )
+        }
       }
     } catch (err) {
       console.error('Error getting user:', err)

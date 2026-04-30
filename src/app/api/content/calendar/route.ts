@@ -1,118 +1,221 @@
-// Content Calendar API - List and Create entries
-import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
-import { supabase } from '@/lib/supabase'
+// Content Calendar API - CRUD operations for scheduled content
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// GET all calendar entries for authenticated user
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// Helper to get user from Authorization header
+async function getUserFromAuthHeader(request: Request) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+// GET /api/content/calendar - List calendar entries with optional date range
 export async function GET(request: Request) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request);
     if (!user?.id) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
-    const platform = searchParams.get('platform')
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get('start');
+    const endDate = searchParams.get('end');
+    const status = searchParams.get('status');
 
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
     let query = supabase
       .from('content_calendar')
       .select('*')
       .eq('user_id', user.id)
-      .order('scheduled_for', { ascending: true })
+      .order('scheduled_date', { ascending: true });
 
-    if (status) {
-      query = query.eq('status', status)
-    }
     if (startDate) {
-      query = query.gte('scheduled_for', startDate)
+      query = query.gte('scheduled_date', startDate);
     }
     if (endDate) {
-      query = query.lte('scheduled_for', endDate)
+      query = query.lte('scheduled_date', endDate);
     }
-    if (platform) {
-      query = query.eq('platform', platform)
+    if (status) {
+      query = query.eq('status', status);
     }
 
-    const { data, error } = await query
+    const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching calendar:', error)
-      return NextResponse.json({ error: 'Failed to fetch calendar' }, { status: 500 })
+      console.error('Error fetching calendar:', error);
+      return NextResponse.json({ error: 'Failed to fetch calendar' }, { status: 500 });
     }
 
-    return NextResponse.json({ data: data || [] })
-  } catch (error) {
-    console.error('Calendar GET error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ entries: data || [] });
+
+  } catch (error: any) {
+    console.error('Calendar GET error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST new calendar entry
+// POST /api/content/calendar - Create single calendar entry
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser()
+    const user = await getUserFromAuthHeader(request);
     if (!user?.id) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const body = await request.json()
+    const body = await request.json();
     const {
       title,
-      caption,
-      image_url,
+      content_type,
       platform,
-      scheduled_for,
+      caption,
+      hashtags,
+      template_type,
+      template_prompt,
+      scheduled_date,
       is_recurring,
-      recurrence_rule,
-      recurrence_end_date,
-      visual_type,
-    } = body
+      recurrence_pattern,
+    } = body;
 
-    // Validate required fields
-    if (!title || !caption || !platform || !scheduled_for) {
+    if (!title || !scheduled_date) {
       return NextResponse.json(
-        { error: 'Missing required fields: title, caption, platform, scheduled_for' },
+        { error: 'Missing required fields: title, scheduled_date' },
         { status: 400 }
-      )
+      );
     }
 
-    if (!['facebook', 'instagram', 'both'].includes(platform)) {
-      return NextResponse.json(
-        { error: 'Invalid platform. Must be facebook, instagram, or both' },
-        { status: 400 }
-      )
-    }
-
-    // Insert new calendar entry
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data, error } = await supabase
       .from('content_calendar')
       .insert({
         user_id: user.id,
         title,
-        caption,
-        image_url: image_url || null,
+        content_type,
         platform,
-        scheduled_for: new Date(scheduled_for).toISOString(),
-        status: 'scheduled',
+        caption,
+        hashtags: hashtags || [],
+        template_type: template_type || 'professional',
+        template_prompt,
+        scheduled_date,
         is_recurring: is_recurring || false,
-        recurrence_rule: recurrence_rule || null,
-        recurrence_end_date: recurrence_end_date ? new Date(recurrence_end_date).toISOString() : null,
-        visual_type: visual_type || null,
+        recurrence_pattern: recurrence_pattern || {},
+        status: 'scheduled',
       })
       .select()
-      .single()
+      .single();
 
     if (error) {
-      console.error('Error creating calendar entry:', error)
-      return NextResponse.json({ error: 'Failed to create calendar entry' }, { status: 500 })
+      console.error('Error creating calendar entry:', error);
+      return NextResponse.json({ error: 'Failed to create entry' }, { status: 500 });
     }
 
-    return NextResponse.json({ data }, { status: 201 })
-  } catch (error) {
-    console.error('Calendar POST error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ entry: data });
+
+  } catch (error: any) {
+    console.error('Calendar POST error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// PATCH /api/content/calendar/[id] - Update entry
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getUserFromAuthHeader(request);
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const body = await request.json();
+
+    // Build update object with allowed fields
+    const allowedFields = [
+      'title', 'content_type', 'platform', 'caption', 'hashtags',
+      'template_type', 'template_prompt', 'scheduled_date',
+      'status', 'is_recurring', 'recurrence_pattern'
+    ];
+
+    const updateData: any = {};
+    allowedFields.forEach(field => {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    });
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data, error } = await supabase
+      .from('content_calendar')
+      .update(updateData)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating calendar entry:', error);
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+      }
+      return NextResponse.json({ error: 'Failed to update entry' }, { status: 500 });
+    }
+
+    return NextResponse.json({ entry: data });
+
+  } catch (error: any) {
+    console.error('Calendar PATCH error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// DELETE /api/content/calendar/[id] - Delete entry
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getUserFromAuthHeader(request);
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    const { error } = await supabase
+      .from('content_calendar')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting calendar entry:', error);
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+      }
+      return NextResponse.json({ error: 'Failed to delete entry' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+
+  } catch (error: any) {
+    console.error('Calendar DELETE error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

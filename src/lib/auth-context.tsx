@@ -24,7 +24,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize isDemo from environment - no need for useEffect
   const [isDemo] = useState(() => isDemoMode())
 
-  const refreshUser = useCallback(async (retryCount = 0) => {
+  // Track if a refresh is already in progress to prevent race conditions
+  const refreshInProgress = React.useRef(false)
+  // Track if we've had a successful auth at least once in this session
+  const hadSuccessfulAuth = React.useRef(false)
+
+  const refreshUser = useCallback(async () => {
+    // Prevent concurrent refresh calls from colliding
+    if (refreshInProgress.current) {
+      return
+    }
+
     if (isDemoMode()) {
       // In demo mode, check localStorage for logged in user
       const storedUser = typeof window !== 'undefined' ? localStorage.getItem('demoUser') : null
@@ -35,34 +45,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return
     }
-    // Add timeout to prevent hanging - with retry logic
+
+    refreshInProgress.current = true
+
     try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('User refresh timeout')), 15000)
-      )
-      const userPromise = getCurrentUser()
-      const currentUser = await Promise.race([userPromise, timeoutPromise]) as any
-      
+      const currentUser = await getCurrentUser()
+
       if (currentUser) {
+        hadSuccessfulAuth.current = true
         setUser(currentUser)
-      } else if (retryCount < 2) {
-        // Retry up to 2 times if user is null
-        console.log('Retrying user refresh, attempt:', retryCount + 1)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        await refreshUser(retryCount + 1)
-      }
-    } catch (error: any) {
-      console.error('Error refreshing user:', error?.message || error)
-      // Only set user to null after multiple failures
-      if (retryCount >= 2) {
-        console.log('Max retries reached, setting user to null')
+      } else if (!hadSuccessfulAuth.current) {
+        // First load and no session - user is not logged in
         setUser(null)
-      } else {
-        // Retry after a delay
-        console.log('Retrying after error, attempt:', retryCount + 1)
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        await refreshUser(retryCount + 1)
       }
+      // If hadSuccessfulAuth is true but currentUser is null,
+      // keep the existing user state rather than logging them out.
+      // A SIGNED_OUT event from Supabase will handle actual logout.
+    } catch (error: any) {
+      console.warn('Auth refresh failed:', error?.message)
+      // On error, only clear user if we never authenticated
+      if (!hadSuccessfulAuth.current) {
+        setUser(null)
+      }
+    } finally {
+      refreshInProgress.current = false
     }
   }, [])
 
@@ -79,12 +85,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes (only if not in demo mode)
     if (!isDemoMode()) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string) => {
-        if (event === 'SIGNED_IN') {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Only refresh if we have an actual session with a user
+          // This prevents cascading refresh calls after failed login attempts
           await refreshUser()
         } else if (event === 'SIGNED_OUT') {
+          hadSuccessfulAuth.current = false
           setUser(null)
         }
+        // Ignore TOKEN_REFRESHED, INITIAL_SESSION, PASSWORD_RECOVERY, etc.
+        // to avoid unnecessary refreshUser() calls that trigger timeout cascades
       })
 
       return () => subscription.unsubscribe()
@@ -108,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         full_name: email.split('@')[0],
         role: 'agent',
-        credits: 50,
+        credits: 10,
         subscription_tier: 'free',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -135,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         full_name: fullName,
         role: 'agent',
-        credits: 50,
+        credits: 10,
         subscription_tier: 'free',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

@@ -21,7 +21,7 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -34,7 +34,14 @@ export function Header({ title, subtitle }: HeaderProps) {
     
     setIsLoadingNotifications(true)
     try {
-      const response = await fetch('/api/notifications')
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const response = await fetch('/api/notifications', {
+        headers: session?.access_token
+          ? { 'Authorization': `Bearer ${session.access_token}` }
+          : {},
+      })
       if (response.ok) {
         const data = await response.json()
         setNotifications(data.notifications || [])
@@ -60,9 +67,15 @@ export function Header({ title, subtitle }: HeaderProps) {
     if (!showNotifications && unreadCount > 0) {
       // Mark all as read
       try {
+        const { supabase } = await import('@/lib/supabase')
+        const { data: { session } } = await supabase.auth.getSession()
+
         await fetch('/api/notifications/read', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({ markAllRead: true })
         })
         // Update local state
@@ -199,7 +212,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                     </svg>
                     Billing
                   </a>
-                  <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                  <button onClick={signOut} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>

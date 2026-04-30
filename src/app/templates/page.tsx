@@ -10,6 +10,10 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
 import { TemplateSelectionModal } from '@/components/templates/TemplateSelectionModal'
 import { ProfessionalTemplateWizard } from '@/components/templates/ProfessionalTemplateWizard'
+import { InfographicWizard } from '@/components/templates/InfographicWizard'
+import { HolidayPromoWizard } from '@/components/templates/HolidayPromoWizard'
+import { TestimonialWizard } from '@/components/templates/TestimonialWizard'
+import { AgentShowcaseWizard } from '@/components/templates/AgentShowcaseWizard'
 import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPopup'
 import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
 import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
@@ -58,6 +62,9 @@ const marketplaceTemplates: { id: number; name: string; type: string; thumbnail:
 const marketplaceTypes: { value: string; label: string; icon: string; description: string }[] = [
   { value: 'professional', label: 'Professional', icon: '👔', description: 'Clean and corporate' },
   { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visuals' },
+  { value: 'holiday', label: 'Holiday Promos', icon: '🎉', description: 'SA holiday posters' },
+  { value: 'testimonial', label: 'Testimonials', icon: '💬', description: 'Client reviews & ratings' },
+  { value: 'agent_showcase', label: 'Agent Showcase', icon: '🌟', description: 'Agent personal branding' },
   { value: 'custom', label: 'Custom', icon: '✨', description: 'Enter your own custom prompt' },
 ]
 
@@ -78,6 +85,57 @@ export default function TemplatesPage() {
   const [result, setResult] = useState<{ outputUrl: string; isWatermarked?: boolean } | null>(null)
   const [savedTemplates, setSavedTemplates] = useState<{ id: number; name: string; type: string; thumbnail: string }[]>([])
 
+  // Version selection state
+  const [showVersionPopup, setShowVersionPopup] = useState(false)
+  const [selectedVersion, setSelectedVersion] = useState<'standard' | 'pro'>('standard')
+
+  // Recent generations - auto-saved, keeps last 5
+  const [recentGenerations, setRecentGenerations] = useState<{
+    id: number
+    type: string
+    typeName: string
+    thumbnail: string
+    prompt: string
+    timestamp: number
+  }[]>([])
+
+  // Load recent generations from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('stagefy-recent-generations')
+      if (stored) {
+        setRecentGenerations(JSON.parse(stored))
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  // Auto-save a generation to recent list (keeps last 10)
+  const autoSaveGeneration = (outputUrl: string, type: string, prompt: string) => {
+    if (!outputUrl || outputUrl.includes('example.com')) return // Don't save demo/placeholder URLs
+
+    const typeName = marketplaceTypes.find(t => t.value === type)?.label || type
+    const entry = {
+      id: Date.now(),
+      type,
+      typeName,
+      thumbnail: outputUrl,
+      prompt,
+      timestamp: Date.now(),
+    }
+
+    setRecentGenerations(prev => {
+      const updated = [entry, ...prev].slice(0, 10)
+      try {
+        localStorage.setItem('stagefy-recent-generations', JSON.stringify(updated))
+      } catch {
+        // localStorage full - ignore
+      }
+      return updated
+    })
+  }
+
   // Agent profile state
   const [agentName, setAgentName] = useState('')
   const [agentEmail, setAgentEmail] = useState('')
@@ -88,12 +146,21 @@ export default function TemplatesPage() {
   const [includeAgentProfile, setIncludeAgentProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
   
   // Agency brands for dropdown
-  const [agencyBrands, setAgencyBrands] = useState<{ id: string; name: string; slug: string }[]>([])
+  const [agencyBrands, setAgencyBrands] = useState<{ id: string; name: string; slug: string; primary_color?: string; secondary_color?: string; accent_color?: string }[]>([])
 
   // Professional Template Wizard State
   const [showWizard, setShowWizard] = useState(false)
+  // Infographic Wizard State
+  const [showInfographicWizard, setShowInfographicWizard] = useState(false)
+  // Holiday Promo Wizard State
+  const [showHolidayWizard, setShowHolidayWizard] = useState(false)
+  // Testimonial Wizard State
+  const [showTestimonialWizard, setShowTestimonialWizard] = useState(false)
+  // Agent Showcase Wizard State
+  const [showAgentShowcaseWizard, setShowAgentShowcaseWizard] = useState(false)
   const [wizardData, setWizardData] = useState<{
     photoFrames: number
     includeAgent: boolean
@@ -125,6 +192,7 @@ export default function TemplatesPage() {
   useEffect(() => {
     const loadAgentProfile = async () => {
       try {
+        setProfileLoading(true)
         // Get session token for authentication
         const { supabase } = await import('@/lib/supabase')
         const { data: { session } } = await supabase.auth.getSession()
@@ -137,15 +205,18 @@ export default function TemplatesPage() {
         const response = await fetch('/api/agent-profile', { headers })
         const data = await response.json()
         if (data.profile) {
-          setAgentName(data.profile.name_surname || '')
-          setAgentEmail(data.profile.email || '')
-          setAgentPhone(data.profile.phone || '')
-          setAgentAgency(data.profile.agency_brand || '')
-          setAgentPhoto(data.profile.photo_url || null)
-          setAgentLogo(data.profile.logo_url || null)
+          // Only set if we don't have values (prevent overwrite on re-render)
+          setAgentName(prev => prev || data.profile.name_surname || '')
+          setAgentEmail(prev => prev || data.profile.email || '')
+          setAgentPhone(prev => prev || data.profile.phone || '')
+          setAgentAgency(prev => prev || data.profile.agency_brand || '')
+          setAgentPhoto(prev => prev || data.profile.photo_url || null)
+          setAgentLogo(prev => prev || data.profile.logo_url || null)
         }
       } catch (err) {
         console.error('Error loading agent profile:', err)
+      } finally {
+        setProfileLoading(false)
       }
     }
     
@@ -376,14 +447,9 @@ export default function TemplatesPage() {
     }
   }
 
-  const hasEnoughCredits = (user?.credits || 0) >= CREDIT_COST
+  const hasEnoughCredits = (user?.credits || 0) >= (selectedVersion === 'pro' ? 5 : 3)
 
   const handleSubmit = async () => {
-    if (selectedImages.length === 0) {
-      setError('Please upload at least one image')
-      return
-    }
-
     if (!prompt.trim()) {
       setError('Please describe your template')
       return
@@ -407,11 +473,11 @@ export default function TemplatesPage() {
         finalPrompt = `${prompt}${agentInfo}`
       }
 
-      // Build images array - include property images + agent photo + agent logo (if agent profile enabled)
+      // Build images array - property images + agent photo + agent logo (at the end)
       const imagesToSend = [...selectedImages]
       
-      // Add agent photo and logo to images if agent profile is enabled
-      // This ensures Nano Banana Pro can use them in the template
+      // Add agent photo and logo at the END of the array
+      // This way the API knows: first images = property, last images = agent/logo
       if (includeAgentProfile) {
         if (agentPhoto) {
           imagesToSend.push(agentPhoto)
@@ -426,6 +492,7 @@ export default function TemplatesPage() {
         type: templateType,
         userId: user?.id,
         prompt: finalPrompt,
+        version: selectedVersion, // 'standard' or 'pro'
       }
       
       // Add agent profile data if toggle is enabled (for reference in template)
@@ -440,9 +507,15 @@ export default function TemplatesPage() {
         }
       }
       
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
       const response = await fetch('/api/ai/template', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify(requestBody),
       })
 
@@ -452,8 +525,11 @@ export default function TemplatesPage() {
       }
 
       const data = await response.json()
+      console.log('Template generation response:', data)
       setResult({ outputUrl: data.outputUrl, isWatermarked: data.isWatermarked || false })
+      autoSaveGeneration(data.outputUrl, templateType, prompt)
     } catch (err: any) {
+      console.error('Template generation error:', err)
       setError(err.message || 'Failed to create template. Please try again.')
       setResult({ outputUrl: 'https://example.com/template.jpg', isWatermarked: true })
     } finally {
@@ -490,9 +566,15 @@ export default function TemplatesPage() {
     setError(null)
 
     try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
       const response = await fetch('/api/ai/template/layout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ templateCategory: selectedCategory }),
       })
 
@@ -576,6 +658,72 @@ export default function TemplatesPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Settings */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Recent Generations */}
+              {recentGenerations.length > 0 && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Recent Generations</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Your last {recentGenerations.length} created templates</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setRecentGenerations([])
+                        localStorage.removeItem('stagefy-recent-generations')
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="flex gap-3 mt-3 overflow-x-auto pb-1">
+                    {recentGenerations.map((gen) => (
+                      <div key={gen.id} className="flex-shrink-0 group relative">
+                        <div
+                          className="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-blue-400 transition-colors"
+                          onClick={() => window.open(gen.thumbnail, '_blank')}
+                        >
+                          <img
+                            src={gen.thumbnail}
+                            alt={gen.typeName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1 truncate w-24">{gen.typeName}</p>
+                        <p className="text-xs text-gray-400 truncate w-24">
+                          {new Date(gen.timestamp).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
+                        </p>
+                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              try {
+                                const response = await fetch(gen.thumbnail)
+                                const blob = await response.blob()
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `stagefy-${gen.typeName.toLowerCase()}-${Date.now()}.jpg`
+                                link.click()
+                                window.URL.revokeObjectURL(url)
+                              } catch {
+                                window.open(gen.thumbnail, '_blank')
+                              }
+                            }}
+                            className="w-6 h-6 bg-blue-600 text-white rounded flex items-center justify-center hover:bg-blue-700"
+                            title="Download"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
               {/* Template Type */}
               <Card>
                 <CardHeader title="Template Type" subtitle="Choose what kind of template to create" />
@@ -587,6 +735,18 @@ export default function TemplatesPage() {
                         if (type.value === 'professional') {
                           // Open new professional template wizard
                           setShowWizard(true)
+                        } else if (type.value === 'infographic') {
+                          // Open infographic wizard
+                          setShowInfographicWizard(true)
+                        } else if (type.value === 'holiday') {
+                          // Open holiday promo wizard
+                          setShowHolidayWizard(true)
+                        } else if (type.value === 'testimonial') {
+                          // Open testimonial wizard
+                          setShowTestimonialWizard(true)
+                        } else if (type.value === 'agent_showcase') {
+                          // Open agent showcase wizard
+                          setShowAgentShowcaseWizard(true)
                         } else {
                           setTemplateType(type.value)
                         }
@@ -603,6 +763,15 @@ export default function TemplatesPage() {
                       {type.value === 'professional' && (
                         <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
                       )}
+                      {type.value === 'infographic' && (
+                        <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
+                      )}
+                      {type.value === 'holiday' && (
+                        <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
+                      )}
+                      {type.value === 'testimonial' && (
+                        <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -610,7 +779,7 @@ export default function TemplatesPage() {
 
               {/* Image Upload */}
               <Card>
-                <CardHeader title="Upload Images" subtitle="Add photos to include in your template" />
+                <CardHeader title="Upload Images" subtitle="Optional — add photos to include in your template" />
                 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {selectedImages.map((img, index) => (
@@ -768,11 +937,19 @@ export default function TemplatesPage() {
                         variant="outline" 
                         size="sm" 
                         fullWidth
-                        onClick={() => {
-                          const link = document.createElement('a')
-                          link.href = result.outputUrl
-                          link.download = 'stagefy-template.jpg'
-                          link.click()
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(result.outputUrl)
+                            const blob = await response.blob()
+                            const url = window.URL.createObjectURL(blob)
+                            const link = document.createElement('a')
+                            link.href = url
+                            link.download = `stagefy-template-${Date.now()}.jpg`
+                            link.click()
+                            window.URL.revokeObjectURL(url)
+                          } catch {
+                            window.open(result.outputUrl, '_blank')
+                          }
                         }}
                       >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -809,11 +986,19 @@ export default function TemplatesPage() {
                         <Button 
                           variant="outline"
                           className="bg-white text-gray-900 hover:bg-gray-100"
-                          onClick={() => {
-                            const link = document.createElement('a')
-                            link.href = result.outputUrl
-                            link.download = 'stagefy-template.jpg'
-                            link.click()
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(result.outputUrl)
+                              const blob = await response.blob()
+                              const url = window.URL.createObjectURL(blob)
+                              const link = document.createElement('a')
+                              link.href = url
+                              link.download = `stagefy-template-${Date.now()}.jpg`
+                              link.click()
+                              window.URL.revokeObjectURL(url)
+                            } catch {
+                              window.open(result.outputUrl, '_blank')
+                            }
                           }}
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -841,7 +1026,7 @@ export default function TemplatesPage() {
               <Card className="bg-gray-900 text-white border-0">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Credit Cost</span>
-                  <CreditBadge credits={CREDIT_COST} />
+                  <CreditBadge credits={selectedVersion === 'pro' ? 5 : 3} />
                 </div>
 
                 <Button
@@ -849,11 +1034,32 @@ export default function TemplatesPage() {
                   size="lg"
                   className="mt-4"
                   loading={loading}
-                  disabled={selectedImages.length === 0 || !prompt.trim() || !hasEnoughCredits}
-                  onClick={handleSubmit}
+                  disabled={!prompt.trim() || !hasEnoughCredits}
+                  onClick={() => setShowVersionPopup(true)}
                 >
                   {loading ? 'Creating Template...' : 'Generate Template'}
                 </Button>
+
+                {/* Loading tooltip */}
+                {loading && (
+                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
+                    <p className="text-xs text-blue-700">
+                      Generating your template with AI. This may take up to 5 minutes for high-quality results. Please wait...
+                    </p>
+                  </div>
+                )}
+
+                {/* Loading progress bar */}
+                {loading && (
+                  <div className="mt-3">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      Generating your template... this may take up to 5 minutes
+                    </p>
+                  </div>
+                )}
 
                 {error && (
                   <p className="text-red-400 text-sm mt-3">{error}</p>
@@ -957,7 +1163,20 @@ export default function TemplatesPage() {
                             <Button size="sm" variant="outline" fullWidth>
                               Use
                             </Button>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              try {
+                                const response = await fetch(template.thumbnail)
+                                const blob = await response.blob()
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `stagefy-${template.type.toLowerCase()}-${Date.now()}.jpg`
+                                link.click()
+                                window.URL.revokeObjectURL(url)
+                              } catch {
+                                window.open(template.thumbnail, '_blank')
+                              }
+                            }}>
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                               </svg>
@@ -1268,49 +1487,85 @@ export default function TemplatesPage() {
           
           // Build prompt directly from wizard data (skip GPT-4.1-nano)
           // Use the exact format the user provided
-          const layouts: Record<number, string> = {
-            1: 'Single large hero image with full-width banner',
-            2: 'Two equal columns side by side',
-            3: 'One large main image with two smaller below',
-            4: '2x2 grid with equal square images',
-            5: 'One large featured image with 4 smaller in grid',
-            6: '2x3 grid with uniform rectangle images',
+          const layouts: Record<number, string[]> = {
+            1: [
+              'Full-width hero image spanning entire flyer',
+              'Single large hero image with overlay text',
+              'One main image taking 90% of flyer space'
+            ],
+            2: [
+              'Two equal columns side by side',
+              'Split layout with left image right image',
+              'Horizontal split 50/50 design'
+            ],
+            3: [
+              'One large main image with two smaller below',
+              'Featured image top, two smaller bottom',
+              'Hero image with two columns below'
+            ],
+            4: [
+              '2x2 grid with equal square images',
+              'Four equal quadrants classic grid',
+              'Two-by-two symmetrical arrangement'
+            ],
+            5: [
+              'One large featured image with 4 smaller in grid',
+              'Main image with 2x2 grid below',
+              'Featured property with four supporting images'
+            ],
+            6: [
+              '2x3 grid with uniform rectangle images',
+              'Three columns by two rows clean grid',
+              'Six equal photos in symmetrical layout'
+            ],
           }
-          const layoutSuggestion = layouts[data.photoFrames] || 'One large main image with two smaller below'
           
-          // Get agency brand info
+          // Randomly pick a layout variation
+          const layoutOptions = layouts[data.photoFrames] || layouts[3]
+          const randomLayoutIndex = Math.floor(Math.random() * layoutOptions.length)
+          const layoutSuggestion = layoutOptions[randomLayoutIndex]
+          
+          // Get agency brand info or use wizard's selected colors
           const agencyInfo = agencyBrands.find(b => b.slug === agentAgency)
           const agencyName = agencyInfo ? agencyInfo.name : 'RE/MAX'
+          
+          // Use wizard selected colors or fall back to agency brand colors
+          let brandColors: string
+          if (data.selectedColors && data.selectedColors.length > 0) {
+            brandColors = data.selectedColors.join(', ')
+          } else if (agencyInfo) {
+            brandColors = [agencyInfo.primary_color, agencyInfo.secondary_color, agencyInfo.accent_color].filter(Boolean).join(', ')
+          } else {
+            brandColors = '#ff1300 (red), #00102e (navy), #000000 (black)'
+          }
           
           // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
-HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography, gradient background using ${agencyName} brand colors, with subtle geometric patterns.`
-          
-          // Add logo instruction if logo is uploaded
-          if (agentLogo) {
-            prompt += ` Use the exact image uploaded in reference image 2 as the logo picture, do not alter, change at all, just use it exactly as is.`
-          }
-          
-          prompt += `
+HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography using brand colors: ${brandColors}.
 
-PHOTO LAYOUT: ${layoutSuggestion}. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid.
+PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
-PROPERTY INFO SECTION:
-- Price prominently displayed: ${data.propertyDetails.price || '300000'} in large bold typography
-- Location: ${data.propertyDetails.location || '[LOCATION]'}
-- Property type badge: ${data.propertyDetails.propertyType || 'Apartment'}
-- Stats row showing ${data.propertyDetails.bedrooms || '4'} beds, ${data.propertyDetails.bathrooms || '2'} baths, ${data.propertyDetails.squareMeters || '250'}m²
-- Key features list: ${data.propertyDetails.keyFeatures || 'Big pool\nSolar panels'}
+PROPERTY INFO SECTION: Display the following property details clearly on the flyer:
+- Price: ${data.propertyDetails.price} prominently displayed in large bold typography
+- Location: ${data.propertyDetails.location}
+- Property Type: ${data.propertyDetails.propertyType}
+- Stats row: ${data.propertyDetails.bedrooms} beds, ${data.propertyDetails.bathrooms} baths, ${data.propertyDetails.squareMeters}m²
+- Key Features list: ${data.propertyDetails.keyFeatures}
 
 `
-          
-          // Add agent profile section
-          if (data.includeAgent && agentName.trim()) {
-            prompt += `AGENT PROFILE SECTION: Use image 1 as the exact reference image for the agent, do not alter, change, enhance or beautify the picture at all, just use exactly as is. Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card.`
-          } else {
-            prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
-          }
+           
+           // Add agent profile section
+            const totalImages = data.photoFrames + (agentPhoto ? 1 : 0) + (agentLogo ? 1 : 0)
+            const agentPhotoIndex = data.photoFrames + 1
+            const agentLogoIndex = data.photoFrames + (agentPhoto ? 2 : 1)
+            const cardColor = agencyInfo?.primary_color || '#00102e'
+            
+            if (data.includeAgent && agentName.trim()) {
+              prompt += `AGENT PROFILE SECTION: ${agentPhoto ? `Use the agent photo at image position ${agentPhotoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agent photo provided.'} ${agentLogo ? `Use the agency logo at image position ${agentLogoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agency logo provided.'} Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card using brand color ${cardColor}. Do NOT use these images in the property photo frames.`
+            } else {
+              prompt += `AGENT PROFILE SECTION: None - no agent profile to include.`
+            }
           
           prompt += ``
           
@@ -1320,7 +1575,115 @@ PROPERTY INFO SECTION:
           // Show success message
           alert(`✅ Wizard completed! 
 
-Your prompt has been generated and added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design with Nano Banana Pro.`)
+Your prompt has been generated and added to the textbox below. Your ${data.uploadedImages?.length || 0} uploaded photos are ready. Click "Generate Template" to create your design.`)
+        }}
+      />
+
+      {/* Infographic Wizard */}
+      <InfographicWizard
+        isOpen={showInfographicWizard}
+        onClose={() => setShowInfographicWizard(false)}
+        agentProfile={agentName.trim() ? {
+          name: agentName,
+          email: agentEmail,
+          phone: agentPhone,
+          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
+          photoUrl: agentPhoto,
+          logoUrl: agentLogo,
+        } : null}
+        agencyBrandColors={agentAgency ? (() => {
+          const brand = agencyBrands.find(b => b.slug === agentAgency)
+          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+        })() : null}
+        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
+        onComplete={(data) => {
+          setShowInfographicWizard(false)
+          setTemplateType('infographic')
+          setIncludeAgentProfile(data.includeAgent)
+          setPrompt(data.generatedPrompt)
+
+          alert(`✅ Infographic wizard completed!\n\nYour prompt has been generated. Click "Generate Template" to create your infographic.`)
+        }}
+      />
+
+      {/* Holiday Promo Wizard */}
+      <HolidayPromoWizard
+        isOpen={showHolidayWizard}
+        onClose={() => setShowHolidayWizard(false)}
+        agentProfile={agentName.trim() ? {
+          name: agentName,
+          email: agentEmail,
+          phone: agentPhone,
+          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
+          photoUrl: agentPhoto,
+          logoUrl: agentLogo,
+        } : null}
+        agencyBrandColors={agentAgency ? (() => {
+          const brand = agencyBrands.find(b => b.slug === agentAgency)
+          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+        })() : null}
+        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
+        onComplete={(data) => {
+          setShowHolidayWizard(false)
+          setTemplateType('custom')
+          setIncludeAgentProfile(data.includeAgent)
+          setPrompt(data.generatedPrompt)
+
+          alert(`✅ ${data.holidayName} poster ready!\n\nYour prompt has been generated. Click "Generate Template" to create your holiday poster.`)
+        }}
+      />
+
+      {/* Testimonial Wizard */}
+      <TestimonialWizard
+        isOpen={showTestimonialWizard}
+        onClose={() => setShowTestimonialWizard(false)}
+        agentProfile={agentName.trim() ? {
+          name: agentName,
+          email: agentEmail,
+          phone: agentPhone,
+          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
+          photoUrl: agentPhoto,
+          logoUrl: agentLogo,
+        } : null}
+        agencyBrandColors={agentAgency ? (() => {
+          const brand = agencyBrands.find(b => b.slug === agentAgency)
+          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+        })() : null}
+        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
+        onComplete={(data) => {
+          setShowTestimonialWizard(false)
+          setTemplateType('custom')
+          setIncludeAgentProfile(data.includeAgent)
+          setPrompt(data.generatedPrompt)
+
+          alert(`✅ Testimonial card ready!\n\nYour prompt has been generated. Click "Generate Template" to create your testimonial card.`)
+        }}
+      />
+
+      {/* Agent Showcase Wizard */}
+      <AgentShowcaseWizard
+        isOpen={showAgentShowcaseWizard}
+        onClose={() => setShowAgentShowcaseWizard(false)}
+        agentProfile={agentName.trim() ? {
+          name: agentName,
+          email: agentEmail,
+          phone: agentPhone,
+          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
+          photoUrl: agentPhoto,
+          logoUrl: agentLogo,
+        } : null}
+        agencyBrandColors={agentAgency ? (() => {
+          const brand = agencyBrands.find(b => b.slug === agentAgency)
+          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+        })() : null}
+        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
+        onComplete={(data) => {
+          setShowAgentShowcaseWizard(false)
+          setTemplateType('custom')
+          setIncludeAgentProfile(data.includeAgent)
+          setPrompt(data.generatedPrompt)
+
+          alert(`✅ Agent Showcase ready!\n\nYour prompt has been generated. Click "Generate Template" to create your agent showcase.`)
         }}
       />
 
@@ -1380,6 +1743,74 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
           setGeneratedLayout(null)
         }}
       />
+
+      {/* Version Selection Popup */}
+      {showVersionPopup && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Choose Template Version</h3>
+            <p className="text-gray-500 mb-6">Select which AI model to use for your template</p>
+            
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={() => setSelectedVersion('standard')}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  selectedVersion === 'standard'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900">Standard</p>
+                    <p className="text-sm text-gray-500">Fast & reliable results</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">3 credits</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setSelectedVersion('pro')}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  selectedVersion === 'pro'
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900 flex items-center gap-2">
+                      Pro
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ NEW</span>
+                    </p>
+                    <p className="text-sm text-gray-500">Higher quality output</p>
+                  </div>
+                  <span className="text-lg font-bold text-purple-600">5 credits</span>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowVersionPopup(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setShowVersionPopup(false)
+                  handleSubmit()
+                }}
+              >
+                Generate ({selectedVersion === 'pro' ? 5 : 3} credits)
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
