@@ -126,7 +126,7 @@ export async function GET(request: Request) {
         platform,
         account_name: pageName,
         page_id: platform === 'facebook' ? pageId : instagramAccountId || pageId,
-        access_token,
+        access_token: accessToken,
         token_type: 'page',
         expires_at: expiresIn?.toISOString(),
         is_active: true,

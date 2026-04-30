@@ -1,0 +1,3 @@
+{
+  "/api/cron/publish-scheduled/route": "app/api/cron/publish-scheduled/route.js"
+}

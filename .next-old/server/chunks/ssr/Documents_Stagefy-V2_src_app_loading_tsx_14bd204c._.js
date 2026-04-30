@@ -1,0 +1,3 @@
+module.exports=[16280,a=>{"use strict";var b=a.i(25843);function c(){return(0,b.jsx)("div",{className:"min-h-screen flex items-center justify-center bg-[#FAFAFA]",children:(0,b.jsxs)("div",{className:"text-center",children:[(0,b.jsx)("div",{className:"w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"}),(0,b.jsx)("p",{className:"text-gray-500",children:"Loading..."})]})})}a.s(["default",()=>c])}];
+
+//# sourceMappingURL=Documents_Stagefy-V2_src_app_loading_tsx_14bd204c._.js.map

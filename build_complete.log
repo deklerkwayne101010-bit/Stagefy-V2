@@ -1,0 +1,42 @@
+﻿
+> stagefy@0.1.0 build
+> next build
+
+node.exe : ΓÜá Warning: Next.js inferred your workspace root, but it may not be correct.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ΓÜá Warning: Ne...not be correct.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ We detected multiple lockfiles and selected the directory of C:\Users\Jacqualine\package-lock.json as the root 
+directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if 
+it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\Jacqualine\Documents\Stagefy-V2\package-lock.json
+
+Γû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 42s
+  Running TypeScript ...
+Failed to compile.
+
+./src/components/content/ContentPlannerWizard.tsx:100:25
+Type error: Property 'user_metadata' does not exist on type 'User'.
+
+[0m [90m  98 |[39m           topics[33m:[39m topics[33m.[39mlength [33m>[39m [35m0[39m [33m?[39m topics 
+[33m:[39m undefined[33m,[39m
+ [90m  99 |[39m           agent_profile[33m:[39m {
+[31m[1m>[22m[39m[90m 100 |[39m             name[33m:[39m 
+user[33m?[39m[33m.[39muser_metadata[33m?[39m[33m.[39mfull_name [33m||[39m 
+user[33m?[39m[33m.[39memail[33m,[39m
+ [90m     |[39m                         [31m[1m^[22m[39m
+ [90m 101 |[39m             agency[33m:[39m 
+user[33m?[39m[33m.[39muser_metadata[33m?[39m[33m.[39magency[33m,[39m
+ [90m 102 |[39m           }[33m,[39m
+ [90m 103 |[39m         })[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null

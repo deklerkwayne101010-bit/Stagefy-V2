@@ -1,0 +1,3 @@
+{
+  "/api/ai/template/generate-prompt/route": "app/api/ai/template/generate-prompt/route.js"
+}

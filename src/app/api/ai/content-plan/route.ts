@@ -269,11 +269,14 @@ OUTPUT FORMAT (JSON only):
     }
 
     // Extract plan
-    let plan = [];
-    if (output?.plan) {
+    let plan: any[] = [];
+    if (output?.plan && Array.isArray(output.plan)) {
       plan = output.plan;
-    } else if (typeof output === 'object') {
-      plan = Object.values(output)[0] || [];
+    } else if (typeof output === 'object' && output !== null) {
+      const values = Object.values(output);
+      if (Array.isArray(values[0])) {
+        plan = values[0] as any[];
+      }
     }
 
     // Validate plan structure

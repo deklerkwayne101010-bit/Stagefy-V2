@@ -1,0 +1,3 @@
+{
+  "/api/social/accounts/callback/route": "app/api/social/accounts/callback/route.js"
+}

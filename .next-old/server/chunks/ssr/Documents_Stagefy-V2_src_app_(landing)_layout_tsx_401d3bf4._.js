@@ -1,0 +1,3 @@
+module.exports=[2185,a=>{"use strict";var b=a.i(25843),c=a.i(5813),d=a.i(93982);function e({children:a}){return(0,b.jsx)("html",{lang:"en",children:(0,b.jsx)("body",{className:`${c.default.variable} ${d.default.variable} antialiased`,children:a})})}a.s(["default",()=>e,"metadata",0,{title:"Stagefy - AI-Powered Real Estate Media Platform",description:"Elevate Your Listings. Simplify Your Success. AI-powered real estate media tools.",keywords:["real estate","property","listing photos","AI photo editing","real estate marketing"]}])}];
+
+//# sourceMappingURL=Documents_Stagefy-V2_src_app_%28landing%29_layout_tsx_401d3bf4._.js.map

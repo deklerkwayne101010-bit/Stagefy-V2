@@ -1,0 +1,27 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,45807,e=>{"use strict";var s=e.i(74097);function t({variant:e="primary",size:t="md",loading:r=!1,fullWidth:a=!1,icon:i,children:l,className:n="",disabled:c,...d}){let o=`
+    inline-flex items-center justify-center font-medium
+    rounded-xl transition-all duration-200 ease-out
+    focus:outline-none focus:ring-2 focus:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed
+    shadow-sm hover:shadow-md active:scale-[0.98]
+  `,u={primary:`
+      bg-blue-600 text-white
+      hover:bg-blue-700
+      focus:ring-blue-500
+    `,secondary:`
+      bg-slate-100 text-slate-700
+      hover:bg-slate-200
+      focus:ring-slate-400
+    `,outline:`
+      border-2 border-slate-200 text-slate-600
+      hover:bg-slate-50 hover:border-slate-300
+      focus:ring-slate-400
+    `,ghost:`
+      text-slate-600
+      hover:bg-slate-100 hover:text-slate-900
+      focus:ring-slate-400
+    `,danger:`
+      bg-red-600 text-white
+      hover:bg-red-700
+      focus:ring-red-500
+    `};return(0,s.jsxs)("button",{className:`${o} ${u[e]} ${{sm:"px-4 py-2 text-sm gap-2",md:"px-5 py-2.5 text-base gap-2",lg:"px-6 py-3 text-lg gap-2.5"}[t]} ${a?"w-full":""} ${n}`,disabled:c||r,...d,children:[r&&(0,s.jsxs)("svg",{className:"animate-spin h-4 w-4",viewBox:"0 0 24 24",children:[(0,s.jsx)("circle",{className:"opacity-25",cx:"12",cy:"12",r:"10",stroke:"currentColor",strokeWidth:"4",fill:"none"}),(0,s.jsx)("path",{className:"opacity-75",fill:"currentColor",d:"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"})]}),i&&!r&&(0,s.jsx)("span",{className:"flex-shrink-0",children:i}),l]})}e.s(["Button",()=>t])},77815,e=>{"use strict";var s=e.i(74097),t=e.i(16763),r=e.i(35687),a=e.i(73402),i=e.i(3480),l=e.i(45807);function n(){let e=(0,r.useSearchParams)(),{user:n,loading:c,refreshUser:d}=(0,i.useAuth)(),o=e.get("type")||"",u=e.get("package")||"",x=e.get("plan")||"";if((0,t.useEffect)(()=>{d()},[d]),c)return(0,s.jsx)("div",{className:"min-h-screen bg-[var(--color-surface-secondary)] flex items-center justify-center",children:(0,s.jsxs)("div",{className:"text-center",children:[(0,s.jsx)("div",{className:"w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"}),(0,s.jsx)("p",{className:"text-slate-600",children:"Loading..."})]})});let m={"50-credits":{name:"50 Credits",credits:50},"100-credits":{name:"100 Credits",credits:100},"250-credits":{name:"250 Credits",credits:250},"500-credits":{name:"500 Credits",credits:500}}[u]||{name:"Credit Package",credits:0},h={basic:{name:"Basic",credits:50},pro:{name:"Pro",credits:150},enterprise:{name:"Enterprise",credits:300}}[x]||{name:"Subscription Plan",credits:0};return(0,s.jsx)("div",{className:"min-h-screen bg-[var(--color-surface-secondary)] flex items-center justify-center p-4",children:(0,s.jsx)("div",{className:"max-w-md w-full",children:(0,s.jsxs)("div",{className:"bg-white rounded-2xl shadow-xl p-8 text-center",children:[(0,s.jsx)("div",{className:"w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6",children:(0,s.jsx)("svg",{className:"w-10 h-10 text-green-600",fill:"none",stroke:"currentColor",viewBox:"0 0 24 24",children:(0,s.jsx)("path",{strokeLinecap:"round",strokeLinejoin:"round",strokeWidth:2,d:"M5 13l4 4L19 7"})})}),(0,s.jsx)("h1",{className:"text-2xl font-bold text-slate-900 mb-2",children:"Payment Successful!"}),(0,s.jsx)("p",{className:"text-slate-600 mb-6",children:"subscription"===o?`Your ${h.name} subscription is now active.`:"Your credits have been added to your account."}),"credits"===o&&m.credits>0&&(0,s.jsxs)("div",{className:"bg-blue-50 rounded-xl p-4 mb-6",children:[(0,s.jsx)("p",{className:"text-sm text-blue-600 mb-1",children:"Credits Added"}),(0,s.jsx)("p",{className:"text-3xl font-bold text-blue-700",children:m.credits})]}),"subscription"===o&&h.credits>0&&(0,s.jsxs)("div",{className:"bg-purple-50 rounded-xl p-4 mb-6",children:[(0,s.jsx)("p",{className:"text-sm text-purple-600 mb-1",children:"Monthly Credits"}),(0,s.jsx)("p",{className:"text-3xl font-bold text-purple-700",children:h.credits})]}),(0,s.jsxs)("div",{className:"space-y-3 mb-6",children:[(0,s.jsx)("p",{className:"text-sm text-slate-500",children:"What would you like to do next?"}),(0,s.jsx)(a.default,{href:"/dashboard",children:(0,s.jsx)(l.Button,{className:"w-full",size:"lg",children:"Go to Dashboard"})}),(0,s.jsx)(a.default,{href:"/photo-edit",children:(0,s.jsx)(l.Button,{variant:"outline",className:"w-full",size:"lg",children:"Start Editing Photos"})}),(0,s.jsx)(a.default,{href:"/billing",children:(0,s.jsx)(l.Button,{variant:"ghost",className:"w-full",size:"lg",children:"View Billing History"})})]}),(0,s.jsx)("p",{className:"text-xs text-slate-400",children:"A confirmation email has been sent to your registered email address."})]})})})}function c(){return(0,s.jsx)("div",{className:"min-h-screen bg-[var(--color-surface-secondary)] flex items-center justify-center",children:(0,s.jsxs)("div",{className:"text-center",children:[(0,s.jsx)("div",{className:"w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"}),(0,s.jsx)("p",{className:"text-slate-600",children:"Loading..."})]})})}function d(){return(0,s.jsx)(i.AuthProvider,{children:(0,s.jsx)(t.Suspense,{fallback:(0,s.jsx)(c,{}),children:(0,s.jsx)(n,{})})})}e.s(["default",()=>d])}]);

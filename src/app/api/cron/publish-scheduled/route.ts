@@ -175,7 +175,9 @@ export async function GET(request: Request) {
             postUrl = `https://www.instagram.com/p/${publishResult.id}`;
           }
 
-          publishedUrls.push(postUrl);
+           if (postUrl) {
+             publishedUrls.push(postUrl);
+           }
         }
 
         if (publishSuccess) {

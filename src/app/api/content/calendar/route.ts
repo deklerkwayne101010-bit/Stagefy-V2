@@ -124,98 +124,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ entry: data });
-
   } catch (error: any) {
     console.error('Calendar POST error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// PATCH /api/content/calendar/[id] - Update entry
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getUserFromAuthHeader(request);
-    if (!user?.id) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const body = await request.json();
-
-    // Build update object with allowed fields
-    const allowedFields = [
-      'title', 'content_type', 'platform', 'caption', 'hashtags',
-      'template_type', 'template_prompt', 'scheduled_date',
-      'status', 'is_recurring', 'recurrence_pattern'
-    ];
-
-    const updateData: any = {};
-    allowedFields.forEach(field => {
-      if (body[field] !== undefined) {
-        updateData[field] = body[field];
-      }
-    });
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-    const { data, error } = await supabase
-      .from('content_calendar')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating calendar entry:', error);
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
-      }
-      return NextResponse.json({ error: 'Failed to update entry' }, { status: 500 });
-    }
-
-    return NextResponse.json({ entry: data });
-
-  } catch (error: any) {
-    console.error('Calendar PATCH error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-// DELETE /api/content/calendar/[id] - Delete entry
-export async function DELETE(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await getUserFromAuthHeader(request);
-    if (!user?.id) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    const { id } = await context.params;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    const { error } = await supabase
-      .from('content_calendar')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error deleting calendar entry:', error);
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
-      }
-      return NextResponse.json({ error: 'Failed to delete entry' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-
-  } catch (error: any) {
-    console.error('Calendar DELETE error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
