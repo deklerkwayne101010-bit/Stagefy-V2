@@ -1,12 +1,6 @@
 // CRM Activities API Route
 import { NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { supabase, getCurrentUser } from '@/lib/supabase'
 
 export async function GET(request: Request) {
   try {
