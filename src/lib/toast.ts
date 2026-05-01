@@ -97,5 +97,3 @@ export const showToast = {
   warning: (message: string, duration?: number) =>
     addToast('warning', message, duration),
 };
-
-export { showToast };
