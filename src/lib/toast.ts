@@ -38,7 +38,8 @@ function createContainer() {
 function render() {
   if (!toastContainer) return;
 
-  toastContainer.innerHTML = '';
+  const container = toastContainer;
+  container.innerHTML = '';
 
   toasts.forEach(toast => {
     const el = document.createElement('div');
@@ -57,7 +58,7 @@ function render() {
       </button>
     `;
 
-    toastContainer.appendChild(el);
+    container.appendChild(el);
   });
 }
 
