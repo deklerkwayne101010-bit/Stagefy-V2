@@ -200,11 +200,11 @@ export default function ContentPlannerWizard({
 
       const imageUrls = await Promise.all(templatePromises);
 
-      // Update plan with generated images
-      const updatedPlan = generatedPlan.map((post, index) => ({
-        ...post,
-        generated_image_url: imageUrls[index] || null,
-      }));
+       // Update plan with generated images
+       const updatedPlan = generatedPlan.map((post, index) => ({
+         ...post,
+         generated_image_url: imageUrls[index] ?? undefined,
+       }));
 
       setGeneratedPlan(updatedPlan);
       setCurrentStep('review');
