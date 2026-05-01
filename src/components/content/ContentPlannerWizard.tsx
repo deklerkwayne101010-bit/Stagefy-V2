@@ -90,17 +90,17 @@ export default function ContentPlannerWizard({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          duration,
-          frequency,
-          platforms,
-          start_date: startDate,
-          topics: topics.length > 0 ? topics : undefined,
-          agent_profile: {
-            name: user?.user_metadata?.full_name || user?.email,
-            agency: user?.user_metadata?.agency,
-          },
-        }),
+         body: JSON.stringify({
+           duration,
+           frequency,
+           platforms,
+           start_date: startDate,
+           topics: topics.length > 0 ? topics : undefined,
+           agent_profile: {
+             name: user?.full_name || user?.email,
+             agency: user?.brokerage,
+           },
+         }),
       });
 
       if (!response.ok) {
