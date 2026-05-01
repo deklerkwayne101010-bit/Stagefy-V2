@@ -35,31 +35,35 @@ function createContainer() {
   }
 }
 
-function render() {
-  if (!toastContainer) return;
+ function render() {
+   if (!toastContainer) return;
 
-  toastContainer.innerHTML = '';
+   toastContainer.innerHTML = '';
 
-  toasts.forEach(toast => {
-    const el = document.createElement('div');
-    const colors = {
-      success: 'bg-green-500 text-white',
-      error: 'bg-red-500 text-white',
-      info: 'bg-blue-500 text-white',
-      warning: 'bg-yellow-500 text-white',
-    };
+   toasts.forEach(toast => {
+     const el = document.createElement('div');
+     const colors = {
+       success: 'bg-green-500 text-white',
+       error: 'bg-red-500 text-white',
+       info: 'bg-blue-500 text-white',
+       warning: 'bg-yellow-500 text-white',
+     };
 
-    el.className = `px-4 py-3 rounded-lg shadow-lg ${colors[toast.type]} flex items-center justify-between gap-3`;
-    el.innerHTML = `
-      <span>${toast.message}</span>
-      <button onclick="window.removeToast(${toast.id})" class="text-white hover:text-gray-200">
-        ✕
-      </button>
-    `;
+     el.className = `px-4 py-3 rounded-lg shadow-lg ${colors[toast.type]} flex items-center justify-between gap-3`;
+     el.innerHTML = `
+       <span>${toast.message}</span>
+       <button onclick="window.removeToast(${toast.id})" class="text-white hover:text-gray-200">
+         ✕
+       </button>
+     `;
 
-    toastContainer.appendChild(el);
-  });
-}
+     if (toastContainer) {
+       toastContainer.appendChild(el);
+     }
+   });
+ }
+   });
+ }
 
 function addToast(type: ToastType, message: string, duration = 5000) {
   const id = Date.now();
