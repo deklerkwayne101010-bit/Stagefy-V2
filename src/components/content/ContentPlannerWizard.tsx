@@ -596,13 +596,13 @@ export default function ContentPlannerWizard({
                       >
                         ✏️ Edit
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleRemovePost(index)}
-                      >
-                        ✕
-                      </Button>
+                       <Button
+                         size="sm"
+                         variant="danger"
+                         onClick={() => handleRemovePost(index)}
+                       >
+                         ✕
+                       </Button>
                     </div>
                   </div>
                 </div>
