@@ -5,8 +5,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { supabase, getAdminClient } from '@/lib/supabase'
 
-// Check if running in demo mode
-const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Demo mode only when Supabase itself is not configured
+const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const isDemoMode = !isSupabaseConfigured
 
 // Helper to get user from Authorization header
 async function getUserFromAuthHeader(authHeader: string | null): Promise<{ id: string; email: string } | null> {

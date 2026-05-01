@@ -75,25 +75,28 @@ export async function POST(request: Request) {
       )
     }
 
-    const userIdStr = user.id
+   const userIdStr = user.id
 
-    console.log('User authenticated:', userIdStr)
+   console.log('User authenticated:', userIdStr)
 
-    // Check if running in demo mode (skip if user is authenticated and API keys exist)
-    if (isDemoMode && !process.env.REPLICATE_API_TOKEN) {
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000))
+   // Track generation timing
+   const startTime = Date.now()
 
-      // Return mock response for demo
-      return NextResponse.json({
-        outputUrl: null,
-        jobId: 'demo-job-' + Date.now(),
-        creditsUsed: 0,
-        remainingCredits: 50,
-        demo: true,
-        demoMessage: 'Demo mode: Template generation requires Supabase and Replicate API configuration. Set environment variables to enable.',
-      })
-    }
+   // Check if running in demo mode (skip if user is authenticated and API keys exist)
+   if (isDemoMode && !process.env.REPLICATE_API_TOKEN) {
+     // Simulate processing delay
+     await new Promise(resolve => setTimeout(resolve, 2000))
+
+     // Return mock response for demo
+     return NextResponse.json({
+       outputUrl: null,
+       jobId: 'demo-job-' + Date.now(),
+       creditsUsed: 0,
+       remainingCredits: 50,
+       demo: true,
+       demoMessage: 'Demo mode: Template generation requires Supabase and Replicate API configuration. Set environment variables to enable.',
+     })
+   }
 
     // Check if user can perform this action (credits only)
     const canPerform = await canPerformAction(userIdStr, creditCost)
@@ -269,18 +272,51 @@ export async function POST(request: Request) {
             }
           }
         }
-      } catch (uploadErr) {
-        console.error('Error uploading to storage:', uploadErr)
-        // Continue with original URL if upload fails
-      }
-      
-      return NextResponse.json({
-        outputUrl: outputUrl,
-        jobId: prediction.id,
-        creditsUsed: creditCost,
-        remainingCredits: await checkUserCredits(userIdStr),
-        isWatermarked: false,
-      })
+       } catch (uploadErr) {
+         console.error('Error uploading to storage:', uploadErr)
+         // Continue with original URL if upload fails
+       }
+
+       // Save generation record to database
+       try {
+         const adminClient = getAdminClient()
+         if (adminClient) {
+           const generationTimeMs = Date.now() - startTime
+           const { error: insertError } = await (adminClient as any)
+             .from('template_generations')
+             .insert({
+               user_id: userIdStr,
+               prompt: prompt || '',
+               output_url: outputUrl,
+               credit_cost: creditCost,
+               status: 'completed',
+               agent_profile_included: false,
+               images_used: images.map((url: string, idx: number) => ({
+                 url,
+                 placeholder_id: `image_${idx}`,
+               })),
+               generation_type: type, // Store template type for categorization
+               generation_time_ms: generationTimeMs,
+               completed_at: new Date().toISOString(),
+             })
+
+           if (insertError) {
+             console.error('Failed to save template generation:', insertError)
+           } else {
+             console.log('Saved template generation record for user:', userIdStr)
+           }
+         }
+       } catch (dbErr) {
+         console.error('Error saving generation to database:', dbErr)
+       }
+
+       return NextResponse.json({
+         outputUrl: outputUrl,
+         jobId: prediction.id,
+         creditsUsed: creditCost,
+         remainingCredits: await checkUserCredits(userIdStr),
+         isWatermarked: false,
+       })
     } catch (aiError) {
       // Refund credits on failure - use same operation, pass the actual credit cost
       await refundCredits(userIdStr, 'template_generation', `template-${Date.now()}`, creditCost)

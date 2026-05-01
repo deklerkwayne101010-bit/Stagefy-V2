@@ -55,6 +55,44 @@ export default function ContentPlannerWizard({
   const [generating, setGenerating] = useState(false);
   const [totalCredits, setTotalCredits] = useState(0);
 
+  // Agent profile state (loaded from database)
+  const [agentProfile, setAgentProfile] = useState<{ name_surname: string; agency_brand?: string } | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  // Fetch agent profile on mount
+  useEffect(() => {
+    const fetchAgentProfile = async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setLoadingProfile(false);
+          return;
+        }
+
+        const response = await fetch('/api/agent-profile', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.profile) {
+            setAgentProfile({
+              name_surname: data.profile.name_surname,
+              agency_brand: data.profile.agency_brand,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching agent profile:', err);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchAgentProfile();
+  }, []);
+
   // Calculate post count
   const getPostCount = () => {
     const days = duration === '1_week' ? 7 : duration === '2_weeks' ? 14 : 30;
@@ -90,17 +128,17 @@ export default function ContentPlannerWizard({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-         body: JSON.stringify({
-           duration,
-           frequency,
-           platforms,
-           start_date: startDate,
-           topics: topics.length > 0 ? topics : undefined,
-           agent_profile: {
-             name: user?.full_name || user?.email,
-             agency: user?.brokerage,
-           },
-         }),
+          body: JSON.stringify({
+            duration,
+            frequency,
+            platforms,
+            start_date: startDate,
+            topics: topics.length > 0 ? topics : undefined,
+            agent_profile: {
+              name: agentProfile?.name_surname || user?.full_name || user?.email,
+              agency: agentProfile?.agency_brand || user?.brokerage,
+            },
+          }),
       });
 
       if (!response.ok) {

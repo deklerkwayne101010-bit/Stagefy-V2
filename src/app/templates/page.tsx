@@ -89,52 +89,53 @@ export default function TemplatesPage() {
   const [showVersionPopup, setShowVersionPopup] = useState(false)
   const [selectedVersion, setSelectedVersion] = useState<'standard' | 'pro'>('standard')
 
-  // Recent generations - auto-saved, keeps last 5
-  const [recentGenerations, setRecentGenerations] = useState<{
-    id: number
-    type: string
-    typeName: string
-    thumbnail: string
-    prompt: string
-    timestamp: number
-  }[]>([])
+   // Recent generations - auto-saved, keeps last 10 (fetched from database)
+   const [recentGenerations, setRecentGenerations] = useState<{
+     id: string
+     type: string
+     typeName: string
+     thumbnail: string
+     prompt: string
+     timestamp: number
+   }[]>([])
 
-  // Load recent generations from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('stagefy-recent-generations')
-      if (stored) {
-        setRecentGenerations(JSON.parse(stored))
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
+   // Fetch recent generations from API
+   const fetchRecentGenerations = async () => {
+     try {
+       const { supabase } = await import('@/lib/supabase')
+       const { data: { session } } = await supabase.auth.getSession()
+       if (!session) return
 
-  // Auto-save a generation to recent list (keeps last 10)
-  const autoSaveGeneration = (outputUrl: string, type: string, prompt: string) => {
-    if (!outputUrl || outputUrl.includes('example.com')) return // Don't save demo/placeholder URLs
+       const response = await fetch('/api/generations/recent', {
+         headers: {
+           'Authorization': `Bearer ${session.access_token}`,
+         },
+       })
 
-    const typeName = marketplaceTypes.find(t => t.value === type)?.label || type
-    const entry = {
-      id: Date.now(),
-      type,
-      typeName,
-      thumbnail: outputUrl,
-      prompt,
-      timestamp: Date.now(),
-    }
+       if (response.ok) {
+         const data = await response.json()
+         const mapped = (data.generations || []).map((gen: any) => ({
+           id: gen.id,
+           type: gen.generation_type || 'custom',
+           typeName: marketplaceTypes.find(t => t.value === gen.generation_type)?.label || 'Custom',
+           thumbnail: gen.output_url || '',
+           prompt: gen.prompt || '',
+           timestamp: new Date(gen.created_at).getTime(),
+         }))
+         setRecentGenerations(mapped)
+       }
+     } catch (err) {
+       console.error('Error fetching recent generations:', err)
+     }
+   }
 
-    setRecentGenerations(prev => {
-      const updated = [entry, ...prev].slice(0, 10)
-      try {
-        localStorage.setItem('stagefy-recent-generations', JSON.stringify(updated))
-      } catch {
-        // localStorage full - ignore
-      }
-      return updated
-    })
-  }
+   // Load recent generations from API on mount
+   useEffect(() => {
+     fetchRecentGenerations()
+   }, [])
+
+   // Note: autoSaveGeneration removed - generations are automatically saved to database by /api/ai/template
+   // Instead, we refetch recent generations after a successful generation
 
   // Agent profile state
   const [agentName, setAgentName] = useState('')
@@ -524,10 +525,11 @@ export default function TemplatesPage() {
         throw new Error(errorData.error || 'Failed to create template')
       }
 
-      const data = await response.json()
-      console.log('Template generation response:', data)
-      setResult({ outputUrl: data.outputUrl, isWatermarked: data.isWatermarked || false })
-      autoSaveGeneration(data.outputUrl, templateType, prompt)
+       const data = await response.json()
+       console.log('Template generation response:', data)
+       setResult({ outputUrl: data.outputUrl, isWatermarked: data.isWatermarked || false })
+       // Refresh recent generations list from database
+       fetchRecentGenerations()
     } catch (err: any) {
       console.error('Template generation error:', err)
       setError(err.message || 'Failed to create template. Please try again.')
@@ -666,15 +668,14 @@ export default function TemplatesPage() {
                       <h3 className="font-semibold text-gray-900">Recent Generations</h3>
                       <p className="text-xs text-gray-500 mt-0.5">Your last {recentGenerations.length} created templates</p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setRecentGenerations([])
-                        localStorage.removeItem('stagefy-recent-generations')
-                      }}
-                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      Clear
-                    </button>
+                     <button
+                       onClick={() => {
+                         setRecentGenerations([])
+                       }}
+                       className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                     >
+                       Clear
+                     </button>
                   </div>
                   <div className="flex gap-3 mt-3 overflow-x-auto pb-1">
                     {recentGenerations.map((gen) => (
