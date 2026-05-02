@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       console.error('Error getting user:', err);
     }
 
-     const postCount = calculatePostCount(body.duration, body.frequency);
+    const postCount = calculatePostCount(body.duration, body.frequency);
     const days = { '1_week': 7, '2_weeks': 14, '1_month': 30 }[body.duration] || 7;
 
     // Generate mock plan for demo mode or if Replicate not available
@@ -91,20 +91,17 @@ export async function POST(request: Request) {
 
       for (let i = 0; i < postCount; i++) {
         const postDate = new Date(startDate);
-        // Space posts evenly across the duration
         const spacing = Math.floor((days / postCount) * i);
         postDate.setDate(startDate.getDate() + spacing);
         
         const cat = categories[Math.floor(Math.random() * categories.length)];
         const vtype = visualTypes[Math.floor(Math.random() * visualTypes.length)];
-        const agentName = body.agent_profile?.name || body.agent_profile?.agency || 'Your Real Estate Expert';
 
         const titles = [
           `${cat.label}`,
           `${cat.label} in ${body.agent_profile?.location || 'Your Area'}`,
           `Why ${cat.label} Matters`,
           `${cat.label} Spotlight`,
-          `${agentName}'s ${cat.label}`,
         ];
         const title = titles[Math.floor(Math.random() * titles.length)];
 
@@ -112,8 +109,8 @@ export async function POST(request: Request) {
           title,
           description: cat.descr + ' - crafted to engage and inform your audience.',
           category: cat.id,
-          suggested_caption: `🏠 ${title}\\n\\n${cat.descr}. ${body.agent_profile?.name ? `As your trusted local expert ${body.agent_profile.name.split(' ')[0]} is here to help!` : ''}\\n\\nReady to take the next step? Reach out today! 📞✨\\n\\n#RealEstate #${cat.id.replace('_', '')} #${body.agent_profile?.location?.split(',')[0].replace(/\\s+/g, '') || 'DreamHome'}`,
-          hashtags: [`#RealEstate`, `#${cat.id.replace('_', '')}`, `#${body.agent_profile?.location?.split(',')[0].replace(/\\s+/g, '') || 'Property'}`, `#HomeGoals`, `#Housing`, `#${cat.id === 'buyers_guide' ? 'BuyerTips' : 'RealEstatePro'}`],
+          suggested_caption: `🏠 ${title}\\n\\n${cat.descr}.\\n\\nReady to take the next step? Reach out today! 📞✨\\n\\n#RealEstate #${cat.id.replace('_', '')}`,
+          hashtags: [`#RealEstate`, `#${cat.id.replace('_', '')}`, `#${body.agent_profile?.location?.split(',')[0].replace(/\\s+/g, '') || 'Property'}`, `#HomeGoals`],
           visual_type: vtype.id,
           visual_style_description: vtype.descr,
           suggested_date: postDate.toISOString().split('T')[0],
@@ -121,6 +118,20 @@ export async function POST(request: Request) {
       }
       return mockPlan;
     };
+
+    // Use mock plan if Replicate token not configured
+    if (!replicateToken) {
+      console.log('Replicate API token not configured - using generated plan');
+      await new Promise(resolve => setTimeout(resolve, 800));
+      const mockPlan = generateMockPlan();
+      return NextResponse.json({
+        plan: mockPlan,
+        total_posts: postCount,
+        duration: body.duration,
+        platforms: body.platforms,
+        generated: true,
+      });
+    }
 
     // Build prompt for GPT-4.1-nano
     const systemPrompt = `You are an expert real estate social media strategist. Generate diverse, engaging social media post ideas. Return ONLY valid JSON.`;
@@ -174,57 +185,84 @@ OUTPUT JSON FORMAT:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Replicate API error:', response.status, errorText);
-      // Fall back to generated plan
       console.log('Falling back to generated plan');
       const mockPlan = generateMockPlan();
-      return NextResponse.json({
-        plan: mockPlan,
-        total_posts: postCount,
-        duration: body.duration,
-        platforms: body.platforms,
-        fallback: true,
-      });
+      return NextResponse.json({ plan: mockPlan, total_posts: postCount, duration: body.duration, platforms: body.platforms, fallback: true });
     }
 
     const prediction = await response.json();
     console.log('AI generation status:', prediction.status);
 
     // Parse output
-    let output = prediction.output;
-    if (typeof output === 'string') {
+    const rawOutput = prediction.output;
+    console.log('Raw output type:', typeof rawOutput);
+    
+    let parsedOutput = rawOutput;
+    if (typeof rawOutput === 'string') {
       try {
-        output = JSON.parse(output);
+        parsedOutput = JSON.parse(rawOutput);
+        console.log('Successfully parsed string to JSON, keys:', Object.keys(parsedOutput));
       } catch (e) {
-        // Try to extract JSON
-        const jsonMatch = output.match(/\{[\s\S]*\}/);
+        const err = e as Error;
+        console.error('JSON parse error:', err.message, 'Output preview:', rawOutput.substring(0, 500));
+        const jsonMatch = rawOutput.match(/\\{[\\s\\S]*\\}/);
         if (jsonMatch) {
-          try { output = JSON.parse(jsonMatch[0]); } catch {}
+          try {
+            parsedOutput = JSON.parse(jsonMatch[0]);
+            console.log('Extracted JSON successfully');
+          } catch (e2) {
+            const err2 = e2 as Error;
+            console.error('Extracted JSON parse also failed:', err2.message);
+            parsedOutput = null;
+          }
+        } else {
+          parsedOutput = null;
         }
       }
     }
+    
+    if (!parsedOutput) {
+      console.error('No valid output from AI, falling back to generated plan');
+      const mockPlan = generateMockPlan();
+      return NextResponse.json({ plan: mockPlan, total_posts: postCount, duration: body.duration, platforms: body.platforms, fallback: true });
+    }
+    
+    console.log('Output is now type:', typeof parsedOutput, 'keys:', Object.keys(parsedOutput));
 
     // Extract plan array
     let plan: any[] = [];
-    if (output?.plan && Array.isArray(output.plan)) {
-      plan = output.plan;
-    } else if (Array.isArray(output)) {
-      plan = output;
-    } else if (typeof output === 'object' && output !== null) {
-      const vals = Object.values(output);
+    if (parsedOutput?.plan && Array.isArray(parsedOutput.plan)) {
+      plan = parsedOutput.plan;
+      console.log('Found plan array with', plan.length, 'items');
+    } else if (Array.isArray(parsedOutput)) {
+      plan = parsedOutput;
+      console.log('Output is direct array with', plan.length, 'items');
+    } else if (typeof parsedOutput === 'object' && parsedOutput !== null) {
+      const vals = Object.values(parsedOutput);
       const arr = vals.find(v => Array.isArray(v));
-      if (arr) plan = arr;
+      if (arr) {
+        plan = arr;
+        console.log('Found nested array with', plan.length, 'items');
+      }
     }
 
     // Validate and normalize
     if (!Array.isArray(plan) || plan.length === 0) {
       console.log('Empty AI plan, using generated');
       const mockPlan = generateMockPlan();
-      return NextResponse.json({ plan: mockPlan, total_posts: postCount, duration: body.duration, platforms: body.platforms });
+      return NextResponse.json({ plan: mockPlan, total_posts: postCount, duration: body.duration, platforms: body.platforms, fallback: 'empty' });
+    }
+    
+    // Safety: if plan has ridiculous number of items, use generated instead
+    if (plan.length > postCount * 3) {
+      console.log(`AI returned ${plan.length} items (expected max ${postCount}), using generated`);
+      const mockPlan = generateMockPlan();
+      return NextResponse.json({ plan: mockPlan, total_posts: postCount, duration: body.duration, platforms: body.platforms, fallback: 'too_many' });
     }
 
     const validatedPlan = plan.map((p: any, i: number) => {
       const pd = body.start_date ? new Date(body.start_date) : new Date();
-      pd.setDate(pd.getDate() + Math.floor(i * (30 / postCount)));
+      pd.setDate(pd.getDate() + Math.floor(i * (days / postCount)));
       return {
         title: p.title || `Post ${i + 1}`,
         description: p.description || '',
