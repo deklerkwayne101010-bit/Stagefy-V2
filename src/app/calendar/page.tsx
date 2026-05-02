@@ -48,15 +48,23 @@ export default function CalendarPage() {
         return;
       }
 
+      console.log('Fetching calendar entries for user session:', session?.user?.id);
+
       const response = await fetch('/api/content/calendar', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
 
+      console.log('Calendar API response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Calendar API response data:', data);
         setEntries(data.entries || []);
+      } else {
+        const errorData = await response.json();
+        console.error('Calendar API error:', errorData);
       }
     } catch (error) {
       console.error('Error fetching calendar:', error);

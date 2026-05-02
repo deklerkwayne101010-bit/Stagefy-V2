@@ -58,9 +58,11 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Error fetching calendar:', error);
-      return NextResponse.json({ error: 'Failed to fetch calendar' }, { status: 500 });
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      return NextResponse.json({ error: `Failed to fetch calendar: ${error.message}`, details: error }, { status: 500 });
     }
 
+    console.log(`Fetched ${data?.length || 0} calendar entries for user ${user.id}`);
     return NextResponse.json({ entries: data || [] });
 
   } catch (error: any) {
@@ -122,9 +124,11 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Error creating calendar entry:', error);
-      return NextResponse.json({ error: 'Failed to create entry' }, { status: 500 });
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      return NextResponse.json({ error: `Failed to create entry: ${error.message}`, details: error }, { status: 500 });
     }
 
+    console.log('Successfully created calendar entry:', data);
     return NextResponse.json({ entry: data });
   } catch (error: any) {
     console.error('Calendar POST error:', error);

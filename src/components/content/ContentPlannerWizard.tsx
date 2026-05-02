@@ -291,9 +291,14 @@ export default function ContentPlannerWizard({
         return;
       }
 
+      console.log('Starting to schedule', generatedPlan.length, 'posts');
+
       // Create all calendar entries (without requiring images)
-      for (const post of generatedPlan) {
-        await fetch('/api/content/calendar', {
+      for (let i = 0; i < generatedPlan.length; i++) {
+        const post = generatedPlan[i];
+        console.log(`Scheduling post ${i + 1}/${generatedPlan.length}:`, post.title);
+
+        const response = await fetch('/api/content/calendar', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -313,6 +318,17 @@ export default function ContentPlannerWizard({
             generated_image_url: post.generated_image_url || null, // Include if already generated
           }),
         });
+
+        console.log(`Post ${i + 1} response status:`, response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Post scheduling error:', errorData);
+          throw new Error(`Failed to schedule post "${post.title}": ${errorData.error || response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        console.log(`Post ${i + 1} scheduled successfully:`, responseData.entry?.id);
       }
 
       showToast.success(`Scheduled ${generatedPlan.length} posts successfully! You can add images to each post on the calendar.`);
