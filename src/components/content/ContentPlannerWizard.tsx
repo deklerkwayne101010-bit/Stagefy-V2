@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth-context';
-import { useCart } from '@/lib/cart-context';
 import { showToast } from '@/lib/toast';
 import Image from 'next/image';
 
@@ -42,7 +41,6 @@ export default function ContentPlannerWizard({
   onComplete,
 }: ContentPlannerWizardProps) {
   const { user } = useAuth();
-  const { getItemCount, addItem: addCartItem } = useCart();
 
   const [currentStep, setCurrentStep] = useState<WizardStepType>('duration');
   const [duration, setDuration] = useState<'1_week' | '2_weeks' | '1_month'>('1_week');
@@ -54,6 +52,7 @@ export default function ContentPlannerWizard({
   const [generatedPlan, setGeneratedPlan] = useState<PlanPost[]>([]);
   const [generating, setGenerating] = useState(false);
   const [totalCredits, setTotalCredits] = useState(0);
+  const [userCredits, setUserCredits] = useState<number>(10);
 
   // Agent profile state (loaded from database)
   const [agentProfile, setAgentProfile] = useState<{ name_surname: string; agency_brand?: string } | null>(null);
@@ -218,18 +217,8 @@ export default function ContentPlannerWizard({
         return;
       }
 
-      // Check credits
-      const userCredits = getItemCount();
-      if (userCredits < totalCredits) {
-        showToast.error(`Not enough credits. Need ${totalCredits}, have ${userCredits}`);
-        return;
-      }
-
-      // Reserve all credits upfront
-      for (let i = 0; i < generatedPlan.length; i++) {
-        // Add 5 credits per template to cart (will be deducted)
-        // In production, you'd use a proper credit reservation system
-      }
+       // Check credits - actual check done in API endpoint which reserves credits
+       // if user doesn't have enough - let the API handle it
 
       // Generate templates in parallel
       const templatePromises = generatedPlan.map((post, index) =>
