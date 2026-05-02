@@ -65,48 +65,62 @@ export async function POST(request: Request) {
       console.error('Error getting user:', err);
     }
 
-    const postCount = calculatePostCount(body.duration, body.frequency);
+     const postCount = calculatePostCount(body.duration, body.frequency);
+    const days = { '1_week': 7, '2_weeks': 14, '1_month': 30 }[body.duration] || 7;
 
     // Generate mock plan for demo mode or if Replicate not available
     const generateMockPlan = () => {
       const mockPlan: any[] = [];
       const startDate = body.start_date ? new Date(body.start_date) : new Date();
-      const categories = ['listing', 'market_update', 'testimonial', 'buyers_guide', 'community', 'tip', 'personal_brand'];
-      const visualTypes = ['professional', 'agent_showcase', 'testimonial', 'infographic'];
+      
+      const categories = [
+        { id: 'listing', label: 'New Property Listing', descr: 'Fresh listing just hit the market' },
+        { id: 'market_update', label: 'Market Update', descr: 'Latest trends and local market insights' },
+        { id: 'testimonial', label: 'Client Testimonial', descr: 'Happy client shares their experience' },
+        { id: 'buyers_guide', label: 'Buyer Tips', descr: 'Essential tips for first-time homebuyers' },
+        { id: 'community', label: 'Local Community', descr: 'Neighborhood highlights and local events' },
+        { id: 'tip', label: 'Real Estate Tip', descr: 'Quick tips for sellers and investors' },
+        { id: 'personal_brand', label: 'Meet the Agent', descr: 'Personal branding and professional highlights' },
+      ];
+      const visualTypes = [
+        { id: 'professional', descr: 'Modern real estate design with property focus' },
+        { id: 'agent_showcase', descr: 'Agent-centered profile showcase' },
+        { id: 'testimonial', descr: 'Client review and testimonial highlight' },
+        { id: 'infographic', descr: 'Data-driven market stats infographic' },
+      ];
 
       for (let i = 0; i < postCount; i++) {
         const postDate = new Date(startDate);
-        postDate.setDate(startDate.getDate() + Math.floor(i * (30 / postCount)));
-        const category = categories[Math.floor(Math.random() * categories.length)];
-        const visualType = visualTypes[Math.floor(Math.random() * visualTypes.length)];
+        // Space posts evenly across the duration
+        const spacing = Math.floor((days / postCount) * i);
+        postDate.setDate(startDate.getDate() + spacing);
+        
+        const cat = categories[Math.floor(Math.random() * categories.length)];
+        const vtype = visualTypes[Math.floor(Math.random() * visualTypes.length)];
+        const agentName = body.agent_profile?.name || body.agent_profile?.agency || 'Your Real Estate Expert';
+
+        const titles = [
+          `${cat.label}`,
+          `${cat.label} in ${body.agent_profile?.location || 'Your Area'}`,
+          `Why ${cat.label} Matters`,
+          `${cat.label} Spotlight`,
+          `${agentName}'s ${cat.label}`,
+        ];
+        const title = titles[Math.floor(Math.random() * titles.length)];
 
         mockPlan.push({
-          title: `Post ${i + 1}: ${category.replace('_', ' ')}`,
-          description: `An engaging ${category.replace('_', ' ')} post for your audience.`,
-          category,
-          suggested_caption: `🏠 ${body.agent_profile?.name || 'Real Estate Agent'} - ${category.replace('_', ' ')} opportunity!\n\nHelping buyers and sellers in the local area. Let's discuss your real estate goals! 🏡\n\n#RealEstate #HomeGoals #${category.replace('_', '')}`,
-          hashtags: ['#RealEstate', '#HomeGoals', '#Property', `#${category.replace('_', '')}`, '#LocalArea', '#DreamHome'],
-          visual_type: visualType,
-          visual_style_description: `Professional ${visualType} design with modern typography and clean layout`,
+          title,
+          description: cat.descr + ' - crafted to engage and inform your audience.',
+          category: cat.id,
+          suggested_caption: `🏠 ${title}\\n\\n${cat.descr}. ${body.agent_profile?.name ? `As your trusted local expert ${body.agent_profile.name.split(' ')[0]} is here to help!` : ''}\\n\\nReady to take the next step? Reach out today! 📞✨\\n\\n#RealEstate #${cat.id.replace('_', '')} #${body.agent_profile?.location?.split(',')[0].replace(/\\s+/g, '') || 'DreamHome'}`,
+          hashtags: [`#RealEstate`, `#${cat.id.replace('_', '')}`, `#${body.agent_profile?.location?.split(',')[0].replace(/\\s+/g, '') || 'Property'}`, `#HomeGoals`, `#Housing`, `#${cat.id === 'buyers_guide' ? 'BuyerTips' : 'RealEstatePro'}`],
+          visual_type: vtype.id,
+          visual_style_description: vtype.descr,
           suggested_date: postDate.toISOString().split('T')[0],
         });
       }
       return mockPlan;
     };
-
-    // Use mock plan if Replicate token not configured
-    if (!replicateToken) {
-      console.log('Replicate API token not configured - using generated plan');
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const mockPlan = generateMockPlan();
-      return NextResponse.json({
-        plan: mockPlan,
-        total_posts: postCount,
-        duration: body.duration,
-        platforms: body.platforms,
-        generated: true,
-      });
-    }
 
     // Build prompt for GPT-4.1-nano
     const systemPrompt = `You are an expert real estate social media strategist. Generate diverse, engaging social media post ideas. Return ONLY valid JSON.`;
