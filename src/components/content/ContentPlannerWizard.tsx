@@ -152,7 +152,7 @@ export default function ContentPlannerWizard({
       }));
 
       setGeneratedPlan(planWithPlatforms);
-      setTotalCredits(2 + planWithPlatforms.length * 5); // 2 for plan + 5 per visual
+      setTotalCredits(2); // Only charge for content plan initially, images can be generated separately
       setCurrentStep('review');
       showToast.success(`Generated ${planWithPlatforms.length} content ideas!`);
     } catch (error: any) {
@@ -273,7 +273,7 @@ export default function ContentPlannerWizard({
     }
   };
 
-  // Finalize schedule
+  // Finalize schedule - now only schedules text content, images can be added later
   const handleScheduleAll = async () => {
     try {
       const { supabase } = await import('@/lib/supabase');
@@ -284,36 +284,14 @@ export default function ContentPlannerWizard({
         return;
       }
 
-      // Check if all posts have images
-      const missingImages = generatedPlan.filter(p => !p.generated_image_url);
-      if (missingImages.length > 0) {
-        showToast.error(`Missing images for ${missingImages.length} posts. Please generate or remove them.`);
+      // No longer checking for images - users can add them later on calendar
+      // Check if we have any posts to schedule
+      if (generatedPlan.length === 0) {
+        showToast.error('No posts to schedule. Please generate a content plan first.');
         return;
       }
 
-      // Verify social accounts connected
-      const { data: fbAccount } = await supabase
-        .from('social_accounts')
-        .select('id')
-        .eq('user_id', user?.id)
-        .eq('platform', 'facebook')
-        .eq('is_active', true)
-        .single();
-
-      const { data: igAccount } = await supabase
-        .from('social_accounts')
-        .select('id')
-        .eq('user_id', user?.id)
-        .eq('platform', 'instagram')
-        .eq('is_active', true)
-        .single();
-
-      if (!fbAccount || !igAccount) {
-        showToast.error('Please connect both Facebook and Instagram accounts before scheduling.');
-        return;
-      }
-
-      // Create all calendar entries
+      // Create all calendar entries (without requiring images)
       for (const post of generatedPlan) {
         await fetch('/api/content/calendar', {
           method: 'POST',
@@ -332,11 +310,12 @@ export default function ContentPlannerWizard({
             scheduled_date: new Date(post.suggested_date).toISOString(),
             is_recurring: post.is_recurring || false,
             recurrence_pattern: post.recurrence_pattern || {},
+            generated_image_url: post.generated_image_url || null, // Include if already generated
           }),
         });
       }
 
-      showToast.success(`Scheduled ${generatedPlan.length} posts successfully!`);
+      showToast.success(`Scheduled ${generatedPlan.length} posts successfully! You can add images to each post on the calendar.`);
       onComplete({ posts: generatedPlan, total_credits: totalCredits });
       onClose();
     } catch (error: any) {
@@ -650,7 +629,7 @@ export default function ContentPlannerWizard({
                   disabled={generating || generatedPlan.length === 0}
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  Schedule All Posts
+                  Schedule Content Plan
                 </Button>
               </div>
             </div>

@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       scheduled_date,
       is_recurring,
       recurrence_pattern,
+      generated_image_url,
     } = body;
 
     if (!title || !scheduled_date) {
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
         scheduled_date,
         is_recurring: is_recurring || false,
         recurrence_pattern: recurrence_pattern || {},
+        generated_image_url: generated_image_url || null,
         status: 'scheduled',
       })
       .select()
@@ -126,6 +128,54 @@ export async function POST(request: Request) {
     return NextResponse.json({ entry: data });
   } catch (error: any) {
     console.error('Calendar POST error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// PUT /api/content/calendar - Update calendar entry (for adding images)
+export async function PUT(request: Request) {
+  try {
+    const user = await getUserFromAuthHeader(request);
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, ...updates } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Entry ID required' }, { status: 400 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    // Ensure user can only update their own entries
+    const { data: existingEntry } = await supabase
+      .from('content_calendar')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+
+    if (!existingEntry || existingEntry.user_id !== user.id) {
+      return NextResponse.json({ error: 'Entry not found or access denied' }, { status: 404 });
+    }
+
+    const { data, error } = await supabase
+      .from('content_calendar')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating calendar entry:', error);
+      return NextResponse.json({ error: 'Failed to update entry' }, { status: 500 });
+    }
+
+    return NextResponse.json({ entry: data });
+  } catch (error: any) {
+    console.error('Calendar PUT error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

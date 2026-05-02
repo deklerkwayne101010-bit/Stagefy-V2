@@ -20,6 +20,8 @@ interface CalendarEntry {
   caption: string;
   hashtags: string[];
   generated_image_url: string | null;
+  template_type: string;
+  template_prompt: string;
   scheduled_date: string;
   status: 'scheduled' | 'published' | 'failed' | 'cancelled' | 'draft';
   published_url: string | null;
@@ -97,6 +99,7 @@ export default function CalendarPage() {
             scheduled_date: new Date(post.suggested_date).toISOString(),
             is_recurring: post.is_recurring || false,
             recurrence_pattern: post.recurrence_pattern || {},
+            generated_image_url: post.generated_image_url || null,
           }),
         });
       }
@@ -110,11 +113,80 @@ export default function CalendarPage() {
     }
   };
 
+  // Generate image for a calendar entry
+  const generateImageForEntry = async (entry: CalendarEntry) => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        showToast.error('Please login to continue');
+        return;
+      }
+
+      showToast.info('Generating image...');
+
+      // Use the existing template generation API
+      const response = await fetch('/api/ai/template', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          type: entry.template_type === 'agent_showcase' ? 'agent_showcase' : 'professional',
+          version: 'standard',
+          prompt: entry.template_prompt || `Create a ${entry.content_type} post for ${entry.title}. ${entry.caption}`,
+          customOptions: {
+            colorTheme: 'agency',
+            aspectRatio: '1:1',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate image');
+      }
+
+      const data = await response.json();
+      const imageUrl = data.outputUrl;
+
+      if (imageUrl) {
+        // Update the calendar entry with the new image
+        await fetch('/api/content/calendar', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            id: entry.id,
+            generated_image_url: imageUrl,
+          }),
+        });
+
+        // Update local state
+        setEntries(prev => prev.map(e =>
+          e.id === entry.id
+            ? { ...e, generated_image_url: imageUrl }
+            : e
+        ));
+
+        showToast.success('Image generated successfully!');
+      } else {
+        throw new Error('No image URL returned');
+      }
+    } catch (error: any) {
+      console.error('Image generation error:', error);
+      showToast.error('Failed to generate image');
+    }
+  };
+
   // Manual share to Facebook/Instagram (no API connection required)
   const handleManualShare = (entry: CalendarEntry, platform: 'facebook' | 'instagram') => {
     const url = window.location.origin + '/calendar';
     const text = `${entry.title}\n\n${entry.caption}`;
-    
+
     if (platform === 'facebook') {
       const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
       window.open(fbShareUrl, 'facebook-share', 'width=600,height=400,toolbar=0,menubar=0');
@@ -143,25 +215,51 @@ export default function CalendarPage() {
 
     const platform = eventInfo.event.extendedProps.platform as string;
     const colorClass = platformColors[platform as keyof typeof platformColors] || 'bg-gray-500';
+    const hasImage = eventInfo.event.extendedProps.generated_image_url;
 
     return (
-      <div className={`${colorClass} text-white p-1 rounded text-xs overflow-hidden cursor-pointer hover:opacity-80`}>
+      <div className={`${colorClass} text-white p-1 rounded text-xs overflow-hidden cursor-pointer hover:opacity-80 relative`}>
+        {!hasImage && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border border-white"></div>
+        )}
         <div className="font-bold truncate">{eventInfo.event.title}</div>
         <div className="truncate opacity-80">{eventInfo.event.extendedProps.caption?.substring(0, 50)}...</div>
+        {!hasImage && (
+          <div className="text-xs opacity-60 mt-1">⚠️ No image</div>
+        )}
       </div>
     );
   };
 
-  // Handle event click - show share options
+  // Handle event click - show options modal
   const handleEventClick = (info: any) => {
     const entry = entries.find(e => e.id === info.event.id);
     if (entry) {
-      const platform = info.event.extendedProps.platform;
-      if (platform === 'both') {
-        const choice = window.confirm('Share to Facebook or Instagram?\n\nOK = Facebook, Cancel = Instagram');
-        handleManualShare(entry, choice ? 'facebook' : 'instagram');
-      } else {
-        handleManualShare(entry, platform);
+      // Show a simple modal with options
+      const hasImage = !!entry.generated_image_url;
+      const options = [];
+
+      if (!hasImage) {
+        options.push('📸 Generate Image');
+      }
+      options.push('📤 Share to Social Media');
+      options.push('❌ Cancel');
+
+      const choice = window.prompt(
+        `${entry.title}\n\n${entry.caption}\n\nChoose an action:\n${options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}`,
+        '1'
+      );
+
+      if (choice === '1' && !hasImage) {
+        generateImageForEntry(entry);
+      } else if ((choice === '1' && hasImage) || choice === '2') {
+        const platform = info.event.extendedProps.platform;
+        if (platform === 'both') {
+          const platformChoice = window.confirm('Share to Facebook or Instagram?\n\nOK = Facebook, Cancel = Instagram');
+          handleManualShare(entry, platformChoice ? 'facebook' : 'instagram');
+        } else {
+          handleManualShare(entry, platform);
+        }
       }
     }
   };
@@ -186,14 +284,14 @@ export default function CalendarPage() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Content Calendar</h1>
-            <p className="text-gray-600">Plan and schedule your social media content</p>
+            <p className="text-gray-600">Plan content, add visuals, and schedule your social media posts</p>
           </div>
            <div className="flex items-center gap-4">
             <Button
               onClick={() => setShowWizard(true)}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              + Content Planner
+              + Plan Content
             </Button>
           </div>
         </div>
@@ -251,6 +349,10 @@ export default function CalendarPage() {
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-purple-500"></div>
             <span>Both</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-yellow-400 border border-gray-600"></div>
+            <span>No Image</span>
           </div>
         </div>
       </div>
