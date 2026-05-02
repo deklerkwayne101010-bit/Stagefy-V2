@@ -34,10 +34,6 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [connectedAccounts, setConnectedAccounts] = useState<{
-    facebook?: boolean;
-    instagram?: boolean;
-  }>({});
 
   // Fetch calendar entries
   const fetchEntries = useCallback(async () => {
@@ -67,37 +63,9 @@ export default function CalendarPage() {
     }
   }, [router]);
 
-  // Fetch connected accounts
-  const fetchAccounts = useCallback(async () => {
-    try {
-      const { supabase } = await import('@/lib/supabase');
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) return;
-
-      const response = await fetch('/api/social/accounts', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const accounts = data.accounts || [];
-        setConnectedAccounts({
-          facebook: accounts.some((a: any) => a.platform === 'facebook'),
-          instagram: accounts.some((a: any) => a.platform === 'instagram'),
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching accounts:', error);
-    }
-  }, []);
-
   useEffect(() => {
     fetchEntries();
-    fetchAccounts();
-  }, [fetchEntries, fetchAccounts]);
+  }, [fetchEntries]);
 
   // Handle wizard completion
   const handleWizardComplete = async (plan: any) => {
@@ -142,6 +110,29 @@ export default function CalendarPage() {
     }
   };
 
+  // Manual share to Facebook/Instagram (no API connection required)
+  const handleManualShare = (entry: CalendarEntry, platform: 'facebook' | 'instagram') => {
+    const url = window.location.origin + '/calendar';
+    const text = `${entry.title}\n\n${entry.caption}`;
+    
+    if (platform === 'facebook') {
+      const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
+      window.open(fbShareUrl, 'facebook-share', 'width=600,height=400,toolbar=0,menubar=0');
+    } else {
+      const igText = `📸 ${entry.title}\n\n${entry.caption}`;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(igText).then(() => {
+          showToast.success('Caption copied! Now paste into Instagram 📱');
+          window.open('https://instagram.com', '_blank');
+        }).catch(() => {
+          window.open('https://instagram.com', '_blank');
+        });
+      } else {
+        window.open('https://instagram.com', '_blank');
+      }
+    }
+  };
+
   // Custom event rendering
   const eventContent = (eventInfo: any) => {
     const platformColors = {
@@ -154,15 +145,28 @@ export default function CalendarPage() {
     const colorClass = platformColors[platform as keyof typeof platformColors] || 'bg-gray-500';
 
     return (
-      <div className={`${colorClass} text-white p-1 rounded text-xs overflow-hidden`}>
+      <div className={`${colorClass} text-white p-1 rounded text-xs overflow-hidden cursor-pointer hover:opacity-80`}>
         <div className="font-bold truncate">{eventInfo.event.title}</div>
         <div className="truncate opacity-80">{eventInfo.event.extendedProps.caption?.substring(0, 50)}...</div>
       </div>
     );
   };
 
-  // Check if user can create content
-  const canCreateContent = connectedAccounts.facebook && connectedAccounts.instagram;
+  // Handle event click - show share options
+  const handleEventClick = (info: any) => {
+    const entry = entries.find(e => e.id === info.event.id);
+    if (entry) {
+      const platform = info.event.extendedProps.platform;
+      if (platform === 'both') {
+        const choice = window.confirm('Share to Facebook or Instagram?\n\nOK = Facebook, Cancel = Instagram');
+        handleManualShare(entry, choice ? 'facebook' : 'instagram');
+      } else {
+        handleManualShare(entry, platform);
+      }
+    }
+  };
+
+  // Check if user can create content (always true for manual sharing)
 
   if (loading) {
     return (
@@ -184,24 +188,9 @@ export default function CalendarPage() {
             <h1 className="text-2xl font-bold text-gray-900">Content Calendar</h1>
             <p className="text-gray-600">Plan and schedule your social media content</p>
           </div>
-          <div className="flex items-center gap-4">
-            {/* Connected accounts status */}
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${connectedAccounts.facebook ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-              <span className="text-sm text-gray-600">FB</span>
-              <div className={`w-3 h-3 rounded-full ${connectedAccounts.instagram ? 'bg-pink-500' : 'bg-gray-300'} ml-2`}></div>
-              <span className="text-sm text-gray-600">IG</span>
-            </div>
-
-            {!canCreateContent && (
-              <div className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
-                Connect FB & IG to publish
-              </div>
-            )}
-
+           <div className="flex items-center gap-4">
             <Button
               onClick={() => setShowWizard(true)}
-              disabled={!canCreateContent}
               className="bg-blue-600 hover:bg-blue-700"
             >
               + Content Planner
@@ -237,16 +226,16 @@ export default function CalendarPage() {
             height="auto"
             editable={false}
             selectable={true}
-            dateClick={(info) => {
-              setSelectedDate(info.date);
-            }}
-            eventClick={(info) => {
-              const entry = entries.find(e => e.id === info.event.id);
-              if (entry) {
-                showPostDetails(entry);
-              }
-            }}
-          />
+             dateClick={(info) => {
+               setSelectedDate(info.date);
+             }}
+             eventClick={(info) => {
+               const entry = entries.find(e => e.id === info.event.id);
+               if (entry) {
+                 handleEventClick(info);
+               }
+             }}
+           />
         </Card>
 
         {/* Legend */}
