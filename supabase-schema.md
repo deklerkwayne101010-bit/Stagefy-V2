@@ -48,6 +48,9 @@ CREATE TYPE template_type AS ENUM ('listing_promo', 'instagram_reel', 'open_hous
 -- Notification types
 CREATE TYPE notification_type AS ENUM ('credit_low', 'job_completed', 'payment_success', 'payment_failed', 'subscription_renewal', 'system');
 
+-- Content calendar status
+CREATE TYPE calendar_status AS ENUM ('scheduled', 'published', 'failed', 'cancelled', 'draft');
+
 -- Use case preference
 CREATE TYPE use_case AS ENUM ('photos', 'video', 'templates', 'all');
 ```
@@ -323,7 +326,40 @@ User notifications and alerts.
 
 ---
 
-### 11. admin_audit_log
+### 11. content_calendar
+
+Scheduled social media content entries.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | uuid | PRIMARY KEY DEFAULT gen_random_uuid() | Entry ID |
+| user_id | uuid | REFERENCES users(id) ON DELETE CASCADE | User ID |
+| title | text | NOT NULL | Post title |
+| content_type | text | NOT NULL | Content category (listing, market_update, etc.) |
+| platform | text | NOT NULL | Platform (facebook, instagram, both) |
+| caption | text | NOT NULL | Post caption |
+| hashtags | text[] | DEFAULT '{}' | Hashtags array |
+| template_type | text | | Visual template type |
+| template_prompt | text | | AI prompt for image generation |
+| generated_image_url | text | | URL of generated image |
+| scheduled_date | timestamptz | NOT NULL | When to post |
+| is_recurring | boolean | DEFAULT false | Recurring post flag |
+| recurrence_pattern | jsonb | | Recurrence settings |
+| status | calendar_status | DEFAULT 'scheduled' | Post status |
+| published_url | text | | URL of published post |
+| publish_error | text | | Error message if publishing failed |
+| created_at | timestamptz | DEFAULT NOW() | Creation timestamp |
+| updated_at | timestamptz | DEFAULT NOW() | Last update |
+
+**Indexes:**
+- `idx_content_calendar_user_id` on `user_id`
+- `idx_content_calendar_status` on `status`
+- `idx_content_calendar_scheduled_date` on `scheduled_date`
+- `idx_content_calendar_platform` on `platform`
+
+---
+
+### 12. admin_audit_log
 
 Admin activity tracking (optional, for compliance).
 
@@ -389,6 +425,7 @@ ALTER TABLE crm_listings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_calendar ENABLE ROW LEVEL SECURITY;
 
 -- Users can only access their own data
 CREATE POLICY "Users can view own data" ON users
@@ -402,6 +439,9 @@ CREATE POLICY "Users can access own projects" ON projects
   FOR ALL USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can access own contacts" ON crm_contacts
+  FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can access own calendar" ON content_calendar
   FOR ALL USING (auth.uid() = user_id);
 
 -- Admin role can access all data
@@ -587,11 +627,36 @@ CREATE TABLE notifications (
   read boolean DEFAULT false,
   action_url text,
   created_at timestamptz DEFAULT NOW()
+);
+
+CREATE TABLE content_calendar (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  content_type text NOT NULL,
+  platform text NOT NULL,
+  caption text NOT NULL,
+  hashtags text[] DEFAULT '{}',
+  template_type text,
+  template_prompt text,
+  generated_image_url text,
+  scheduled_date timestamptz NOT NULL,
+  is_recurring boolean DEFAULT false,
+  recurrence_pattern jsonb,
+  status calendar_status DEFAULT 'scheduled',
+  published_url text,
+  publish_error text,
+  created_at timestamptz DEFAULT NOW(),
+  updated_at timestamptz DEFAULT NOW()
 ); (run all table definitions)
 
 -- Indexes
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_subscription_tier ON users(subscription_tier);
+CREATE INDEX idx_content_calendar_user_id ON content_calendar(user_id);
+CREATE INDEX idx_content_calendar_status ON content_calendar(status);
+CREATE INDEX idx_content_calendar_scheduled_date ON content_calendar(scheduled_date);
+CREATE INDEX idx_content_calendar_platform ON content_calendar(platform);
 -- ... (create all indexes)
 
 -- RLS Policies
