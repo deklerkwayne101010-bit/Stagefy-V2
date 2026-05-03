@@ -761,7 +761,6 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
   const { user } = useAuth();
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatingContent, setGeneratingContent] = useState(false);
-  const [generatingContent, setGeneratingContent] = useState(false);
 
   const handleGenerateImage = async () => {
     setGeneratingImage(true);
