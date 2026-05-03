@@ -198,3 +198,50 @@ export async function PUT(request: Request) {
   }
 }
 
+// DELETE /api/content/calendar?id=<entry_id> - Delete calendar entry
+export async function DELETE(request: Request) {
+  try {
+    const user = await getUserFromAuthHeader(request);
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Entry ID required' }, { status: 400 });
+    }
+
+    const supabase = getServiceClient();
+
+    // Ensure user can only delete their own entries
+    const { data: existingEntry } = await supabase
+      .from('content_calendar')
+      .select('user_id, title')
+      .eq('id', id)
+      .single();
+
+    if (!existingEntry || existingEntry.user_id !== user.id) {
+      return NextResponse.json({ error: 'Entry not found or access denied' }, { status: 404 });
+    }
+
+    const { error } = await supabase
+      .from('content_calendar')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting calendar entry:', error);
+      return NextResponse.json({ error: 'Failed to delete entry' }, { status: 500 });
+    }
+
+    console.log(`User ${user.id} deleted calendar entry: ${existingEntry.title}`);
+    return NextResponse.json({ success: true, message: 'Entry deleted successfully' });
+  } catch (error: any) {
+    console.error('Calendar DELETE error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+

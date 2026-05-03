@@ -479,6 +479,9 @@ export default function CalendarPage() {
               setShowEventModal(false);
               setSelectedEvent(null);
             }}
+            onDelete={(entryId) => {
+              setEntries(prev => prev.filter(e => e.id !== entryId));
+            }}
           />
         )}
 
@@ -755,9 +758,10 @@ interface EventModalProps {
   onGenerateContent: (entry: CalendarEntry) => void;
   onShare: (entry: CalendarEntry, platform: 'facebook' | 'instagram') => void;
   onUpdate: (entry: CalendarEntry) => void;
+  onDelete: (entryId: string) => void;
 }
 
-function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShare, onUpdate }: EventModalProps) {
+function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShare, onUpdate, onDelete }: EventModalProps) {
   const { user } = useAuth();
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatingContent, setGeneratingContent] = useState(false);
@@ -788,6 +792,43 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
       console.error('Content generation failed:', error);
     } finally {
       setGeneratingContent(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${entry.title}"?\n\nThis action cannot be undone.`
+    );
+
+    if (confirmed) {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          showToast.error('Please login to continue');
+          return;
+        }
+
+        const response = await fetch(`/api/content/calendar?id=${entry.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to delete entry');
+        }
+
+        onDelete(entry.id);
+        showToast.success('Post deleted successfully!');
+        onClose();
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        showToast.error(error.message || 'Failed to delete post');
+      }
     }
   };
 
@@ -1025,6 +1066,15 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
                       ✏️ Edit Post
                     </Button>
                   )}
+
+                  {/* Delete button */}
+                  <Button
+                    onClick={handleDelete}
+                    variant="outline"
+                    className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+                  >
+                    🗑️ Delete Post
+                  </Button>
 
                   {/* Mark as complete (for reminders/events) */}
                   {(entry.content_type === 'reminder' || entry.content_type === 'event') && (
