@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // Helper to get user from Authorization header
 async function getUserFromAuthHeader(request: Request) {
@@ -24,6 +25,19 @@ async function getUserFromAuthHeader(request: Request) {
   }
 }
 
+// Create authenticated client with service role for admin operations
+function getServiceClient() {
+  if (!supabaseServiceKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
+  }
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
 // GET /api/content/calendar - List calendar entries with optional date range
 export async function GET(request: Request) {
   try {
@@ -37,7 +51,7 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('end');
     const status = searchParams.get('status');
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = getServiceClient();
     let query = supabase
       .from('content_calendar')
       .select('*')
@@ -101,7 +115,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = getServiceClient();
     const { data, error } = await supabase
       .from('content_calendar')
       .insert({
@@ -151,7 +165,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Entry ID required' }, { status: 400 });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = getServiceClient();
 
     // Ensure user can only update their own entries
     const { data: existingEntry } = await supabase
