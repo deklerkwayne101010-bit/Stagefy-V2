@@ -127,6 +127,82 @@ export default function CalendarPage() {
     }
   };
 
+  // Generate post content with AI
+  const generateContentForEntry = async (entry: CalendarEntry) => {
+    setGeneratingContent(true);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        showToast.error('Please login to continue');
+        return;
+      }
+
+      showToast.info('Generating engaging post content...');
+
+      // Call AI content generation API
+      const response = await fetch('/api/ai/content-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          custom_request: `Create an engaging social media post for: "${entry.title}". Make it optimized for ${entry.platform === 'both' ? 'both Facebook and Instagram' : entry.platform}. Include a compelling caption, relevant hashtags, and make it perfect for real estate marketing.`,
+          duration: '1_week',
+          frequency: 'twice_week',
+          platforms: entry.platform === 'both' ? ['facebook', 'instagram'] : [entry.platform],
+          topics: [entry.content_type],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate content');
+      }
+
+      const data = await response.json();
+      const generatedPost = data.plan[0]; // Get the first generated post
+
+      // Update the calendar entry with the new content
+      await fetch('/api/content/calendar', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          id: entry.id,
+          title: generatedPost.title || entry.title,
+          caption: generatedPost.suggested_caption,
+          hashtags: generatedPost.hashtags,
+          content_type: 'manual', // Mark as manually enhanced
+        }),
+      });
+
+      // Update local state
+      setEntries(prev => prev.map(e =>
+        e.id === entry.id
+          ? {
+              ...e,
+              title: generatedPost.title || e.title,
+              caption: generatedPost.suggested_caption,
+              hashtags: generatedPost.hashtags,
+              content_type: 'manual'
+            }
+          : e
+      ));
+
+      showToast.success('Post content generated with AI!');
+    } catch (error: any) {
+      console.error('Content generation error:', error);
+      showToast.error(error.message || 'Failed to generate content');
+    } finally {
+      setGeneratingContent(false);
+    }
+  };
+
   // Generate image for a calendar entry
   const generateImageForEntry = async (entry: CalendarEntry) => {
     try {
@@ -399,6 +475,7 @@ export default function CalendarPage() {
               setSelectedEvent(null);
             }}
             onGenerateImage={generateImageForEntry}
+            onGenerateContent={generateContentForEntry}
             onShare={handleManualShare}
             onUpdate={(updatedEntry) => {
               setEntries(prev => prev.map(e => e.id === updatedEntry.id ? updatedEntry : e));
@@ -678,13 +755,16 @@ interface EventModalProps {
   entry: CalendarEntry;
   onClose: () => void;
   onGenerateImage: (entry: CalendarEntry) => void;
+  onGenerateContent: (entry: CalendarEntry) => void;
   onShare: (entry: CalendarEntry, platform: 'facebook' | 'instagram') => void;
   onUpdate: (entry: CalendarEntry) => void;
 }
 
-function EventModal({ entry, onClose, onGenerateImage, onShare, onUpdate }: EventModalProps) {
+function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShare, onUpdate }: EventModalProps) {
   const { user } = useAuth();
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
 
   const handleGenerateImage = async () => {
     setGeneratingImage(true);
@@ -699,6 +779,19 @@ function EventModal({ entry, onClose, onGenerateImage, onShare, onUpdate }: Even
       console.error('Image generation failed:', error);
     } finally {
       setGeneratingImage(false);
+    }
+  };
+
+  const handleGenerateContent = async () => {
+    setGeneratingContent(true);
+    try {
+      await onGenerateContent(entry);
+      // The content will be updated in the parent component
+      showToast.success('Content updated successfully!');
+    } catch (error) {
+      console.error('Content generation failed:', error);
+    } finally {
+      setGeneratingContent(false);
     }
   };
 
@@ -864,6 +957,23 @@ function EventModal({ entry, onClose, onGenerateImage, onShare, onUpdate }: Even
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Actions</label>
                 <div className="space-y-2">
+                  {/* Generate Content with AI */}
+                  {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">AI Enhancement</div>
+                      <Button
+                        onClick={handleGenerateContent}
+                        loading={generatingContent}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        {generatingContent ? 'Generating...' : '🤖 Generate AI Content'}
+                      </Button>
+                      <p className="text-xs text-gray-500">
+                        Create engaging captions and hashtags optimized for social media
+                      </p>
+                    </div>
+                  )}
+
                   {/* Generate Image (for manual posts without images) */}
                   {!hasImage && entry.content_type === 'manual' && (
                     <Button
@@ -877,22 +987,36 @@ function EventModal({ entry, onClose, onGenerateImage, onShare, onUpdate }: Even
 
                   {/* Share buttons (for posts) */}
                   {(entry.content_type === 'post' || entry.content_type === 'manual') && (
-                    <>
-                      <Button
-                        onClick={() => handleShare('facebook')}
-                        variant="outline"
-                        className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
-                      >
-                        📘 Share to Facebook
-                      </Button>
-                      <Button
-                        onClick={() => handleShare('instagram')}
-                        variant="outline"
-                        className="w-full border-pink-200 text-pink-700 hover:bg-pink-50"
-                      >
-                        📷 Share to Instagram
-                      </Button>
-                    </>
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Share to Social Media</div>
+                      {entry.platform === 'both' ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            onClick={() => handleShare('facebook')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            📘 Facebook
+                          </Button>
+                          <Button
+                            onClick={() => handleShare('instagram')}
+                            className="bg-pink-600 hover:bg-pink-700 text-white"
+                          >
+                            📷 Instagram
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => handleShare(entry.platform as 'facebook' | 'instagram')}
+                          className={`w-full ${
+                            entry.platform === 'facebook'
+                              ? 'bg-blue-600 hover:bg-blue-700'
+                              : 'bg-pink-600 hover:bg-pink-700'
+                          } text-white`}
+                        >
+                          📤 Share to {entry.platform === 'facebook' ? 'Facebook' : 'Instagram'}
+                        </Button>
+                      )}
+                    </div>
                   )}
 
                   {/* Edit button (for drafts) */}
@@ -920,6 +1044,46 @@ function EventModal({ entry, onClose, onGenerateImage, onShare, onUpdate }: Even
                   )}
                 </div>
               </div>
+
+              {/* Content Quality Score */}
+              {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+                <div className="bg-blue-50 rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-gray-900">Content Quality</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Caption Length</span>
+                      <span className={`text-sm font-medium ${
+                        entry.caption.length > 100 ? 'text-green-600' :
+                        entry.caption.length > 50 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {entry.caption.length} chars
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Hashtags</span>
+                      <span className={`text-sm font-medium ${
+                        entry.hashtags && entry.hashtags.length >= 5 ? 'text-green-600' :
+                        entry.hashtags && entry.hashtags.length >= 3 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {entry.hashtags?.length || 0} tags
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Visual</span>
+                      <span className={`text-sm font-medium ${
+                        hasImage ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {hasImage ? '✅ Ready' : '⚠️ Missing'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      💡 Tip: Great content has 100+ characters, 5+ hashtags, and an engaging image
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Metadata */}
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
