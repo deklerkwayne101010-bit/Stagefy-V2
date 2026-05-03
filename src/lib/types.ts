@@ -264,7 +264,7 @@ export const CREDIT_COSTS = {
   template_generation: 5,
   description_generation: 1,
   prompt_generation: 3,
-  content_plan_generation: 2,
+  content_plan_generation: 1,
 } as const
 
 export type CreditOperation = keyof typeof CREDIT_COSTS

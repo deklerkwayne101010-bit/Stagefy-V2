@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth-context';
 import { showToast } from '@/lib/toast';
+import { CREDIT_COSTS } from '@/lib/types';
 import Image from 'next/image';
 
 interface WizardStep {
@@ -152,7 +153,7 @@ export default function ContentPlannerWizard({
       }));
 
       setGeneratedPlan(planWithPlatforms);
-      setTotalCredits(2); // Only charge for content plan initially, images can be generated separately
+      setTotalCredits(CREDIT_COSTS.content_plan_generation); // Only charge for content plan initially, images can be generated separately
       setCurrentStep('review');
       showToast.success(`Generated ${planWithPlatforms.length} content ideas!`);
     } catch (error: any) {
