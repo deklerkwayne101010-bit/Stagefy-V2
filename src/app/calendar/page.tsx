@@ -8,6 +8,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Input, Textarea } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth-context';
 import ContentPlannerWizard from '@/components/content/ContentPlannerWizard';
 import { showToast } from '@/lib/toast';
@@ -20,12 +21,14 @@ interface CalendarEntry {
   caption: string;
   hashtags: string[];
   generated_image_url: string | null;
-  template_type: string;
-  template_prompt: string;
+  template_type?: string;
+  template_prompt?: string;
   scheduled_date: string;
   status: 'scheduled' | 'published' | 'failed' | 'cancelled' | 'draft';
   published_url: string | null;
   publish_error: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function CalendarPage() {
@@ -36,6 +39,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showManualAddModal, setShowManualAddModal] = useState(false);
 
   // Fetch calendar entries
   const fetchEntries = useCallback(async () => {
@@ -215,24 +219,58 @@ export default function CalendarPage() {
 
   // Custom event rendering
   const eventContent = (eventInfo: any) => {
-    const platformColors = {
-      facebook: 'bg-blue-500',
-      instagram: 'bg-pink-500',
-      both: 'bg-purple-500',
+    const contentType = eventInfo.event.extendedProps.content_type as string;
+    const platform = eventInfo.event.extendedProps.platform as string;
+    const hasImage = eventInfo.event.extendedProps.generated_image_url;
+    const status = eventInfo.event.extendedProps.status as string;
+
+    // Different colors for different content types
+    const typeColors = {
+      manual: 'bg-blue-500',
+      reminder: 'bg-orange-500',
+      event: 'bg-green-500',
+      listing: 'bg-purple-500',
+      market_update: 'bg-indigo-500',
+      testimonial: 'bg-pink-500',
+      open_house: 'bg-red-500',
+      promo: 'bg-yellow-500',
     };
 
-    const platform = eventInfo.event.extendedProps.platform as string;
-    const colorClass = platformColors[platform as keyof typeof platformColors] || 'bg-gray-500';
-    const hasImage = eventInfo.event.extendedProps.generated_image_url;
+    const colorClass = typeColors[contentType as keyof typeof typeColors] || 'bg-gray-500';
+
+    // Different icons for different types
+    const typeIcons = {
+      manual: '📝',
+      reminder: '⏰',
+      event: '📅',
+      listing: '🏠',
+      market_update: '📈',
+      testimonial: '💬',
+      open_house: '🏡',
+      promo: '🎉',
+    };
+
+    const icon = typeIcons[contentType as keyof typeof typeIcons] || '📝';
 
     return (
       <div className={`${colorClass} text-white p-1 rounded text-xs overflow-hidden cursor-pointer hover:opacity-80 relative`}>
-        {!hasImage && (
+        {status === 'draft' && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gray-400 rounded-full border border-white"></div>
+        )}
+        {!hasImage && contentType === 'manual' && (
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border border-white"></div>
         )}
-        <div className="font-bold truncate">{eventInfo.event.title}</div>
-        <div className="truncate opacity-80">{eventInfo.event.extendedProps.caption?.substring(0, 50)}...</div>
-        {!hasImage && (
+        <div className="flex items-center gap-1">
+          <span className="text-xs">{icon}</span>
+          <span className="font-bold truncate flex-1">{eventInfo.event.title}</span>
+        </div>
+        <div className="truncate opacity-80 text-xs">
+          {eventInfo.event.extendedProps.caption?.substring(0, 40)}...
+        </div>
+        {status === 'draft' && (
+          <div className="text-xs opacity-60 mt-1">Draft</div>
+        )}
+        {!hasImage && contentType === 'manual' && (
           <div className="text-xs opacity-60 mt-1">⚠️ No image</div>
         )}
       </div>
@@ -243,11 +281,33 @@ export default function CalendarPage() {
   const handleEventClick = (info: any) => {
     const entry = entries.find(e => e.id === info.event.id);
     if (entry) {
-      // Show a simple modal with options
+      const contentType = entry.content_type;
       const hasImage = !!entry.generated_image_url;
+      const isDraft = entry.status === 'draft';
+
+      // Different actions based on content type
+      if (contentType === 'reminder' || contentType === 'event') {
+        // For reminders and events, just show basic info
+        const message = `${entry.title}\n\n${entry.caption}\n\nStatus: ${entry.status}`;
+        if (isDraft) {
+          const markComplete = window.confirm(`${message}\n\nMark as completed?`);
+          if (markComplete) {
+            // Could update status here if needed
+            showToast.success('Marked as completed!');
+          }
+        } else {
+          window.alert(message);
+        }
+        return;
+      }
+
+      // For posts, show sharing options
       const options = [];
 
-      if (!hasImage) {
+      if (isDraft) {
+        options.push('📝 Edit Post');
+      }
+      if (!hasImage && contentType === 'manual') {
         options.push('📸 Generate Image');
       }
       options.push('📤 Share to Social Media');
@@ -258,9 +318,12 @@ export default function CalendarPage() {
         '1'
       );
 
-      if (choice === '1' && !hasImage) {
+      if (choice === '1' && isDraft) {
+        // Edit functionality could be added here
+        showToast.info('Edit functionality coming soon!');
+      } else if (choice === (isDraft ? '2' : '1') && !hasImage && contentType === 'manual') {
         generateImageForEntry(entry);
-      } else if ((choice === '1' && hasImage) || choice === '2') {
+      } else if ((choice === (isDraft && !hasImage ? '3' : isDraft || !hasImage ? '2' : '1'))) {
         const platform = info.event.extendedProps.platform;
         if (platform === 'both') {
           const platformChoice = window.confirm('Share to Facebook or Instagram?\n\nOK = Facebook, Cancel = Instagram');
@@ -332,9 +395,10 @@ export default function CalendarPage() {
             height="auto"
             editable={false}
             selectable={true}
-             dateClick={(info) => {
-               setSelectedDate(info.date);
-             }}
+              dateClick={(info) => {
+                setSelectedDate(info.date);
+                setShowManualAddModal(true);
+              }}
              eventClick={(info) => {
                const entry = entries.find(e => e.id === info.event.id);
                if (entry) {
@@ -345,33 +409,296 @@ export default function CalendarPage() {
         </Card>
 
         {/* Legend */}
-        <div className="mt-4 flex items-center gap-6 text-sm">
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-blue-500"></div>
-            <span>Facebook</span>
+            <span>Manual Post</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-pink-500"></div>
-            <span>Instagram</span>
+            <div className="w-4 h-4 rounded bg-orange-500"></div>
+            <span>Reminder</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-green-500"></div>
+            <span>Event</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-purple-500"></div>
-            <span>Both</span>
+            <span>Listing</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-yellow-400 border border-gray-600"></div>
             <span>No Image</span>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-gray-400 border border-gray-600"></div>
+            <span>Draft</span>
+          </div>
         </div>
       </div>
 
-      {/* Content Planner Wizard Modal */}
-      {showWizard && (
-        <ContentPlannerWizard
-          onClose={() => setShowWizard(false)}
-          onComplete={handleWizardComplete}
-        />
-      )}
+        {/* Manual Add Modal */}
+        {showManualAddModal && selectedDate && (
+          <ManualAddModal
+            selectedDate={selectedDate}
+            onClose={() => {
+              setShowManualAddModal(false);
+              setSelectedDate(null);
+            }}
+            onAdd={(entry) => {
+              setEntries(prev => [...prev, entry]);
+              setShowManualAddModal(false);
+              setSelectedDate(null);
+              showToast.success('Post added to calendar!');
+            }}
+          />
+        )}
+
+        {/* Content Planner Wizard Modal */}
+        {showWizard && (
+          <ContentPlannerWizard
+            onClose={() => setShowWizard(false)}
+            onComplete={handleWizardComplete}
+          />
+        )}
+      </div>
+    );
+  }
+}
+
+// Manual Add Modal Component
+interface ManualAddModalProps {
+  selectedDate: Date;
+  onClose: () => void;
+  onAdd: (entry: CalendarEntry) => void;
+}
+
+function ManualAddModal({ selectedDate, onClose, onAdd }: ManualAddModalProps) {
+  const { user } = useAuth();
+  const [addType, setAddType] = useState<'post' | 'reminder' | 'event'>('post');
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [platform, setPlatform] = useState<'facebook' | 'instagram' | 'both'>('facebook');
+  const [hashtags, setHashtags] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      showToast.error('Please enter a title');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        showToast.error('Please login to continue');
+        return;
+      }
+
+      let entryData: any = {
+        title: title.trim(),
+        content_type: addType === 'post' ? 'manual' : addType,
+        platform: addType === 'post' ? platform : 'both',
+        caption: content.trim(),
+        scheduled_date: selectedDate.toISOString(),
+        status: 'draft',
+      };
+
+      // Add hashtags if provided
+      if (hashtags.trim()) {
+        entryData.hashtags = hashtags.split(',').map((tag: string) => tag.trim().replace('#', ''));
+      }
+
+      // Add specific fields based on type
+      if (addType === 'reminder') {
+        entryData.caption = `⏰ Reminder: ${content.trim()}`;
+      } else if (addType === 'event') {
+        entryData.caption = `📅 Event: ${content.trim()}`;
+      }
+
+      const response = await fetch('/api/content/calendar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(entryData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add entry');
+      }
+
+      const data = await response.json();
+      onAdd(data.entry);
+    } catch (error: any) {
+      console.error('Add entry error:', error);
+      showToast.error(error.message || 'Failed to add entry');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getPlaceholder = () => {
+    switch (addType) {
+      case 'post':
+        return 'Write your post caption here...';
+      case 'reminder':
+        return 'What should you be reminded about?';
+      case 'event':
+        return 'Describe the event details...';
+      default:
+        return 'Enter content...';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-900">Add to Calendar</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            {selectedDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </p>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Type Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              What would you like to add?
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'post', label: '📝 Post', desc: 'Social media post' },
+                { value: 'reminder', label: '⏰ Reminder', desc: 'Personal reminder' },
+                { value: 'event', label: '📅 Event', desc: 'Calendar event' },
+              ].map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => setAddType(option.value as any)}
+                  className={`p-3 rounded-lg border-2 text-center transition-all text-xs ${
+                    addType === option.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="font-medium">{option.label}</div>
+                  <div className="text-gray-500 mt-1">{option.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Title
+            </label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter a title..."
+              maxLength={100}
+            />
+          </div>
+
+          {/* Content */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {addType === 'post' ? 'Caption' : 'Description'}
+            </label>
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={getPlaceholder()}
+              rows={3}
+              maxLength={500}
+            />
+          </div>
+
+          {/* Platform (only for posts) */}
+          {addType === 'post' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Platform
+              </label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'facebook', label: 'Facebook' },
+                  { value: 'instagram', label: 'Instagram' },
+                  { value: 'both', label: 'Both' },
+                ].map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => setPlatform(option.value as any)}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      platform === option.value
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hashtags (only for posts) */}
+          {addType === 'post' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Hashtags (optional)
+              </label>
+              <Input
+                value={hashtags}
+                onChange={(e) => setHashtags(e.target.value)}
+                placeholder="summer, realestate, home"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Separate with commas, no # needed
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t bg-gray-50">
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              loading={saving}
+              disabled={!title.trim()}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Add to Calendar
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
