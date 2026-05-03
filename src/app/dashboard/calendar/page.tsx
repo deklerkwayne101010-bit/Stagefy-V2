@@ -40,6 +40,8 @@ export default function CalendarPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showManualAddModal, setShowManualAddModal] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEntry | null>(null);
 
   // Fetch calendar entries
   const fetchEntries = useCallback(async () => {
@@ -48,7 +50,7 @@ export default function CalendarPage() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        router.push('/login?redirect=/calendar');
+        router.push('/login?redirect=/dashboard/calendar');
         return;
       }
 
@@ -196,7 +198,7 @@ export default function CalendarPage() {
 
   // Manual share to Facebook/Instagram (no API connection required)
   const handleManualShare = (entry: CalendarEntry, platform: 'facebook' | 'instagram') => {
-    const url = window.location.origin + '/calendar';
+    const url = window.location.origin + '/dashboard/calendar';
     const text = `${entry.title}\n\n${entry.caption}`;
 
     if (platform === 'facebook') {
@@ -277,61 +279,12 @@ export default function CalendarPage() {
     );
   };
 
-  // Handle event click - show options modal
+  // Handle event click - show detailed modal
   const handleEventClick = (info: any) => {
     const entry = entries.find(e => e.id === info.event.id);
     if (entry) {
-      const contentType = entry.content_type;
-      const hasImage = !!entry.generated_image_url;
-      const isDraft = entry.status === 'draft';
-
-      // Different actions based on content type
-      if (contentType === 'reminder' || contentType === 'event') {
-        // For reminders and events, just show basic info
-        const message = `${entry.title}\n\n${entry.caption}\n\nStatus: ${entry.status}`;
-        if (isDraft) {
-          const markComplete = window.confirm(`${message}\n\nMark as completed?`);
-          if (markComplete) {
-            // Could update status here if needed
-            showToast.success('Marked as completed!');
-          }
-        } else {
-          window.alert(message);
-        }
-        return;
-      }
-
-      // For posts, show sharing options
-      const options = [];
-
-      if (isDraft) {
-        options.push('📝 Edit Post');
-      }
-      if (!hasImage && contentType === 'manual') {
-        options.push('📸 Generate Image');
-      }
-      options.push('📤 Share to Social Media');
-      options.push('❌ Cancel');
-
-      const choice = window.prompt(
-        `${entry.title}\n\n${entry.caption}\n\nChoose an action:\n${options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}`,
-        '1'
-      );
-
-      if (choice === '1' && isDraft) {
-        // Edit functionality could be added here
-        showToast.info('Edit functionality coming soon!');
-      } else if (choice === (isDraft ? '2' : '1') && !hasImage && contentType === 'manual') {
-        generateImageForEntry(entry);
-      } else if ((choice === (isDraft && !hasImage ? '3' : isDraft || !hasImage ? '2' : '1'))) {
-        const platform = info.event.extendedProps.platform;
-        if (platform === 'both') {
-          const platformChoice = window.confirm('Share to Facebook or Instagram?\n\nOK = Facebook, Cancel = Instagram');
-          handleManualShare(entry, platformChoice ? 'facebook' : 'instagram');
-        } else {
-          handleManualShare(entry, platform);
-        }
-      }
+      setSelectedEvent(entry);
+      setShowEventModal(true);
     }
   };
 
@@ -436,6 +389,24 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+
+        {/* Event Details Modal */}
+        {showEventModal && selectedEvent && (
+          <EventModal
+            entry={selectedEvent}
+            onClose={() => {
+              setShowEventModal(false);
+              setSelectedEvent(null);
+            }}
+            onGenerateImage={generateImageForEntry}
+            onShare={handleManualShare}
+            onUpdate={(updatedEntry) => {
+              setEntries(prev => prev.map(e => e.id === updatedEntry.id ? updatedEntry : e));
+              setShowEventModal(false);
+              setSelectedEvent(null);
+            }}
+          />
+        )}
 
         {/* Manual Add Modal */}
         {showManualAddModal && selectedDate && (
@@ -695,6 +666,275 @@ function ManualAddModal({ selectedDate, onClose, onAdd }: ManualAddModalProps) {
             >
               Add to Calendar
             </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Event Details Modal Component
+interface EventModalProps {
+  entry: CalendarEntry;
+  onClose: () => void;
+  onGenerateImage: (entry: CalendarEntry) => void;
+  onShare: (entry: CalendarEntry, platform: 'facebook' | 'instagram') => void;
+  onUpdate: (entry: CalendarEntry) => void;
+}
+
+function EventModal({ entry, onClose, onGenerateImage, onShare, onUpdate }: EventModalProps) {
+  const { user } = useAuth();
+  const [generatingImage, setGeneratingImage] = useState(false);
+
+  const handleGenerateImage = async () => {
+    setGeneratingImage(true);
+    try {
+      await onGenerateImage(entry);
+      // The generateImageForEntry function will update the entries state
+      // We need to close and reopen to show the updated image
+      setTimeout(() => {
+        window.location.reload(); // Simple refresh to show new image
+      }, 1000);
+    } catch (error) {
+      console.error('Image generation failed:', error);
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
+  const handleShare = (platform: 'facebook' | 'instagram') => {
+    onShare(entry, platform);
+    onClose();
+  };
+
+  const getContentTypeInfo = (contentType: string) => {
+    const types = {
+      manual: { icon: '📝', label: 'Manual Post', color: 'blue' },
+      reminder: { icon: '⏰', label: 'Reminder', color: 'orange' },
+      event: { icon: '📅', label: 'Event', color: 'green' },
+      listing: { icon: '🏠', label: 'Listing Post', color: 'purple' },
+      market_update: { icon: '📈', label: 'Market Update', color: 'indigo' },
+      testimonial: { icon: '💬', label: 'Testimonial', color: 'pink' },
+      open_house: { icon: '🏡', label: 'Open House', color: 'red' },
+      promo: { icon: '🎉', label: 'Promotion', color: 'yellow' },
+    };
+    return types[contentType as keyof typeof types] || types.manual;
+  };
+
+  const typeInfo = getContentTypeInfo(entry.content_type);
+  const hasImage = !!entry.generated_image_url;
+  const isDraft = entry.status === 'draft';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 rounded-xl bg-${typeInfo.color}-100 flex items-center justify-center`}>
+                <span className="text-2xl">{typeInfo.icon}</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{entry.title}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    entry.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                    entry.status === 'published' ? 'bg-green-100 text-green-700' :
+                    entry.status === 'failed' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {entry.status}
+                  </span>
+                  <span className="text-sm text-gray-500">{typeInfo.label}</span>
+                  {isDraft && (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                      Draft
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 p-1"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - Content */}
+            <div className="space-y-4">
+              {/* Image Preview */}
+              {hasImage ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Generated Image</label>
+                  <div className="relative rounded-lg overflow-hidden bg-gray-100">
+                    <img
+                      src={entry.generated_image_url!}
+                      alt={entry.title}
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                </div>
+              ) : entry.content_type === 'manual' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
+                  <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="text-center">
+                      <span className="text-4xl text-gray-400">📷</span>
+                      <p className="text-sm text-gray-500 mt-2">No image generated yet</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Caption/Content */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {entry.content_type === 'post' || entry.content_type === 'manual' ? 'Caption' : 'Description'}
+                </label>
+                <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
+                  <p className="text-gray-900 whitespace-pre-wrap">{entry.caption}</p>
+                </div>
+              </div>
+
+              {/* Hashtags (for posts) */}
+              {(entry.content_type === 'post' || entry.content_type === 'manual') && entry.hashtags && entry.hashtags.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {entry.hashtags.map((tag, index) => (
+                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Scheduled Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Scheduled Date</label>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-900">
+                    {new Date(entry.scheduled_date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Actions */}
+            <div className="space-y-4">
+              {/* Platform Info */}
+              {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+                  <div className="flex gap-2">
+                    {entry.platform === 'both' ? (
+                      <>
+                        <span className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">Facebook</span>
+                        <span className="px-3 py-2 bg-pink-100 text-pink-700 rounded-lg text-sm font-medium">Instagram</span>
+                      </>
+                    ) : (
+                      <span className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                        entry.platform === 'facebook'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-pink-100 text-pink-700'
+                      }`}>
+                        {entry.platform === 'facebook' ? 'Facebook' : 'Instagram'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Actions</label>
+                <div className="space-y-2">
+                  {/* Generate Image (for manual posts without images) */}
+                  {!hasImage && entry.content_type === 'manual' && (
+                    <Button
+                      onClick={handleGenerateImage}
+                      loading={generatingImage}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
+                    >
+                      {generatingImage ? 'Generating...' : '🎨 Generate Image'}
+                    </Button>
+                  )}
+
+                  {/* Share buttons (for posts) */}
+                  {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+                    <>
+                      <Button
+                        onClick={() => handleShare('facebook')}
+                        variant="outline"
+                        className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
+                      >
+                        📘 Share to Facebook
+                      </Button>
+                      <Button
+                        onClick={() => handleShare('instagram')}
+                        variant="outline"
+                        className="w-full border-pink-200 text-pink-700 hover:bg-pink-50"
+                      >
+                        📷 Share to Instagram
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Edit button (for drafts) */}
+                  {isDraft && (
+                    <Button
+                      onClick={() => showToast.info('Edit functionality coming soon!')}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      ✏️ Edit Post
+                    </Button>
+                  )}
+
+                  {/* Mark as complete (for reminders/events) */}
+                  {(entry.content_type === 'reminder' || entry.content_type === 'event') && (
+                    <Button
+                      onClick={() => {
+                        showToast.success('Marked as completed!');
+                        onClose();
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      ✅ Mark as Completed
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Metadata */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <h4 className="font-medium text-gray-900">Details</h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div>Content Type: <span className="font-medium">{typeInfo.label}</span></div>
+                  <div>Status: <span className="font-medium capitalize">{entry.status}</span></div>
+                  {entry.created_at && (
+                    <div>Created: <span className="font-medium">
+                      {new Date(entry.created_at).toLocaleDateString()}
+                    </span></div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
