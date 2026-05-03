@@ -129,7 +129,6 @@ export default function CalendarPage() {
 
   // Generate post content with AI
   const generateContentForEntry = async (entry: CalendarEntry) => {
-    setGeneratingContent(true);
     try {
       const { supabase } = await import('@/lib/supabase');
       const { data: { session } } = await supabase.auth.getSession();
@@ -198,8 +197,6 @@ export default function CalendarPage() {
     } catch (error: any) {
       console.error('Content generation error:', error);
       showToast.error(error.message || 'Failed to generate content');
-    } finally {
-      setGeneratingContent(false);
     }
   };
 
@@ -763,6 +760,7 @@ interface EventModalProps {
 function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShare, onUpdate }: EventModalProps) {
   const { user } = useAuth();
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
   const [generatingContent, setGeneratingContent] = useState(false);
 
   const handleGenerateImage = async () => {
