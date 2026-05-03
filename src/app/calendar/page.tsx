@@ -464,7 +464,6 @@ export default function CalendarPage() {
       </div>
     );
   }
-}
 
 // Manual Add Modal Component
 interface ManualAddModalProps {
