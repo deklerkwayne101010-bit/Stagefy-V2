@@ -885,15 +885,15 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
               {/* Caption/Content */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {entry.content_type === 'post' || entry.content_type === 'manual' ? 'Caption' : 'Description'}
+                  {(entry.content_type === 'post' || entry.content_type === 'manual' || entry.content_type === 'listing' || entry.content_type === 'market_update' || entry.content_type === 'testimonial' || entry.content_type === 'open_house' || entry.content_type === 'promo') ? 'Caption' : 'Description'}
                 </label>
                 <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
                   <p className="text-gray-900 whitespace-pre-wrap">{entry.caption}</p>
                 </div>
               </div>
 
-              {/* Hashtags (for posts) */}
-              {(entry.content_type === 'post' || entry.content_type === 'manual') && entry.hashtags && entry.hashtags.length > 0 && (
+              {/* Hashtags (for social media content) */}
+              {(entry.content_type === 'post' || entry.content_type === 'manual' || entry.content_type === 'listing' || entry.content_type === 'market_update' || entry.content_type === 'testimonial' || entry.content_type === 'open_house' || entry.content_type === 'promo') && entry.hashtags && entry.hashtags.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
                   <div className="flex flex-wrap gap-2">
@@ -927,7 +927,7 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
             {/* Right Column - Actions */}
             <div className="space-y-4">
               {/* Platform Info */}
-              {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+              {(entry.content_type === 'post' || entry.content_type === 'manual' || entry.content_type === 'listing' || entry.content_type === 'market_update' || entry.content_type === 'testimonial' || entry.content_type === 'open_house' || entry.content_type === 'promo') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
                   <div className="flex gap-2">
@@ -954,7 +954,7 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
                 <label className="block text-sm font-medium text-gray-700 mb-3">Actions</label>
                 <div className="space-y-2">
                   {/* Generate Content with AI */}
-                  {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+                  {(entry.content_type === 'post' || entry.content_type === 'manual' || entry.content_type === 'listing' || entry.content_type === 'market_update' || entry.content_type === 'testimonial' || entry.content_type === 'open_house' || entry.content_type === 'promo') && (
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">AI Enhancement</div>
                       <Button
@@ -970,8 +970,8 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
                     </div>
                   )}
 
-                  {/* Generate Image (for manual posts without images) */}
-                  {!hasImage && entry.content_type === 'manual' && (
+                  {/* Generate Image (for posts without images) */}
+                  {!hasImage && (entry.content_type === 'manual' || entry.content_type === 'listing' || entry.content_type === 'market_update' || entry.content_type === 'testimonial' || entry.content_type === 'open_house' || entry.content_type === 'promo') && (
                     <Button
                       onClick={handleGenerateImage}
                       loading={generatingImage}
@@ -981,8 +981,8 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
                     </Button>
                   )}
 
-                  {/* Share buttons (for posts) */}
-                  {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+                  {/* Share buttons (for social media content) */}
+                  {(entry.content_type === 'post' || entry.content_type === 'manual' || entry.content_type === 'listing' || entry.content_type === 'market_update' || entry.content_type === 'testimonial' || entry.content_type === 'open_house' || entry.content_type === 'promo') && (
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Share to Social Media</div>
                       {entry.platform === 'both' ? (
@@ -1042,7 +1042,7 @@ function EventModal({ entry, onClose, onGenerateImage, onGenerateContent, onShar
               </div>
 
               {/* Content Quality Score */}
-              {(entry.content_type === 'post' || entry.content_type === 'manual') && (
+              {(entry.content_type === 'post' || entry.content_type === 'manual' || entry.content_type === 'listing' || entry.content_type === 'market_update' || entry.content_type === 'testimonial' || entry.content_type === 'open_house' || entry.content_type === 'promo') && (
                 <div className="bg-blue-50 rounded-lg p-4 space-y-3">
                   <h4 className="font-medium text-gray-900">Content Quality</h4>
                   <div className="space-y-2">
