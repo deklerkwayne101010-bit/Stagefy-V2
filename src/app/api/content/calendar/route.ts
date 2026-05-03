@@ -201,13 +201,20 @@ export async function PUT(request: Request) {
 // DELETE /api/content/calendar?id=<entry_id> - Delete calendar entry
 export async function DELETE(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const reset = searchParams.get('reset');
+
+    // Handle full reset (admin only)
+    if (reset === 'all') {
+      return await handleFullReset(request);
+    }
+
+    // Handle single entry deletion
     const user = await getUserFromAuthHeader(request);
     if (!user?.id) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Entry ID required' }, { status: 400 });
@@ -241,6 +248,56 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true, message: 'Entry deleted successfully' });
   } catch (error: any) {
     console.error('Calendar DELETE error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Handle full reset of all calendar data (admin only)
+async function handleFullReset(request: Request) {
+  try {
+    // Verify admin status
+    const user = await getUserFromAuthHeader(request);
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const supabase = getServiceClient();
+
+    // Check if user is admin
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData || userData.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // Get count before deletion
+    const { count: beforeCount } = await supabase
+      .from('content_calendar')
+      .select('*', { count: 'exact', head: true });
+
+    // Delete all calendar entries
+    const { error } = await supabase
+      .from('content_calendar')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all (using a non-existent UUID)
+
+    if (error) {
+      console.error('Error resetting calendar:', error);
+      return NextResponse.json({ error: 'Failed to reset calendar' }, { status: 500 });
+    }
+
+    console.log(`Admin ${user.id} reset calendar: deleted ${beforeCount || 0} entries`);
+    return NextResponse.json({
+      success: true,
+      message: `Calendar reset successfully. Deleted ${beforeCount || 0} entries.`,
+      deleted_count: beforeCount || 0
+    });
+  } catch (error: any) {
+    console.error('Calendar reset error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
