@@ -228,8 +228,8 @@ export default function OnboardingPage() {
 
               <div className="bg-blue-50 rounded-lg p-4">
                 <p className="text-sm text-blue-700">
-                  🎉 <strong>You&apos;re all set!</strong> You&apos;ll get 10 free credits to try out Stagefy. 
-                  Start creating amazing listing media right away!
+                   🎉 <strong>You&apos;re all set!</strong> You&apos;ll get 3 free credits to try out Stagefy.
+                   Start creating amazing listing media right away!
                 </p>
               </div>
             </div>

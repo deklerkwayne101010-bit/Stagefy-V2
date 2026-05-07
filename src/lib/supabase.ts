@@ -457,7 +457,7 @@ export async function getCurrentUser(): Promise<User | null> {
     email: user.email || '',
     full_name: user.user_metadata?.full_name || '',
     role: 'agent',
-    credits: 10,
+    credits: 3,
     subscription_tier: 'free',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

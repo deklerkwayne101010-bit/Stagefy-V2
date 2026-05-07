@@ -136,9 +136,9 @@ export default function DashboardPage() {
                 {isLoading ? '...' : (stats?.credits ?? user?.credits ?? 0)}
               </p>
               <p className="text-blue-100 text-base mt-2">
-                {stats?.subscriptionTier === 'free' 
-                   ? '10 free credits included'
-                  : `${stats?.subscriptionTier || user?.subscription_tier || 'Free'} plan - monthly credits`}
+                {stats?.subscriptionTier === 'free'
+                   ? '3 free credits included'
+                   : `${stats?.subscriptionTier || user?.subscription_tier || 'Free'} plan - monthly credits`}
               </p>
             </div>
             <div className="flex gap-3">

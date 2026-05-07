@@ -381,9 +381,9 @@ export default function BillingPage() {
               <CardHeader title="Free Usage" subtitle="Try before you buy" />
               <div className="space-y-4 mt-4">
                 <div className="p-4 bg-blue-50 rounded-xl">
-                  <h4 className="font-semibold text-slate-900 mb-2">10 Free Credits</h4>
+                  <h4 className="font-semibold text-slate-900 mb-2">3 Free Credits</h4>
                   <p className="text-slate-600 text-sm">
-                    Every new account gets 10 free credits to try out our features.
+                    Every new account gets 3 free credits to try out our features.
                     Test photo editing, video creation, and templates before purchasing more.
                   </p>
                 </div>
