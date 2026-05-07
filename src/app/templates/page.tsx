@@ -62,11 +62,6 @@ const marketplaceTemplates: { id: number; name: string; type: string; thumbnail:
 const marketplaceTypes: { value: string; label: string; icon: string; description: string }[] = [
   { value: 'professional', label: 'Professional', icon: '👔', description: 'Clean and corporate' },
   { value: 'infographic', label: 'Infographic', icon: '📊', description: 'Data-driven visuals' },
-  { value: 'social_media', label: 'Social Media', icon: '📱', description: 'Instagram, Facebook, LinkedIn posts' },
-  { value: 'marketing', label: 'Marketing Materials', icon: '📋', description: 'Flyers, brochures, business cards' },
-  { value: 'presentation', label: 'Presentations', icon: '📊', description: 'Slide decks and pitch presentations' },
-  { value: 'email', label: 'Email Templates', icon: '✉️', description: 'Newsletters and promotional emails' },
-  { value: 'branded', label: 'Branded Content', icon: '🏷️', description: 'Customizable with your branding' },
   { value: 'holiday', label: 'Holiday Promos', icon: '🎉', description: 'SA holiday posters' },
   { value: 'testimonial', label: 'Testimonials', icon: '💬', description: 'Client reviews & ratings' },
   { value: 'agent_showcase', label: 'Agent Showcase', icon: '🌟', description: 'Agent personal branding' },
