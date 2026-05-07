@@ -23,6 +23,11 @@ type InfographicType =
   | 'seasonal-trends'
   | 'mortgage-info'
   | 'rental-yields'
+  | 'property-comparison-charts'
+  | 'market-trend-graphs'
+  | 'neighborhood-stats'
+  | 'investment-calculators'
+  | 'floor-plan-overlays'
   | 'custom'
 
 interface InfographicWizardProps {
@@ -270,9 +275,9 @@ export function InfographicWizard({
   const [avgRentalIncome, setAvgRentalIncome] = useState('')
   const [investmentHighlights, setInvestmentHighlights] = useState('')
 
-  // Property Comparison Charts
-  const [chartType, setChartType] = useState('bar')
-  const [chartDataPoints, setChartDataPoints] = useState<string[]>([])
+   // Property Comparison Charts
+   const [chartType, setChartType] = useState('bar')
+   const [chartDataPoints, setChartDataPoints] = useState<string[]>([])
 
   // Market Trend Graphs
   const [timePeriod, setTimePeriod] = useState('12_months')
@@ -308,11 +313,10 @@ export function InfographicWizard({
   const [orientation, setOrientation] = useState('portrait')
   const [visualStyle, setVisualStyle] = useState('clean')
   const [selectedColors, setSelectedColors] = useState<string[]>([])
-  const [fontFamily, setFontFamily] = useState('sans-serif')
-  const [includeIcons, setIncludeIcons] = useState(true)
-  const [chartType, setChartType] = useState('bar')
+   const [fontFamily, setFontFamily] = useState('sans-serif')
+   const [includeIcons, setIncludeIcons] = useState(true)
 
-  if (!isOpen) return null
+   if (!isOpen) return null
 
   const toggleStat = (stat: string, list: string[], setter: (v: string[]) => void) => {
     setter(list.includes(stat) ? list.filter(s => s !== stat) : [...list, stat])
@@ -436,11 +440,11 @@ export function InfographicWizard({
       prompt += `Type: Rental Yields Infographic. `
       prompt += `Area: ${autoFillArea}. `
     } else if (infographicType === 'property-comparison-charts') {
-      prompt += `Type: Property Comparison Charts. `
-      const props = [property1, property2, property3].filter(Boolean)
-      prompt += `Compare these properties: ${props.join(' vs ')}. `
-      prompt += `Chart type: ${chartType}. `
-      if (comparePoints.length > 0) prompt += `Comparison points: ${comparePoints.join(', ')}. `
+       prompt += `Type: Property Comparison Charts. `
+       const props = [property1, property2, property3].filter(Boolean)
+       prompt += `Compare these properties: ${props.join(' vs ')}. `
+       // Chart type defaults to bar chart for property comparisons
+       if (comparePoints.length > 0) prompt += `Comparison points: ${comparePoints.join(', ')}. `
     } else if (infographicType === 'market-trend-graphs') {
       prompt += `Type: Market Trend Graphs. `
       prompt += `Area: ${marketArea}. `
