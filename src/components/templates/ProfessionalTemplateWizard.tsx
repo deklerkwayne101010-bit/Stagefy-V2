@@ -524,31 +524,35 @@ export function ProfessionalTemplateWizard({
                   onIncludeIcons={setIncludeIcons}
                 />
 
-                {/* Layout Options */}
-                <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Layout Style</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { id: 'classic', label: 'Classic Flyer', description: 'Traditional property flyer' },
-                      { id: 'modern', label: 'Modern Grid', description: 'Clean grid-based layout' },
-                      { id: 'hero', label: 'Hero Focus', description: 'Large hero image with overlays' },
-                      { id: 'minimal', label: 'Minimalist', description: 'Simple and elegant' }
-                    ].map(layout => (
-                      <button
-                        key={layout.id}
-                        onClick={() => setLayoutStyle(layout.id)}
-                        className={`p-3 rounded-lg border-2 text-left transition-all ${
-                          layoutStyle === layout.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <p className="font-medium text-sm text-gray-900">{layout.label}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{layout.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                 {/* Layout Options */}
+                 <div className="mt-6">
+                   <label className="block text-sm font-medium text-gray-700 mb-2">Layout Style</label>
+                   <div className="grid grid-cols-2 gap-3">
+                     {[
+                       { id: 'classic', label: 'Classic Flyer', description: 'Traditional property flyer' },
+                       { id: 'modern', label: 'Modern Grid', description: 'Clean grid-based layout' },
+                       { id: 'hero', label: 'Hero Focus', description: 'Large hero image with overlays' },
+                       { id: 'minimal', label: 'Minimalist', description: 'Simple and elegant' },
+                       { id: 'split', label: 'Split Layout', description: 'Two-column split design' },
+                       { id: 'vertical', label: 'Vertical Stack', description: 'Top-to-bottom content flow' },
+                       { id: 'magazine', label: 'Magazine Style', description: 'Editorial layout with featured image' },
+                       { id: 'brochure', label: 'Modern Brochure', description: 'Tri-fold brochure inspiration' }
+                     ].map(layout => (
+                       <button
+                         key={layout.id}
+                         onClick={() => setLayoutStyle(layout.id)}
+                         className={`p-3 rounded-lg border-2 text-left transition-all ${
+                           layoutStyle === layout.id
+                             ? 'border-blue-500 bg-blue-50'
+                             : 'border-gray-200 hover:border-gray-300'
+                         }`}
+                       >
+                         <p className="font-medium text-sm text-gray-900">{layout.label}</p>
+                         <p className="text-xs text-gray-500 mt-0.5">{layout.description}</p>
+                       </button>
+                     ))}
+                   </div>
+                 </div>
 
                 {/* Content Sections */}
                 <div className="mt-6">
