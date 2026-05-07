@@ -155,6 +155,30 @@ const infographicTypes = [
     searchQuery: 'Search for rental yield data, average rents, and rental market conditions',
   },
   {
+    id: 'three-reasons-buy' as const,
+    label: '3 Reasons to Buy',
+    icon: '🎯',
+    description: 'Three compelling reasons to buy in a specific area',
+    searchable: true,
+    searchQuery: 'Search for unique selling points, advantages, and benefits of living in this area',
+  },
+  {
+    id: 'investment-opportunity' as const,
+    label: 'Investment Opportunity',
+    icon: '💼',
+    description: 'Highlight why a property is a great investment',
+    searchable: true,
+    searchQuery: 'Search for rental yield potential, capital growth forecasts, and investment benefits',
+  },
+  {
+    id: 'lifestyle-benefits' as const,
+    label: 'Lifestyle Benefits',
+    icon: '🌴',
+    description: 'Showcase the lifestyle advantages of an area',
+    searchable: true,
+    searchQuery: 'Search for amenities, schools, transport, entertainment, and quality of life factors',
+  },
+  {
     id: 'property-comparison-charts' as const,
     label: 'Property Comparison Charts',
     icon: '📈',
@@ -439,12 +463,24 @@ export function InfographicWizard({
     } else if (infographicType === 'rental-yields') {
       prompt += `Type: Rental Yields Infographic. `
       prompt += `Area: ${autoFillArea}. `
+    } else if (infographicType === 'three-reasons-buy') {
+      prompt += `Type: Three Reasons to Buy Infographic. `
+      prompt += `Area: ${autoFillArea}. `
+      if (customContent) prompt += `Specific reasons to highlight: ${customContent}. `
+    } else if (infographicType === 'investment-opportunity') {
+      prompt += `Type: Investment Opportunity Infographic. `
+      prompt += `Area: ${autoFillArea}. `
+      if (customContent) prompt += `Investment highlights to feature: ${customContent}. `
+    } else if (infographicType === 'lifestyle-benefits') {
+      prompt += `Type: Lifestyle Benefits Infographic. `
+      prompt += `Area: ${autoFillArea}. `
+      if (customContent) prompt += `Lifestyle advantages to showcase: ${customContent}. `
     } else if (infographicType === 'property-comparison-charts') {
-       prompt += `Type: Property Comparison Charts. `
-       const props = [property1, property2, property3].filter(Boolean)
-       prompt += `Compare these properties: ${props.join(' vs ')}. `
-       // Chart type defaults to bar chart for property comparisons
-       if (comparePoints.length > 0) prompt += `Comparison points: ${comparePoints.join(', ')}. `
+      prompt += `Type: Property Comparison Charts. `
+      const props = [property1, property2, property3].filter(Boolean)
+      prompt += `Compare these properties: ${props.join(' vs ')}. `
+      // Chart type defaults to bar chart for property comparisons
+      if (comparePoints.length > 0) prompt += `Comparison points: ${comparePoints.join(', ')}. `
     } else if (infographicType === 'market-trend-graphs') {
       prompt += `Type: Market Trend Graphs. `
       prompt += `Area: ${marketArea}. `
@@ -506,7 +542,7 @@ export function InfographicWizard({
     return prompt
   }
 
-  const handleGenerate = () => {
+    const handleGenerate = () => {
     const data: Record<string, string | string[]> = {}
     if (infographicType === 'market-stats') {
       if (marketArea) data.marketArea = marketArea
@@ -533,6 +569,15 @@ export function InfographicWizard({
       if (capitalGrowth) data.capitalGrowth = capitalGrowth
       if (avgRentalIncome) data.avgRentalIncome = avgRentalIncome
       if (investmentHighlights) data.investmentHighlights = investmentHighlights
+    } else if (infographicType === 'three-reasons-buy') {
+      if (autoFillArea) data.autoFillArea = autoFillArea
+      if (customContent) data.customContent = customContent
+    } else if (infographicType === 'investment-opportunity') {
+      if (autoFillArea) data.autoFillArea = autoFillArea
+      if (customContent) data.customContent = customContent
+    } else if (infographicType === 'lifestyle-benefits') {
+      if (autoFillArea) data.autoFillArea = autoFillArea
+      if (customContent) data.customContent = customContent
     } else if (infographicType === 'custom') {
       if (customContent) data.customContent = customContent
     }
@@ -565,25 +610,28 @@ export function InfographicWizard({
       // Auto-fill mode - just need the area
       if (autoFill && typeInfo?.searchable) return !!autoFillArea.trim()
 
-      // Manual mode - type-specific requirements
-      if (infographicType === 'market-stats') return !!marketArea
-      if (infographicType === 'property-comparison') return !!property1 && !!property2
-      if (infographicType === 'property-comparison-charts') return !!property1 && !!property2
-      if (infographicType === 'market-trend-graphs') return !!marketArea
-      if (infographicType === 'neighborhood-guide') return !!neighborhoodName
-      if (infographicType === 'neighborhood-stats') return !!neighborhoodName
-      if (infographicType === 'investment-analysis') return !!investmentArea
-      if (infographicType === 'investment-calculators') return !!propertyValue
-      if (infographicType === 'floor-plan-overlays') return !!floorPlanImage
-      if (infographicType === 'custom') return !!customContent.trim()
+       // Manual mode - type-specific requirements
+       if (infographicType === 'market-stats') return !!marketArea
+       if (infographicType === 'property-comparison') return !!property1 && !!property2
+       if (infographicType === 'property-comparison-charts') return !!property1 && !!property2
+       if (infographicType === 'market-trend-graphs') return !!marketArea
+       if (infographicType === 'neighborhood-guide') return !!neighborhoodName
+       if (infographicType === 'neighborhood-stats') return !!neighborhoodName
+       if (infographicType === 'investment-analysis') return !!investmentArea
+       if (infographicType === 'investment-calculators') return !!propertyValue
+       if (infographicType === 'floor-plan-overlays') return !!floorPlanImage
+       if (infographicType === 'three-reasons-buy') return !!autoFillArea.trim()
+       if (infographicType === 'investment-opportunity') return !!autoFillArea.trim()
+       if (infographicType === 'lifestyle-benefits') return !!autoFillArea.trim()
+       if (infographicType === 'custom') return !!customContent.trim()
 
-      // New searchable types need area or content
-      if (['buyers-guide', 'sellers-guide', 'area-comparison', 'seasonal-trends', 'mortgage-info', 'rental-yields'].includes(infographicType || '')) {
-        return !!autoFillArea.trim()
-      }
-      if (['property-features', 'open-house'].includes(infographicType || '')) {
-        return !!customContent.trim()
-      }
+       // New searchable types need area or content
+       if (['buyers-guide', 'sellers-guide', 'area-comparison', 'seasonal-trends', 'mortgage-info', 'rental-yields', 'three-reasons-buy', 'investment-opportunity', 'lifestyle-benefits'].includes(infographicType || '')) {
+         return !!autoFillArea.trim()
+       }
+       if (['property-features', 'open-house'].includes(infographicType || '')) {
+         return !!customContent.trim()
+       }
 
       return true
     }
@@ -941,24 +989,24 @@ export function InfographicWizard({
                   </div>
                 )}
 
-                {/* New searchable types - simple area + optional notes */}
-                {['buyers-guide', 'sellers-guide', 'area-comparison', 'seasonal-trends', 'mortgage-info', 'rental-yields'].includes(infographicType || '') && (
-                  <div className="space-y-4">
-                    <Input
-                      label="Area / Suburb *"
-                      placeholder="e.g., Sandton, Johannesburg or Gauteng"
-                      value={autoFillArea}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAutoFillArea(e.target.value)}
-                    />
-                    <Textarea
-                      label="Additional notes (optional)"
-                      placeholder="Any specific points you want included on the infographic"
-                      value={customContent}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomContent(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                )}
+                 {/* New searchable types - simple area + optional notes */}
+                 {['buyers-guide', 'sellers-guide', 'area-comparison', 'seasonal-trends', 'mortgage-info', 'rental-yields', 'three-reasons-buy', 'investment-opportunity', 'lifestyle-benefits'].includes(infographicType || '') && (
+                   <div className="space-y-4">
+                     <Input
+                       label="Area / Suburb *"
+                       placeholder="e.g., Sandton, Johannesburg or Gauteng"
+                       value={autoFillArea}
+                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAutoFillArea(e.target.value)}
+                     />
+                     <Textarea
+                       label="Additional notes (optional)"
+                       placeholder="Any specific points you want included on the infographic"
+                       value={customContent}
+                       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomContent(e.target.value)}
+                       rows={3}
+                     />
+                   </div>
+                 )}
 
                 {['property-features', 'open-house'].includes(infographicType || '') && (
                   <div className="space-y-4">
