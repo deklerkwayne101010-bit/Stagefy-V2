@@ -12,6 +12,12 @@ interface ColorSet {
 interface StyleSelectorProps {
   selectedColors: string[]
   onSelectColors: (colors: string[]) => void
+  selectedFontFamily?: string
+  onSelectFontFamily?: (font: string) => void
+  selectedFontWeight?: string
+  onSelectFontWeight?: (weight: string) => void
+  includeIcons?: boolean
+  onIncludeIcons?: (include: boolean) => void
 }
 
 // Pre-built color schemes
@@ -30,7 +36,16 @@ export const colorSchemes: { name: string; colors: string[] }[] = [
 
 const STORAGE_KEY = 'stagefy_custom_colors'
 
-export function StyleSelector({ selectedColors, onSelectColors }: StyleSelectorProps) {
+export function StyleSelector({
+  selectedColors,
+  onSelectColors,
+  selectedFontFamily,
+  onSelectFontFamily,
+  selectedFontWeight,
+  onSelectFontWeight,
+  includeIcons,
+  onIncludeIcons
+}: StyleSelectorProps) {
   const [selectedScheme, setSelectedScheme] = useState<string>('')
   const [customPrimary, setCustomPrimary] = useState('#000000')
   const [customSecondary, setCustomSecondary] = useState('#000000')
@@ -255,6 +270,57 @@ export function StyleSelector({ selectedColors, onSelectColors }: StyleSelectorP
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Typography Options */}
+          {selectedFontFamily !== undefined && onSelectFontFamily && (
+            <div className="pt-4 border-t">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Typography</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Font Family</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedFontFamily}
+                    onChange={(e) => onSelectFontFamily(e.target.value)}
+                  >
+                    <option value="sans-serif">Sans Serif</option>
+                    <option value="serif">Serif</option>
+                    <option value="script">Script</option>
+                    <option value="monospace">Monospace</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Font Weight</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedFontWeight || 'normal'}
+                    onChange={(e) => onSelectFontWeight?.(e.target.value)}
+                  >
+                    <option value="light">Light</option>
+                    <option value="normal">Normal</option>
+                    <option value="medium">Medium</option>
+                    <option value="semibold">Semi Bold</option>
+                    <option value="bold">Bold</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Icons Toggle */}
+          {includeIcons !== undefined && onIncludeIcons && (
+            <div className="pt-4 border-t">
+              <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-gray-300">
+                <input
+                  type="checkbox"
+                  checked={includeIcons}
+                  onChange={(e) => onIncludeIcons(e.target.checked)}
+                  className="w-5 h-5 text-blue-600"
+                />
+                <span className="font-medium text-gray-700">Include decorative icons and illustrations</span>
+              </label>
             </div>
           )}
         </div>

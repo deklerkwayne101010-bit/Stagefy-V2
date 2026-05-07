@@ -37,6 +37,15 @@ interface ProfessionalTemplateWizardProps {
     propertyDetails: PropertyDetails
     generatedPrompt?: GeneratedPrompt
     selectedColors?: string[]
+    typography?: {
+      fontFamily: string
+      fontWeight: string
+      includeIcons: boolean
+    }
+    layout?: {
+      style: string
+      sections: string[]
+    }
   }) => void
   hasAgentProfile?: boolean  // Whether user has a saved agent profile
 }
@@ -55,6 +64,11 @@ export function ProfessionalTemplateWizard({
   const [isUploading, setIsUploading] = useState<boolean>(false)
   const [includeAgent, setIncludeAgent] = useState<boolean>(hasAgentProfile)
   const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [selectedFontFamily, setSelectedFontFamily] = useState('sans-serif')
+  const [selectedFontWeight, setSelectedFontWeight] = useState('normal')
+  const [includeIcons, setIncludeIcons] = useState(true)
+  const [layoutStyle, setLayoutStyle] = useState('classic')
+  const [contentSections, setContentSections] = useState<string[]>(['hero', 'details', 'agent'])
   const [propertyDetails, setPropertyDetails] = useState<PropertyDetails>({
     header: '',
     price: '',
@@ -174,7 +188,16 @@ export function ProfessionalTemplateWizard({
       includeAgent,
       propertyDetails,
       generatedPrompt: undefined,
-      selectedColors
+      selectedColors,
+      typography: {
+        fontFamily: selectedFontFamily,
+        fontWeight: selectedFontWeight,
+        includeIcons
+      },
+      layout: {
+        style: layoutStyle,
+        sections: contentSections
+      }
     })
     onClose()
   }
@@ -486,14 +509,84 @@ export function ProfessionalTemplateWizard({
                     Choose Your Style
                   </h3>
                   <p className="text-gray-500">
-                    Pick a color scheme or create custom colors
+                    Pick a color scheme, typography, and layout options
                   </p>
                 </div>
 
-                <StyleSelector 
+                <StyleSelector
                   selectedColors={selectedColors}
                   onSelectColors={setSelectedColors}
+                  selectedFontFamily={selectedFontFamily}
+                  onSelectFontFamily={setSelectedFontFamily}
+                  selectedFontWeight={selectedFontWeight}
+                  onSelectFontWeight={setSelectedFontWeight}
+                  includeIcons={includeIcons}
+                  onIncludeIcons={setIncludeIcons}
                 />
+
+                {/* Layout Options */}
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Layout Style</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: 'classic', label: 'Classic Flyer', description: 'Traditional property flyer' },
+                      { id: 'modern', label: 'Modern Grid', description: 'Clean grid-based layout' },
+                      { id: 'hero', label: 'Hero Focus', description: 'Large hero image with overlays' },
+                      { id: 'minimal', label: 'Minimalist', description: 'Simple and elegant' }
+                    ].map(layout => (
+                      <button
+                        key={layout.id}
+                        onClick={() => setLayoutStyle(layout.id)}
+                        className={`p-3 rounded-lg border-2 text-left transition-all ${
+                          layoutStyle === layout.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <p className="font-medium text-sm text-gray-900">{layout.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{layout.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Content Sections */}
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Content Sections</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'hero', label: 'Hero Image' },
+                      { id: 'details', label: 'Property Details' },
+                      { id: 'features', label: 'Key Features' },
+                      { id: 'agent', label: 'Agent Info' },
+                      { id: 'map', label: 'Location Map' },
+                      { id: 'contact', label: 'Contact CTA' }
+                    ].map(section => (
+                      <label
+                        key={section.id}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm ${
+                          contentSections.includes(section.id)
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={contentSections.includes(section.id)}
+                          onChange={() => {
+                            if (contentSections.includes(section.id)) {
+                              setContentSections(prev => prev.filter(s => s !== section.id))
+                            } else {
+                              setContentSections(prev => [...prev, section.id])
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded"
+                        />
+                        {section.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 

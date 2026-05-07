@@ -150,6 +150,44 @@ const infographicTypes = [
     searchQuery: 'Search for rental yield data, average rents, and rental market conditions',
   },
   {
+    id: 'property-comparison-charts' as const,
+    label: 'Property Comparison Charts',
+    icon: '📈',
+    description: 'Visual charts comparing property features and values',
+    searchable: false,
+  },
+  {
+    id: 'market-trend-graphs' as const,
+    label: 'Market Trend Graphs',
+    icon: '📊',
+    description: 'Interactive graphs showing market trends over time',
+    searchable: true,
+    searchQuery: 'Search for historical market data and trends for interactive graphs',
+  },
+  {
+    id: 'neighborhood-stats' as const,
+    label: 'Neighborhood Statistics',
+    icon: '🏘️',
+    description: 'Demographic and statistical data for neighborhoods',
+    searchable: true,
+    searchQuery: 'Search for neighborhood demographic data and local statistics',
+  },
+  {
+    id: 'investment-calculators' as const,
+    label: 'Investment Calculators',
+    icon: '🧮',
+    description: 'ROI calculators and investment planning tools',
+    searchable: true,
+    searchQuery: 'Search for investment calculation formulas and financial data',
+  },
+  {
+    id: 'floor-plan-overlays' as const,
+    label: 'Floor Plan Overlays',
+    icon: '🏠',
+    description: 'Interactive floor plans with measurement overlays',
+    searchable: false,
+  },
+  {
     id: 'custom' as const,
     label: 'Custom',
     icon: '✨',
@@ -232,6 +270,32 @@ export function InfographicWizard({
   const [avgRentalIncome, setAvgRentalIncome] = useState('')
   const [investmentHighlights, setInvestmentHighlights] = useState('')
 
+  // Property Comparison Charts
+  const [chartType, setChartType] = useState('bar')
+  const [chartDataPoints, setChartDataPoints] = useState<string[]>([])
+
+  // Market Trend Graphs
+  const [timePeriod, setTimePeriod] = useState('12_months')
+  const [trendDataPoints, setTrendDataPoints] = useState<string[]>([])
+
+  // Neighborhood Statistics
+  const [demographicData, setDemographicData] = useState('')
+  const [populationStats, setPopulationStats] = useState('')
+  const [ageDistribution, setAgeDistribution] = useState('')
+
+  // Investment Calculators
+  const [propertyValue, setPropertyValue] = useState('')
+  const [monthlyRent, setMonthlyRent] = useState('')
+  const [annualExpenses, setAnnualExpenses] = useState('')
+  const [downPayment, setDownPayment] = useState('')
+
+  // Floor Plan Overlays
+  const [floorPlanImage, setFloorPlanImage] = useState('')
+  const [roomMeasurements, setRoomMeasurements] = useState('')
+
+  // Data input methods
+  const [csvData, setCsvData] = useState('')
+
   // Custom
   const [customContent, setCustomContent] = useState('')
 
@@ -244,6 +308,9 @@ export function InfographicWizard({
   const [orientation, setOrientation] = useState('portrait')
   const [visualStyle, setVisualStyle] = useState('clean')
   const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [fontFamily, setFontFamily] = useState('sans-serif')
+  const [includeIcons, setIncludeIcons] = useState(true)
+  const [chartType, setChartType] = useState('bar')
 
   if (!isOpen) return null
 
@@ -293,7 +360,7 @@ export function InfographicWizard({
           }
         }
       }
-      prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. `
+      prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. Font family: ${fontFamily}. Include icons: ${includeIcons ? 'yes' : 'no'}. `
 
       // Agent
       if (includeAgent && agentProfile) {
@@ -368,6 +435,33 @@ export function InfographicWizard({
     } else if (infographicType === 'rental-yields') {
       prompt += `Type: Rental Yields Infographic. `
       prompt += `Area: ${autoFillArea}. `
+    } else if (infographicType === 'property-comparison-charts') {
+      prompt += `Type: Property Comparison Charts. `
+      const props = [property1, property2, property3].filter(Boolean)
+      prompt += `Compare these properties: ${props.join(' vs ')}. `
+      prompt += `Chart type: ${chartType}. `
+      if (comparePoints.length > 0) prompt += `Comparison points: ${comparePoints.join(', ')}. `
+    } else if (infographicType === 'market-trend-graphs') {
+      prompt += `Type: Market Trend Graphs. `
+      prompt += `Area: ${marketArea}. `
+      prompt += `Time period: ${timePeriod.replace('_', ' ')}. `
+      if (trendDataPoints.length > 0) prompt += `Data points: ${trendDataPoints.join(', ')}. `
+    } else if (infographicType === 'neighborhood-stats') {
+      prompt += `Type: Neighborhood Statistics Infographic. `
+      prompt += `Area: ${neighborhoodName}. `
+      if (demographicData) prompt += `Demographic data: ${demographicData}. `
+      if (populationStats) prompt += `Population stats: ${populationStats}. `
+      if (ageDistribution) prompt += `Age distribution: ${ageDistribution}. `
+    } else if (infographicType === 'investment-calculators') {
+      prompt += `Type: Investment Calculator Infographic. `
+      if (propertyValue) prompt += `Property value: ${propertyValue}. `
+      if (monthlyRent) prompt += `Monthly rent: ${monthlyRent}. `
+      if (annualExpenses) prompt += `Annual expenses: ${annualExpenses}. `
+      if (downPayment) prompt += `Down payment: ${downPayment}. `
+    } else if (infographicType === 'floor-plan-overlays') {
+      prompt += `Type: Floor Plan with Measurement Overlays. `
+      if (floorPlanImage) prompt += `Floor plan image: ${floorPlanImage}. `
+      if (roomMeasurements) prompt += `Room measurements: ${roomMeasurements}. `
     } else if (infographicType === 'custom') {
       prompt += `Content: ${customContent}. `
     }
@@ -391,7 +485,7 @@ export function InfographicWizard({
         }
       }
     }
-    prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. `
+    prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. Font family: ${fontFamily}. Include icons: ${includeIcons ? 'yes' : 'no'}. `
 
     // Agent
     if (includeAgent && agentProfile) {
@@ -470,8 +564,13 @@ export function InfographicWizard({
       // Manual mode - type-specific requirements
       if (infographicType === 'market-stats') return !!marketArea
       if (infographicType === 'property-comparison') return !!property1 && !!property2
+      if (infographicType === 'property-comparison-charts') return !!property1 && !!property2
+      if (infographicType === 'market-trend-graphs') return !!marketArea
       if (infographicType === 'neighborhood-guide') return !!neighborhoodName
+      if (infographicType === 'neighborhood-stats') return !!neighborhoodName
       if (infographicType === 'investment-analysis') return !!investmentArea
+      if (infographicType === 'investment-calculators') return !!propertyValue
+      if (infographicType === 'floor-plan-overlays') return !!floorPlanImage
       if (infographicType === 'custom') return !!customContent.trim()
 
       // New searchable types need area or content
@@ -871,6 +970,187 @@ export function InfographicWizard({
                   </div>
                 )}
 
+                {infographicType === 'property-comparison-charts' && (
+                  <div className="space-y-4">
+                    <Input
+                      label="Property 1 *"
+                      placeholder="e.g., 45 Oak Avenue, Sandton — R2.8M, 4 Bed"
+                      value={property1}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProperty1(e.target.value)}
+                    />
+                    <Input
+                      label="Property 2 *"
+                      placeholder="e.g., 12 Pine Street, Bryanston — R2.5M, 3 Bed"
+                      value={property2}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProperty2(e.target.value)}
+                    />
+                    <Input
+                      label="Property 3 (optional)"
+                      placeholder="e.g., 8 Elm Drive, Fourways — R3.1M, 4 Bed"
+                      value={property3}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProperty3(e.target.value)}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Chart Type</label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={chartType}
+                        onChange={(e) => setChartType(e.target.value)}
+                      >
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                        <option value="radar">Radar Chart</option>
+                        <option value="comparison">Comparison Table</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Comparison Points</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {comparePointOptions.map(point => (
+                          <label
+                            key={point}
+                            className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm ${
+                              comparePoints.includes(point)
+                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={comparePoints.includes(point)}
+                              onChange={() => toggleStat(point, comparePoints, setComparePoints)}
+                              className="w-4 h-4 text-blue-600 rounded"
+                            />
+                            {point}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {infographicType === 'market-trend-graphs' && (
+                  <div className="space-y-4">
+                    <Input
+                      label="Area / Suburb *"
+                      placeholder="e.g., Sandton, Johannesburg"
+                      value={marketArea}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMarketArea(e.target.value)}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Time Period</label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={timePeriod}
+                        onChange={(e) => setTimePeriod(e.target.value)}
+                      >
+                        <option value="6_months">Last 6 Months</option>
+                        <option value="12_months">Last 12 Months</option>
+                        <option value="24_months">Last 2 Years</option>
+                        <option value="5_years">Last 5 Years</option>
+                      </select>
+                    </div>
+                    <Textarea
+                      label="Data Points to Graph"
+                      placeholder="Enter data points separated by commas (e.g., Jan: 2.5M, Feb: 2.6M, Mar: 2.4M...)"
+                      value={trendDataPoints.join(', ')}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTrendDataPoints(e.target.value.split(',').map(s => s.trim()))}
+                      rows={3}
+                    />
+                    <Textarea
+                      label="Or paste CSV data"
+                      placeholder="Month,Price&#10;Jan,2500000&#10;Feb,2600000&#10;Mar,2400000"
+                      value={csvData}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCsvData(e.target.value)}
+                      rows={3}
+                    />
+                    <p className="text-xs text-gray-500">Upload CSV or paste data for automatic parsing</p>
+                  </div>
+                )}
+
+                {infographicType === 'neighborhood-stats' && (
+                  <div className="space-y-4">
+                    <Input
+                      label="Neighborhood Name *"
+                      placeholder="e.g., Sandton"
+                      value={neighborhoodName}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNeighborhoodName(e.target.value)}
+                    />
+                    <Textarea
+                      label="Demographic Data"
+                      placeholder="Population, median age, income levels, education stats..."
+                      value={demographicData}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDemographicData(e.target.value)}
+                      rows={3}
+                    />
+                    <Input
+                      label="Population Statistics"
+                      placeholder="e.g., Population: 45,000"
+                      value={populationStats}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPopulationStats(e.target.value)}
+                    />
+                    <Input
+                      label="Age Distribution"
+                      placeholder="e.g., 0-17: 25%, 18-64: 60%, 65+: 15%"
+                      value={ageDistribution}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAgeDistribution(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {infographicType === 'investment-calculators' && (
+                  <div className="space-y-4">
+                    <Input
+                      label="Property Value *"
+                      placeholder="e.g., R2,500,000"
+                      value={propertyValue}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPropertyValue(e.target.value)}
+                    />
+                    <Input
+                      label="Monthly Rent"
+                      placeholder="e.g., R15,000"
+                      value={monthlyRent}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMonthlyRent(e.target.value)}
+                    />
+                    <Input
+                      label="Annual Expenses"
+                      placeholder="e.g., R50,000 (rates, maintenance, etc.)"
+                      value={annualExpenses}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAnnualExpenses(e.target.value)}
+                    />
+                    <Input
+                      label="Down Payment %"
+                      placeholder="e.g., 20%"
+                      value={downPayment}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDownPayment(e.target.value)}
+                    />
+                    <p className="text-sm text-gray-500">
+                      The AI will calculate ROI, rental yield, mortgage payments, and other investment metrics.
+                    </p>
+                  </div>
+                )}
+
+                {infographicType === 'floor-plan-overlays' && (
+                  <div className="space-y-4">
+                    <Input
+                      label="Floor Plan Image URL"
+                      placeholder="Upload or paste image URL"
+                      value={floorPlanImage}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFloorPlanImage(e.target.value)}
+                    />
+                    <Textarea
+                      label="Room Measurements"
+                      placeholder="e.g., Living Room: 4.5m x 3.2m, Kitchen: 3.0m x 2.8m..."
+                      value={roomMeasurements}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRoomMeasurements(e.target.value)}
+                      rows={4}
+                    />
+                    <p className="text-sm text-gray-500">
+                      Upload a floor plan image and provide room measurements for interactive overlays.
+                    </p>
+                  </div>
+                )}
+
                 {infographicType === 'custom' && (
                   <div className="space-y-4">
                     <Textarea
@@ -1014,6 +1294,34 @@ export function InfographicWizard({
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Font Family */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={fontFamily}
+                    onChange={(e) => setFontFamily(e.target.value)}
+                  >
+                    <option value="sans-serif">Sans Serif (Modern)</option>
+                    <option value="serif">Serif (Classic)</option>
+                    <option value="script">Script (Elegant)</option>
+                    <option value="monospace">Monospace (Tech)</option>
+                  </select>
+                </div>
+
+                {/* Include Icons */}
+                <div>
+                  <label className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={includeIcons}
+                      onChange={(e) => setIncludeIcons(e.target.checked)}
+                      className="w-5 h-5 text-blue-600"
+                    />
+                    <span className="font-medium text-gray-700">Include decorative icons</span>
+                  </label>
                 </div>
               </div>
             )}
