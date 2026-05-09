@@ -313,9 +313,10 @@ export function VideoEditorWizard({ isOpen, onClose, onComplete }: VideoEditorWi
                         multiple
                         onChange={handleFileSelect}
                         className="hidden"
+                        id="video-upload-input"
                       />
                       
-                      <label className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
+                      <label htmlFor="video-upload-input" className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
                         {isUploading ? (
                           <svg className="animate-spin h-8 w-8 text-blue-500" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
