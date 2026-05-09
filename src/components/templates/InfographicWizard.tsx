@@ -28,6 +28,9 @@ type InfographicType =
   | 'neighborhood-stats'
   | 'investment-calculators'
   | 'floor-plan-overlays'
+  | 'three-reasons-buy'
+  | 'investment-opportunity'
+  | 'lifestyle-benefits'
   | 'custom'
 
 interface InfographicWizardProps {
