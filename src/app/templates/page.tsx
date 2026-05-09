@@ -17,6 +17,7 @@ import { AgentShowcaseWizard } from '@/components/templates/AgentShowcaseWizard'
 import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPopup'
 import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
 import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
+import { AiTemplatesFirstVisitPopup } from '@/components/templates/AiTemplatesFirstVisitPopup'
 import { TEMPLATE_CATEGORIES, type TemplateCategory } from '@/lib/types'
 
 // Marketplace Templates - Preset templates available to all users
@@ -160,24 +161,28 @@ export default function TemplatesPage() {
   const [showHolidayWizard, setShowHolidayWizard] = useState(false)
   // Testimonial Wizard State
   const [showTestimonialWizard, setShowTestimonialWizard] = useState(false)
-  // Agent Showcase Wizard State
-  const [showAgentShowcaseWizard, setShowAgentShowcaseWizard] = useState(false)
-  const [wizardData, setWizardData] = useState<{
-    photoFrames: number
-    includeAgent: boolean
-    propertyDetails: {
-      header: string
-      price: string
-      location: string
-      keyFeatures: string
-      bedrooms: string
-      bathrooms: string
-      squareMeters: string
-      propertyType: string
-    }
-  } | null>(null)
-  
-  // Legacy Modal State (kept for backward compatibility)
+// Agent Showcase Wizard State
+   const [showAgentShowcaseWizard, setShowAgentShowcaseWizard] = useState(false)
+   const [wizardData, setWizardData] = useState<{
+     photoFrames: number
+     includeAgent: boolean
+     propertyDetails: {
+       header: string
+       price: string
+       location: string
+       keyFeatures: string
+       bedrooms: string
+       bathrooms: string
+       squareMeters: string
+       propertyType: string
+     }
+   } | null>(null)
+   
+   // First visit popup state - shows once per user
+   const [showFirstVisitPopup, setShowFirstVisitPopup] = useState(false)
+   const [pendingTemplateType, setPendingTemplateType] = useState<string | null>(null)
+
+   // Legacy Modal State (kept for backward compatibility)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [showLayoutPopup, setShowLayoutPopup] = useState(false)
   const [showPromptReview, setShowPromptReview] = useState(false)
@@ -733,6 +738,19 @@ export default function TemplatesPage() {
                     <button
                       key={type.value}
                       onClick={() => {
+                        // Check if this is an AI template type and show first visit popup if needed
+                        const isAiTemplate = ['professional', 'infographic', 'holiday', 'testimonial', 'agent_showcase'].includes(type.value)
+                        
+                        if (isAiTemplate) {
+                          // Check if user has dismissed the popup before
+                          const dismissed = localStorage.getItem('aiTemplatesPopupDismissed')
+                          if (dismissed !== 'true') {
+                            setPendingTemplateType(type.value)
+                            setShowFirstVisitPopup(true)
+                            return
+                          }
+                        }
+                        
                         if (type.value === 'professional') {
                           // Open new professional template wizard
                           setShowWizard(true)
@@ -1812,6 +1830,27 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
           </div>
         </div>
       )}
+
+      {/* AI Templates First Visit Popup */}
+      <AiTemplatesFirstVisitPopup
+        isOpen={showFirstVisitPopup}
+        onClose={() => setShowFirstVisitPopup(false)}
+        onDontShowAgain={() => setShowFirstVisitPopup(false)}
+        onProceed={() => {
+          if (pendingTemplateType === 'professional') {
+            setShowWizard(true)
+          } else if (pendingTemplateType === 'infographic') {
+            setShowInfographicWizard(true)
+          } else if (pendingTemplateType === 'holiday') {
+            setShowHolidayWizard(true)
+          } else if (pendingTemplateType === 'testimonial') {
+            setShowTestimonialWizard(true)
+          } else if (pendingTemplateType === 'agent_showcase') {
+            setShowAgentShowcaseWizard(true)
+          }
+          setPendingTemplateType(null)
+        }}
+      />
     </div>
   )
 }
