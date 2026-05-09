@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { VideoTemplate } from '@/lib/types'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 const VIDEO_TEMPLATES: VideoTemplate[] = [
   {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     const newTemplate: VideoTemplate = {
-      id: uuidv4(),
+      id: randomUUID(),
       name,
       category,
       description: '',

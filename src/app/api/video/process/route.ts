@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import ffmpeg from 'fluent-ffmpeg'
 import fs from 'fs'
 import path from 'path'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     const creditCost = ctaCard ? 12 : 10
 
-    const tempDir = path.join('/tmp', uuidv4())
+    const tempDir = path.join('/tmp', randomUUID())
     fs.mkdirSync(tempDir, { recursive: true })
 
     try {
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
           .mergeToFile(outputPath, tempDir)
       })
 
-      const fileName = `${user.id}/videos/${uuidv4()}.mp4`
+      const fileName = `${user.id}/videos/${randomUUID()}.mp4`
       const fileBuffer = fs.readFileSync(outputPath)
       
       const { data, error } = await supabase.storage

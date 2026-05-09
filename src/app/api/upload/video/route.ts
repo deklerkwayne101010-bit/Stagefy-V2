@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Create unique filename
     const fileExtension = video.name.split('.').pop()
-    const fileName = `${user.id}/${type}/${uuidv4()}.${fileExtension}`
+    const fileName = `${user.id}/${type}/${randomUUID()}.${fileExtension}`
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
