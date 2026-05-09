@@ -14,6 +14,7 @@ import { InfographicWizard } from '@/components/templates/InfographicWizard'
 import { HolidayPromoWizard } from '@/components/templates/HolidayPromoWizard'
 import { TestimonialWizard } from '@/components/templates/TestimonialWizard'
 import { AgentShowcaseWizard } from '@/components/templates/AgentShowcaseWizard'
+import { VideoEditorWizard } from '@/components/video/VideoEditorWizard'
 import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPopup'
 import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
 import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
@@ -66,6 +67,7 @@ const marketplaceTypes: { value: string; label: string; icon: string; descriptio
   { value: 'holiday', label: 'Holiday Promos', icon: '🎉', description: 'SA holiday posters' },
   { value: 'testimonial', label: 'Testimonials', icon: '💬', description: 'Client reviews & ratings' },
   { value: 'agent_showcase', label: 'Agent Showcase', icon: '🌟', description: 'Agent personal branding' },
+  { value: 'video', label: 'Video Editor', icon: '🎬', description: 'Edit property videos' },
   { value: 'custom', label: 'Custom', icon: '✨', description: 'Enter your own custom prompt' },
 ]
 
@@ -163,7 +165,20 @@ export default function TemplatesPage() {
   const [showTestimonialWizard, setShowTestimonialWizard] = useState(false)
 // Agent Showcase Wizard State
    const [showAgentShowcaseWizard, setShowAgentShowcaseWizard] = useState(false)
-   const [wizardData, setWizardData] = useState<{
+// Video Editor Wizard State
+    const [showVideoEditor, setShowVideoEditor] = useState(false)
+    
+    // Auto-open video editor when accessed from sidebar link
+    useEffect(() => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get('video') === 'true') {
+          setShowVideoEditor(true)
+        }
+      }
+    }, [])
+    
+    const [wizardData, setWizardData] = useState<{
      photoFrames: number
      includeAgent: boolean
      propertyDetails: {
@@ -739,7 +754,7 @@ export default function TemplatesPage() {
                       key={type.value}
                       onClick={() => {
                         // Check if this is an AI template type and show first visit popup if needed
-                        const isAiTemplate = ['professional', 'infographic', 'holiday', 'testimonial', 'agent_showcase'].includes(type.value)
+                        const isAiTemplate = ['professional', 'infographic', 'holiday', 'testimonial', 'agent_showcase', 'video'].includes(type.value)
                         
                         if (isAiTemplate) {
                           // Check if user has dismissed the popup before
@@ -751,24 +766,27 @@ export default function TemplatesPage() {
                           }
                         }
                         
-                        if (type.value === 'professional') {
-                          // Open new professional template wizard
-                          setShowWizard(true)
-                        } else if (type.value === 'infographic') {
-                          // Open infographic wizard
-                          setShowInfographicWizard(true)
-                        } else if (type.value === 'holiday') {
-                          // Open holiday promo wizard
-                          setShowHolidayWizard(true)
-                        } else if (type.value === 'testimonial') {
-                          // Open testimonial wizard
-                          setShowTestimonialWizard(true)
-                        } else if (type.value === 'agent_showcase') {
-                          // Open agent showcase wizard
-                          setShowAgentShowcaseWizard(true)
-                        } else {
-                          setTemplateType(type.value)
-                        }
+if (type.value === 'professional') {
+                           // Open new professional template wizard
+                           setShowWizard(true)
+                         } else if (type.value === 'infographic') {
+                           // Open infographic wizard
+                           setShowInfographicWizard(true)
+                         } else if (type.value === 'holiday') {
+                           // Open holiday promo wizard
+                           setShowHolidayWizard(true)
+                         } else if (type.value === 'testimonial') {
+                           // Open testimonial wizard
+                           setShowTestimonialWizard(true)
+                         } else if (type.value === 'agent_showcase') {
+                           // Open agent showcase wizard
+                           setShowAgentShowcaseWizard(true)
+                         } else if (type.value === 'video') {
+                           // Open video editor
+                           setShowVideoEditor(true)
+                         } else {
+                           setTemplateType(type.value)
+                         }
                       }}
                       className={`p-4 rounded-lg border-2 text-center transition-all ${
                         templateType === type.value
@@ -789,6 +807,9 @@ export default function TemplatesPage() {
                         <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
                       )}
                       {type.value === 'testimonial' && (
+                        <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
+                      )}
+                      {type.value === 'video' && (
                         <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
                       )}
                     </button>
@@ -1679,34 +1700,49 @@ Your prompt has been generated and added to the textbox below. Your ${data.uploa
         }}
       />
 
-      {/* Agent Showcase Wizard */}
-      <AgentShowcaseWizard
-        isOpen={showAgentShowcaseWizard}
-        onClose={() => setShowAgentShowcaseWizard(false)}
-        agentProfile={agentName.trim() ? {
-          name: agentName,
-          email: agentEmail,
-          phone: agentPhone,
-          agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
-          photoUrl: agentPhoto,
-          logoUrl: agentLogo,
-        } : null}
-        agencyBrandColors={agentAgency ? (() => {
-          const brand = agencyBrands.find(b => b.slug === agentAgency)
-          return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
-        })() : null}
-        agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
-        onComplete={(data) => {
-          setShowAgentShowcaseWizard(false)
-          setTemplateType('custom')
-          setIncludeAgentProfile(data.includeAgent)
-          setPrompt(data.generatedPrompt)
+{/* Agent Showcase Wizard */}
+       <AgentShowcaseWizard
+         isOpen={showAgentShowcaseWizard}
+         onClose={() => setShowAgentShowcaseWizard(false)}
+         agentProfile={agentName.trim() ? {
+           name: agentName,
+           email: agentEmail,
+           phone: agentPhone,
+           agency: agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || agentAgency) : undefined,
+           photoUrl: agentPhoto,
+           logoUrl: agentLogo,
+         } : null}
+         agencyBrandColors={agentAgency ? (() => {
+           const brand = agencyBrands.find(b => b.slug === agentAgency)
+           return brand ? [brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean) as string[] : null
+         })() : null}
+         agencyBrandName={agentAgency ? (agencyBrands.find(b => b.slug === agentAgency)?.name || null) : null}
+         onComplete={(data) => {
+           setShowAgentShowcaseWizard(false)
+           setTemplateType('custom')
+           setIncludeAgentProfile(data.includeAgent)
+           setPrompt(data.generatedPrompt)
 
-          alert(`✅ Agent Showcase ready!\n\nYour prompt has been generated. Click "Generate Template" to create your agent showcase.`)
-        }}
-      />
+           alert(`✅ Agent Showcase ready!\n\nYour prompt has been generated. Click "Generate Template" to create your agent showcase.`)
+         }}
+       />
 
-      {/* Legacy Template Selection Modal (kept for backward compatibility) */}
+{/* Video Editor Wizard */}
+        <VideoEditorWizard
+          isOpen={showVideoEditor}
+          onClose={() => setShowVideoEditor(false)}
+          onComplete={(data) => {
+            setShowVideoEditor(false)
+            if (data.outputUrl) {
+              setResult({ outputUrl: data.outputUrl, isWatermarked: true })
+              fetchRecentGenerations()
+            } else {
+              alert(`✅ Video editing started!\n\nClips: ${data.clips.length}\nTemplate: ${data.selectedTemplate?.name || 'Custom'}`)
+            }
+          }}
+        />
+
+       {/* Legacy Template Selection Modal (kept for backward compatibility) */}
       <TemplateSelectionModal
         isOpen={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}

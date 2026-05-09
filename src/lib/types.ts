@@ -265,6 +265,11 @@ export const CREDIT_COSTS = {
   description_generation: 1,
   prompt_generation: 3,
   content_plan_generation: 1,
+  video_trim: 2,
+  video_concat: 3,
+  video_transition: 5,
+  video_text_overlay: 2,
+  video_full_edit: 10,
 } as const
 
 export type CreditOperation = keyof typeof CREDIT_COSTS
@@ -695,5 +700,67 @@ export interface PayFastPayment {
   item_description?: string
   custom_int1?: string
   custom_str1?: string
+}
+
+// =============================================
+// VIDEO EDITOR TYPES
+// =============================================
+
+export type VideoTemplateCategory = 'real_estate' | 'social' | 'marketing' | 'personal'
+export type VideoTransitionType = 'fade' | 'slide' | 'zoom' | 'wipe' | 'none'
+export type VideoAspectRatio = '16:9' | '9:16' | '1:1' | '4:3'
+
+export interface VideoClip {
+  id: string
+  url: string
+  name: string
+  duration: number
+  trimStart: number
+  trimEnd: number
+  sortOrder: number
+}
+
+export interface VideoTransition {
+  id: string
+  type: VideoTransitionType
+  duration: number
+  position: number
+}
+
+export interface VideoTextOverlay {
+  id: string
+  text: string
+  style: string
+  position: { x: number; y: number }
+  startTime: number
+  duration: number
+  fontSize?: number
+  color?: string
+}
+
+export interface VideoTemplate {
+  id: string
+  name: string
+  category: VideoTemplateCategory
+  description?: string
+  duration: number
+  transitions: VideoTransition[]
+  textOverlays: VideoTextOverlay[]
+  aspectRatio: VideoAspectRatio
+  musicTrack?: string
+  thumbnailUrl?: string
+}
+
+export interface VideoEditorState {
+  clips: VideoClip[]
+  transitions: VideoTransition[]
+  textOverlays: VideoTextOverlay[]
+  selectedTemplate: VideoTemplate | null
+  outputSettings: {
+    resolution: '1080p' | '720p' | '480p'
+    format: 'mp4' | 'mov'
+    quality: 'high' | 'medium' | 'low'
+  }
+  outputUrl?: string
 }
 
