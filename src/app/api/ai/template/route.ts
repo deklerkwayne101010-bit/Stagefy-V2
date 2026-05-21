@@ -1,4 +1,4 @@
-// API route for AI Template Builder (Google Nano Banana Pro)
+// API route for AI Template Builder (GPT Image 2 on Replicate)
 import { NextResponse } from 'next/server'
 import {
   checkUserCredits,
@@ -32,7 +32,6 @@ async function getUserFromAuthHeader(request: Request) {
   }
 }
 
-// Check if running in demo mode (no Supabase configured)
 // Check if running in demo mode (server-side check)
 // Demo mode if critical API keys are missing
 const isDemoMode = !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.REPLICATE_API_TOKEN
@@ -46,6 +45,9 @@ console.log('API Environment check:', {
   hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   hasReplicateToken: !!process.env.REPLICATE_API_TOKEN
 })
+
+// GPT Image 2 model on Replicate
+const GPT_IMAGE_2_MODEL = 'openai/gpt-image-2'
 
 export async function POST(request: Request) {
   try {
@@ -62,7 +64,10 @@ export async function POST(request: Request) {
     // Determine version (default to standard)
     const templateVersion = version || 'standard'
     const isPro = templateVersion === 'pro'
-    
+
+    // GPT Image 2 quality: standard = low, pro = auto
+    const quality = isPro ? 'auto' : 'low'
+
     // Set credit cost based on version
     const creditCost = isPro ? 5 : 3
 
@@ -119,67 +124,27 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Get the exact number of property images uploaded
-      const imageCount = images && images.length > 0 ? images.length : 0
-      
-      // Build input for Replicate API - Nano Banana 2 format
-      const userPrompt = prompt || 'Create a professional listing template'
-      
-      // Get property image count to calculate agent/logo positions
-      // Images array format: [property photos..., agent photo?, logo?]
-      const propertyImageCount = imageCount
-      const agentPhotoPosition = propertyImageCount + 1
-      const logoPosition = propertyImageCount + (imageCount > 1 ? 2 : 1)
-      
-      // Check if this template type uses property photos
-      const templatesWithPropertyPhotos = ['professional', 'custom']
-      const usesPropertyPhotos = templatesWithPropertyPhotos.includes(type)
-      
-      // Templates that should NOT have any property photo instructions
-      const templatesWithoutPropertyPhotos = ['agent_showcase', 'holiday_promo', 'testimonial', 'infographic']
-      const skipPropertyInstructions = templatesWithoutPropertyPhotos.includes(type)
-      
-      // Use the wizard's prompt as-is - don't add any extra sections
-      // The final prompt should be exactly what the wizard builds
-      let finalPrompt = userPrompt
-      
-      console.log(`Template generation: ${propertyImageCount} property photo(s) uploaded`)
-
-      // Select model based on version - standard uses nano-banana-2, pro uses gpt-image-2
-      const modelId = isPro ? 'openai/gpt-image-2' : 'google/nano-banana-2'
-      console.log(`Using model: ${modelId} for ${templateVersion} version`)
-
       let gptImageInput: any
 
-      if (isPro) {
-        // GPT Image 2 input format
-        gptImageInput = {
-          prompt: finalPrompt,
-          quality: 'high',
-          background: 'auto',
-          moderation: 'auto',
-          aspect_ratio: '1:1',
-          input_images: images && images.length > 0 ? images : [],
-          output_format: 'png',
-          number_of_images: 1,
-        }
-      } else {
-        // Nano Banana 2 input format
-        gptImageInput = {
-          prompt: finalPrompt,
-          resolution: '1K',
-          image_input: images && images.length > 0 ? images : [],
-          aspect_ratio: '4:3',
-          output_format: 'png',
-          google_search: false,
-          image_search: true,
-          safety_filter_level: 'block_only_high'
-        }
+      const finalPrompt = prompt || 'Create a professional listing template'
+
+      // GPT Image 2 unified input — quality tier distinguishes standard (low) vs pro (auto)
+      gptImageInput = {
+        prompt: finalPrompt,
+        input_images: images && images.length > 0 ? images : [],
+        quality: quality,
+        aspect_ratio: '1:1',
+        output_format: 'png',
+        background: 'auto',
+        moderation: 'auto',
+        number_of_images: 1,
       }
+
+      console.log(`Using ${GPT_IMAGE_2_MODEL} — quality: ${quality} (${templateVersion})`)
 
       // Call Replicate API for template generation
       // Use async polling approach for longer running generations
-      const response = await fetch(`https://api.replicate.com/v1/models/${modelId}/predictions`, {
+      const response = await fetch(`https://api.replicate.com/v1/models/${GPT_IMAGE_2_MODEL}/predictions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
@@ -197,7 +162,7 @@ export async function POST(request: Request) {
       }
 
       let prediction = await response.json()
-      console.log(`${modelId} response:`, prediction)
+      console.log(`${GPT_IMAGE_2_MODEL} response:`, prediction)
 
       // Poll for completion if prediction is not yet complete
       if (prediction.status === 'starting' || prediction.status === 'processing') {
@@ -221,7 +186,7 @@ export async function POST(request: Request) {
         }
       }
 
-      console.log(`${modelId} output:`, prediction.output)
+      console.log(`${GPT_IMAGE_2_MODEL} output:`, prediction.output)
 
       // Check if prediction succeeded
       if (prediction.status === 'failed') {

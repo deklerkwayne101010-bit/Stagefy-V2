@@ -1,5 +1,5 @@
 // API route for Professional Template Prompt Generation
-// Uses Replicate AI (GPT-4.1-nano model) to generate a unique prompt for Nano Banana Pro
+// Uses Replicate AI to generate a unique prompt for GPT Image 2
 import { NextResponse } from 'next/server'
 import {
   canPerformAction,
@@ -237,7 +237,7 @@ export async function POST(request: Request) {
     // Build the system prompt for GPT-4.1-nano
     const systemPrompt = `You are an expert real estate marketing designer specializing in creating 
 stunning property listing templates. Your goal is to generate a UNIQUE, CREATIVE, and DETAILED 
-prompt that can be used with Nano Banana Pro (AI image generation) to create a professional 
+prompt that can be used with GPT Image 2 (AI image generation on Replicate) to create a professional 
 property marketing flyer.
 
 IMPORTANT: Each prompt you generate must be completely unique and interesting. Use creative 
@@ -247,7 +247,7 @@ format twice.
 Output ONLY valid JSON format.`
 
     // Build the user prompt with the new simplified structure
-    const userPrompt = `Generate a completely unique and professional Nano Banana Pro prompt for a 
+    const userPrompt = `Generate a completely unique and professional GPT Image 2 prompt for a 
 real estate marketing flyer with the following specifications:
 
 ## PHOTO FRAMES AND IMAGES CONFIGURATION
@@ -274,7 +274,7 @@ ${agencyInfo ? `## AGENCY BRAND STYLING
 ## REQUIREMENTS
 Generate a JSON response with these fields:
 {
-  "prompt": "A detailed, creative prompt for Nano Banana Pro that describes the entire flyer layout including: header design, photo frame arrangement, property information placement, agent section (if applicable), color scheme, typography, and visual style. Be very specific and creative!",
+  "prompt": "A detailed, creative prompt for GPT Image 2 that describes the entire flyer layout including: header design, photo frame arrangement, property information placement, agent section (if applicable), color scheme, typography, and visual style. Be very specific and creative!",
   "layoutSuggestions": ["Specific layout suggestion 1", "Specific layout suggestion 2", "Specific layout suggestion 3"],
   "styleGuidelines": "Specific style guidelines describing the visual aesthetic, color palette, typography, and mood"
 }

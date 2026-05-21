@@ -134,7 +134,7 @@ ${userPreferences?.specialRequirements ? `Special Requirements: ${userPreference
 
 REQUIRED OUTPUT FORMAT:
 Return a JSON object with:
-1. "prompt": A detailed prompt for Nano Banana to generate the template
+1. "prompt": A detailed prompt for GPT Image 2 to generate the template
 2. "layoutStructure": Object with "sections" array containing:
    - id: section identifier
    - name: section name
