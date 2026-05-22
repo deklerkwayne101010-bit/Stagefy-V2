@@ -1,12 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow Supabase Storage uploads and Vercel preview deploys
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: '**.vercel.app' },
     ],
   },
+  // Prevent stale-cache 304 issues across all routes
   async headers() {
     return [
       {

@@ -2,13 +2,11 @@
   "functions": {
     "api/upload/**": {
       "maxDuration": 300,
-      "memory": 1024,
-      "bodyMaxSize": "50mb"
+      "memory": 1024
     },
     "api/ai/**": {
       "maxDuration": 600,
-      "memory": 2048,
-      "bodyMaxSize": "50mb"
+      "memory": 2048
     }
   }
 }
