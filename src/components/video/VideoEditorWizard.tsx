@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useFFmpeg } from '@/hooks/useFFmpeg'
+import { supabase } from '@/lib/supabase'
 import type { VideoClip, VideoTemplate, VideoEditorState, VideoTransition } from '@/lib/types'
 
 type VideoEditorStep = 'upload' | 'trim' | 'arrange' | 'transitions' | 'text' | 'export'
@@ -73,6 +74,67 @@ export function VideoEditorWizard({ isOpen, onClose, onComplete }: VideoEditorWi
 
   if (!isOpen) return null
 
+  // Get a short-lived bearer token for the presign request
+  const getAccessToken = async (): Promise<string | null> => {
+    try {
+      const { data } = await supabase.auth.getSession()
+      return data.session?.access_token ?? null
+    } catch {
+      return null
+    }
+  }
+
+  // Upload a file via Supabase presigned URL so the file never passes
+  // through the Next.js serverless function (avoids Vercel's ~4.5 MB body cap).
+  const uploadViaPresigned = async (file: File, type: string): Promise<string> => {
+    const token = await getAccessToken()
+    if (!token) throw new Error('No auth token - please log in again')
+
+    // Step 1: ask the server for a time-limited, single-use upload URL
+    const signRes = await fetch('/api/upload/sign', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        type,
+        filename: file.name,
+        contentType: file.type,
+        size: file.size,
+      }),
+    })
+
+    if (!signRes.ok) {
+      const detail = await signRes.json().catch(() => ({}))
+      throw new Error(detail?.error || `Failed to get upload URL: ${signRes.status}`)
+    }
+
+    const { uploadUrl, path: _path } = await signRes.json()
+    if (!uploadUrl) throw new Error('No upload URL in response')
+
+    // Step 2: PUT the file directly to Supabase Storage
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      // Content-Type is already encoded in the presigned URL query string;
+      // sending it in the body too is harmless and some clients require it.
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+
+    if (!uploadRes.ok) {
+      throw new Error(`Direct upload failed: ${uploadRes.status} ${uploadRes.statusText}`)
+    }
+
+    // Step 3: build the public URL for the editor
+    // getPublicUrl returns { data: { publicUrl: string } } unlike from("videos")
+    const { data: urlData } = await supabase.storage
+      .from('videos')
+      .getPublicUrl(_path)
+
+    return urlData.publicUrl
+  }
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
@@ -80,34 +142,25 @@ export function VideoEditorWizard({ isOpen, onClose, onComplete }: VideoEditorWi
     setIsUploading(true)
     for (const file of files) {
       try {
-        const formData = new FormData()
-        formData.append('video', file)
-        formData.append('type', 'video-editor')
-
-        const response = await fetch('/api/upload/video', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          const duration = await getVideoDuration(data.url)
-          const newClip: VideoClip = {
-            id: crypto.randomUUID(),
-            url: data.url,
-            name: file.name,
-            duration: duration || 10,
-            trimStart: 0,
-            trimEnd: duration || 10,
-            sortOrder: clips.length,
-          }
-          setClips(prev => [...prev, newClip])
+        const url = await uploadViaPresigned(file, 'video-editor')
+        const duration = await getVideoDuration(url)
+        const newClip: VideoClip = {
+          id: crypto.randomUUID(),
+          url,
+          name: file.name,
+          duration: duration || 10,
+          trimStart: 0,
+          trimEnd: duration || 10,
+          sortOrder: clips.length,
         }
-      } catch (error) {
-        console.error('Upload error:', error)
+        setClips(prev => [...prev, newClip])
+      } catch (error: any) {
+        console.error('Video upload error:', error)
       }
     }
     setIsUploading(false)
+    // Reset the input so the same file can be re-selected if needed
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleTemplateSelect = (template: VideoTemplate) => {
