@@ -1,15 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/upload/**": {
-      "maxDuration": 300,
-      "memory": 1024
-    },
-    "api/ai/**": {
-      "maxDuration": 300,
-      "memory": 2048
-    }
-  },
   "crons": [
     {
       "path": "/api/cron/monthly-reset",
