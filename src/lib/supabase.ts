@@ -15,7 +15,7 @@ let supabaseClient: ReturnType<typeof createClient> | null = null
 let supabaseAdminClient: ReturnType<typeof createClient> | null = null
 let supabaseAuthWarned = false // Only log auth warnings once per session
 
-function getSupabaseClient() {
+export function getSupabaseClient() {
   if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
