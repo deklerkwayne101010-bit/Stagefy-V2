@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useFFmpeg } from '@/hooks/useFFmpeg'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseClient } from '@/lib/supabase'
 import type { VideoClip, VideoTemplate, VideoEditorState, VideoTransition } from '@/lib/types'
 
 type VideoEditorStep = 'upload' | 'trim' | 'arrange' | 'transitions' | 'text' | 'export'
@@ -77,7 +77,9 @@ export function VideoEditorWizard({ isOpen, onClose, onComplete }: VideoEditorWi
   // Get a short-lived bearer token for the presign request
   const getAccessToken = async (): Promise<string | null> => {
     try {
-      const { data } = await supabase.auth.getSession()
+      const client = getSupabaseClient()
+      if (!client) return null
+      const { data } = await client.auth.getSession()
       return data.session?.access_token ?? null
     } catch {
       return null
@@ -87,6 +89,8 @@ export function VideoEditorWizard({ isOpen, onClose, onComplete }: VideoEditorWi
   // Upload a file via Supabase presigned URL so the file never passes
   // through the Next.js serverless function (avoids Vercel's ~4.5 MB body cap).
   const uploadViaPresigned = async (file: File, type: string): Promise<string> => {
+    const client = getSupabaseClient()
+    if (!client) throw new Error('Supabase client not available')
     const token = await getAccessToken()
     if (!token) throw new Error('No auth token - please log in again')
 
@@ -127,8 +131,8 @@ export function VideoEditorWizard({ isOpen, onClose, onComplete }: VideoEditorWi
     }
 
     // Step 3: build the public URL for the editor
-    // getPublicUrl returns { data: { publicUrl: string } } unlike from("videos")
-    const { data: urlData } = await supabase.storage
+    // getPublicUrl returns { data: { publicUrl: string } }
+    const { data: urlData } = await client.storage
       .from('videos')
       .getPublicUrl(_path)
 
