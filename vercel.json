@@ -6,7 +6,7 @@
       "memory": 1024
     },
     "api/ai/**": {
-      "maxDuration": 600,
+      "maxDuration": 300,
       "memory": 2048
     }
   },
