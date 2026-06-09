@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const uploadType = type || 'video-editor'
+    const uploadType = type || 'general'
     const ext = filename.split('.').pop()
     const objectPath = `${user.id}/${uploadType}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
