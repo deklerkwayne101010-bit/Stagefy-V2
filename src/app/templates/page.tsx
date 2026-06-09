@@ -740,7 +740,7 @@ export default function TemplatesPage() {
                       key={type.value}
                       onClick={() => {
                         // Check if this is an AI template type and show first visit popup if needed
-                        const isAiTemplate = ['professional', 'infographic', 'holiday', 'testimonial', 'agent_showcase', 'video'].includes(type.value)
+                        const isAiTemplate = ['professional', 'infographic', 'holiday', 'testimonial', 'agent_showcase'].includes(type.value)
                         
                         if (isAiTemplate) {
                           // Check if user has dismissed the popup before
@@ -790,9 +790,6 @@ if (type.value === 'professional') {
                         <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
                       )}
                       {type.value === 'testimonial' && (
-                        <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
-                      )}
-                      {type.value === 'video' && (
                         <span className="inline-block mt-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">✨ AI</span>
                       )}
                     </button>
