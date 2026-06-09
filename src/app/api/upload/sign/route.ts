@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
 
     // Return everything the browser needs to upload directly to Supabase
     return NextResponse.json({
-      uploadUrl: data.url,          // PUT target the browser calls
-      path: data.path ?? objectPath, // path stored in Supabase (used for DB record)
-      token: data.token,            // opaque token to identify / complete upload
+      uploadUrl: data.signedUrl,      // PUT target the browser calls
+      path: data.path ?? objectPath,  // path stored in Supabase (used for DB record)
+      token: data.token,              // opaque token to identify / complete upload
     })
   } catch (error) {
     console.error('sign route error:', error)
