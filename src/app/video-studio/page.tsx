@@ -1,9 +1,9 @@
 'use client'
 import React,{useState,useRef,useEffect,useCallback,useMemo}from'react'
 import{useAuth}from'@/lib/auth-context'
-import{Button}from'@/components/ui/Button'
 import{Input}from'@/components/ui/Input'
 import{Card,CardHeader}from'@/components/ui/Card'
+import{Header}from'@/components/layout/Header'
 import{VideoClip,VideoTransition,VideoTransitionType,VideoAspectRatio}from'@/lib/types'
 import{useFFmpeg}from'@/hooks/useFFmpeg'
 const ASPECT=[{value:'16:9',label:'Landscape 16:9'},{value:'9:16',label:'Portrait 9:16'}]
@@ -100,118 +100,123 @@ export default function VideoStudioPage() {
   useEffect(()=>{audioRef.current?.setMaster(proj.audio.masterVolume);audioRef.current?.setMusic(proj.audio.musicVolume)},[proj.audio.masterVolume,proj.audio.musicVolume])
   return (
     <>
-      <header className="flex items-center justify-between border-b border-slate-800 bg-[#0f1320] px-4 py-2 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-xl">🎬</span>
-          <Input value={proj.projectName} onChange={e=>setProj(p=>({...p,projectName:e.target.value}))} className="!bg-transparent !border-0 !text-white font-semibold w-52" placeholder="Project name…" />
-        </div>
-        <div className="flex items-center gap-2">
-          <select value={proj.aspectRatio} onChange={e=>setProj(p=>({...p,aspectRatio:e.target.value as VideoAspectRatio}))} className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-            {ASPECT.map(a=><option key={a.value} value={a.value}>{a.label}</option>)}
-          </select>
-          <button onClick={stop} className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-sm">⏹ Stop</button>
-          <button onClick={togglePlay} disabled={!clips.length} className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium disabled:opacity-40">{playing?'⏸ Pause':'▶ Play'}</button>
-          <button onClick={startExport} disabled={exporting||!clips.length} className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:opacity-40">{exporting?'⏳ Exporting…':'⬇ Export WebM'}</button>
-        </div>
-      </header>
-
-      <div className="flex flex-1 min-h-0">
-        <aside className="w-80 border-r border-slate-800 bg-[#0b0f19] overflow-y-auto p-3 space-y-4 shrink-0">
-          <Card>
-            <CardHeader title="Listing Photos" subtitle="Images or video clips"></CardHeader>
-            <label className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-700 hover:border-blue-500 cursor-pointer p-5 transition bg-slate-900/40">
-              <span className="text-3xl">📁</span>
-              <span className="text-xs text-slate-400 text-center leading-relaxed">Drag & drop photos &amp; clips, or click to browse<br/><span className="text-slate-500">(JPG, PNG, MP4, WebM — 50 MB max)</span></span>
-              <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={e=>e.target.files&&handleFiles(e.target.files)} />
-            </label>
-            {uploading&&<p className="text-xs text-blue-400 mt-2 animate-pulse">Uploading…</p>}
-          </Card>
-
-          <Card>
-            <CardHeader title="Branding Card" subtitle="Agent overlay on every frame"></CardHeader>
-            <div className="space-y-2">
-              <label className="block text-xs text-slate-400">Agent Name</label>
-              <Input value={proj.branding.agentName} onChange={e=>setBranding({agentName:e.target.value})} placeholder="Jane Doe" />
-              <label className="block text-xs text-slate-400">Phone</label>
-              <Input value={proj.branding.phone} onChange={e=>setBranding({phone:e.target.value})} placeholder="+27 82 000 0000" />
-              <label className="block text-xs text-slate-400">Email</label>
-              <Input value={proj.branding.email} onChange={e=>setBranding({email:e.target.value})} placeholder="jane@agency.co.za" />
-              <label className="block text-xs text-slate-400 mt-3">Agency Logo <span className="text-slate-500">(PNG/SVG)</span></label>
-              <label className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-700 hover:border-emerald-500 cursor-pointer p-3 transition text-xs bg-slate-900/40">
-                <span>🖼 Upload Logo</span>
-                <input type="file" accept="image/png,image/svg+xml,image/*" className="hidden" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setBranding({logoDataUrl:r.result as string});r.readAsDataURL(f)}} />
+      <Header title="Video Studio" subtitle="Create professional real estate walkthroughs" />
+      <div className="p-6">
+        <div className="flex gap-6">
+          {/* Left Panel */}
+          <div className="w-80 space-y-6 shrink-0">
+            <Card>
+              <CardHeader title="Listing Photos" subtitle="Images or video clips"></CardHeader>
+              <label className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 hover:border-blue-500 cursor-pointer p-5 transition bg-slate-50">
+                <span className="text-3xl">📁</span>
+                <span className="text-xs text-slate-500 text-center leading-relaxed">Drag & drop photos &amp; clips, or click to browse<br/><span className="text-slate-400">(JPG, PNG, MP4, WebM — 50 MB max)</span></span>
+                <input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={e=>e.target.files&&handleFiles(e.target.files)} />
               </label>
-              {proj.branding.logoDataUrl&&<div className="flex items-center gap-2 mt-2"><img src={proj.branding.logoDataUrl} alt="logo" className="w-10 h-10 rounded border border-slate-700 object-contain bg-slate-900" /><button onClick={()=>setBranding({logoDataUrl:null})} className="text-xs text-red-400 hover:text-red-300">✕ Remove</button></div>}
-            </div>
-          </Card>
+              {uploading&&<p className="text-xs text-blue-600 mt-2 animate-pulse">Uploading…</p>}
+            </Card>
 
-          <Card>
-            <CardHeader title="Audio Mixer" subtitle="Procedural soundtrack"></CardHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="flex justify-between text-xs text-slate-400 mb-1"><span>Master</span><span>{Math.round(proj.audio.masterVolume*100)}%</span></label>
-                <input type="range" min="0" max="1" step="0.01" value={proj.audio.masterVolume} onChange={e=>setProj(p=>({...p,audio:{...p.audio,masterVolume:parseFloat(e.target.value)}}))} className="w-full" />
+            <Card>
+              <CardHeader title="Branding Card" subtitle="Agent overlay on every frame"></CardHeader>
+              <div className="space-y-2">
+                <label className="block text-xs text-slate-500">Agent Name</label>
+                <Input value={proj.branding.agentName} onChange={e=>setBranding({agentName:e.target.value})} placeholder="Jane Doe" />
+                <label className="block text-xs text-slate-500">Phone</label>
+                <Input value={proj.branding.phone} onChange={e=>setBranding({phone:e.target.value})} placeholder="+27 82 000 0000" />
+                <label className="block text-xs text-slate-500">Email</label>
+                <Input value={proj.branding.email} onChange={e=>setBranding({email:e.target.value})} placeholder="jane@agency.co.za" />
+                <label className="block text-xs text-slate-500 mt-3">Agency Logo <span className="text-slate-400">(PNG/SVG)</span></label>
+                <label className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 hover:border-emerald-500 cursor-pointer p-3 transition text-xs bg-slate-50">
+                  <span>🖼 Upload Logo</span>
+                  <input type="file" accept="image/png,image/svg+xml,image/*" className="hidden" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setBranding({logoDataUrl:r.result as string});r.readAsDataURL(f)}} />
+                </label>
+                {proj.branding.logoDataUrl&&<div className="flex items-center gap-2 mt-2"><img src={proj.branding.logoDataUrl} alt="logo" className="w-10 h-10 rounded border border-slate-200 object-contain bg-slate-50" /><button onClick={()=>setBranding({logoDataUrl:null})} className="text-xs text-red-500 hover:text-red-600">✕ Remove</button></div>}
               </div>
-              <div>
-                <label className="flex justify-between text-xs text-slate-400 mb-1"><span>Music</span><span>{Math.round(proj.audio.musicVolume*100)}%</span></label>
-                <input type="range" min="0" max="1" step="0.01" value={proj.audio.musicVolume} onChange={e=>setProj(p=>({...p,audio:{...p.audio,musicVolume:parseFloat(e.target.value)}}))} className="w-full" />
-              </div>
-              <div>
-                <label className="flex justify-between text-xs text-slate-400 mb-1"><span>SFX</span><span>{Math.round(proj.audio.sfxVolume*100)}%</span></label>
-                <input type="range" min="0" max="1" step="0.01" value={proj.audio.sfxVolume} onChange={e=>setProj(p=>({...p,audio:{...p.audio,sfxVolume:parseFloat(e.target.value)}}))} className="w-full" />
-              </div>
-            </div>
-          </Card>
-        </aside>
+            </Card>
 
-        <main className="flex-1 flex flex-col min-w-0 bg-[#0b0f19]">
-          <div className="flex-1 flex items-center justify-center p-2">
-            <canvas ref={mainRef} className="rounded shadow-2xl bg-black" style={{maxWidth:'100%',maxHeight:'calc(100svh - 180px)'}} />
-          </div>
-          <div className="px-4 pb-2 flex items-center gap-3 text-xs text-slate-400">
-            <span>{fmt(playTime)}</span>
-            <input type="range" min={0} max={totalDur} step="0.1" value={playTime} onChange={e=>{setPlayTime(parseFloat(e.target.value));playOff.current=parseFloat(e.target.value);if(playing){audioRef.current?.stop();setPlaying(false)}}} className="flex-1" />
-            <span>{fmt(totalDur)}</span>
-          </div>
-        </main>
-
-        <aside className="w-80 border-l border-slate-800 bg-[#0b0f19] overflow-y-auto p-3 space-y-4 shrink-0">
-          <Card>
-            <CardHeader title="Timeline" subtitle={`${clips.length} clip(s)`}></CardHeader>
-            {clips.length===0&&<p className="text-xs text-slate-500">No clips yet. Upload photos from the left.</p>}
-            <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-1">
-              {clips.map((clip,idx)=>(
-                <div key={clip.id} className="flex items-center gap-2 p-2 rounded bg-slate-900/60 border border-slate-800">
-                  <span className="text-xs text-slate-500 w-5">{idx+1}</span>
-                  <span className="text-xs flex-1 truncate">{clip.name}</span>
-                  <span className="text-[10px] text-slate-500">{fmt(clip.trimEnd-clip.trimStart)}</span>
-                  <button onClick={()=>rmClip(clip.id)} className="text-red-400 hover:text-red-300 text-xs">✕</button>
+            <Card>
+              <CardHeader title="Audio Mixer" subtitle="Procedural soundtrack"></CardHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="flex justify-between text-xs text-slate-500 mb-1"><span>Master</span><span>{Math.round(proj.audio.masterVolume*100)}%</span></label>
+                  <input type="range" min="0" max="1" step="0.01" value={proj.audio.masterVolume} onChange={e=>setProj(p=>({...p,audio:{...p.audio,masterVolume:parseFloat(e.target.value)}}))} className="w-full" />
                 </div>
-              ))}
-            </div>
-          </Card>
+                <div>
+                  <label className="flex justify-between text-xs text-slate-500 mb-1"><span>Music</span><span>{Math.round(proj.audio.musicVolume*100)}%</span></label>
+                  <input type="range" min="0" max="1" step="0.01" value={proj.audio.musicVolume} onChange={e=>setProj(p=>({...p,audio:{...p.audio,musicVolume:parseFloat(e.target.value)}}))} className="w-full" />
+                </div>
+                <div>
+                  <label className="flex justify-between text-xs text-slate-500 mb-1"><span>SFX</span><span>{Math.round(proj.audio.sfxVolume*100)}%</span></label>
+                  <input type="range" min="0" max="1" step="0.01" value={proj.audio.sfxVolume} onChange={e=>setProj(p=>({...p,audio:{...p.audio,sfxVolume:parseFloat(e.target.value)}}))} className="w-full" />
+                </div>
+              </div>
+            </Card>
+          </div>
 
-          <Card>
-            <CardHeader title="Transitions" subtitle="Between clips"></CardHeader>
-            {clips.length<2&&<p className="text-xs text-slate-500">Add at least 2 clips to set transitions.</p>}
-            <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
-              {Array.from({length:Math.max(0,clips.length-1)}).map((_,pos)=>(
-                <div key={pos} className="p-2 rounded bg-slate-900/60 border border-slate-800 space-y-2">
-                  <div className="text-xs text-slate-400">After clip {pos+1}</div>
-                  <select value={proj.transitions.find(tr=>tr.position===pos)?.type||'fade'} onChange={e=>setTx(pos,{type:e.target.value as VideoTransitionType})} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs">
-                    {TXTYPES.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                  <div className="flex items-center gap-2">
-                    <input type="range" min="0.3" max="3" step="0.1" value={proj.transitions.find(tr=>tr.position===pos)?.duration??DTX} onChange={e=>setTx(pos,{duration:parseFloat(e.target.value)})} className="flex-1" />
-                    <span className="text-[10px] text-slate-400 w-8">{(proj.transitions.find(tr=>tr.position===pos)?.duration??DTX).toFixed(1)}s</span>
+          {/* Center Canvas Area */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <Card className="flex-1 flex flex-col">
+              <div className="flex-1 flex items-center justify-center p-4 bg-slate-50">
+                <canvas ref={mainRef} className="rounded-lg shadow-lg bg-black" style={{maxWidth:'100%',maxHeight:'calc(100svh - 260px)'}} />
+              </div>
+              <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-500">
+                <span>{fmt(playTime)}</span>
+                <input type="range" min={0} max={totalDur} step="0.1" value={playTime} onChange={e=>{setPlayTime(parseFloat(e.target.value));playOff.current=parseFloat(e.target.value);if(playing){audioRef.current?.stop();setPlaying(false)}}} className="flex-1" />
+                <span>{fmt(totalDur)}</span>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right Panel */}
+          <div className="w-80 space-y-6 shrink-0">
+            <Card>
+              <CardHeader title="Timeline" subtitle={`${clips.length} clip(s)`}></CardHeader>
+              {clips.length===0&&<p className="text-xs text-slate-500">No clips yet. Upload photos from the left.</p>}
+              <div className="space-y-2 max-h-[35vh] overflow-y-auto pr-1">
+                {clips.map((clip,idx)=>(
+                  <div key={clip.id} className="flex items-center gap-2 p-2 rounded bg-slate-50 border border-slate-200">
+                    <span className="text-xs text-slate-500 w-5">{idx+1}</span>
+                    <span className="text-xs flex-1 truncate">{clip.name}</span>
+                    <span className="text-[10px] text-slate-500">{fmt(clip.trimEnd-clip.trimStart)}</span>
+                    <button onClick={()=>rmClip(clip.id)} className="text-red-500 hover:text-red-600 text-xs">✕</button>
                   </div>
-                  <button onClick={()=>rmTx(pos)} className="text-[10px] text-red-400 hover:text-red-300">Remove transition</button>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </aside>
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <CardHeader title="Transitions" subtitle="Between clips"></CardHeader>
+              {clips.length<2&&<p className="text-xs text-slate-500">Add at least 2 clips to set transitions.</p>}
+              <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+                {Array.from({length:Math.max(0,clips.length-1)}).map((_,pos)=>(
+                  <div key={pos} className="p-2 rounded bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="text-xs text-slate-600">After clip {pos+1}</div>
+                    <select value={proj.transitions.find(tr=>tr.position===pos)?.type||'fade'} onChange={e=>setTx(pos,{type:e.target.value as VideoTransitionType})} className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs">
+                      {TXTYPES.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <input type="range" min="0.3" max="3" step="0.1" value={proj.transitions.find(tr=>tr.position===pos)?.duration??DTX} onChange={e=>setTx(pos,{duration:parseFloat(e.target.value)})} className="flex-1" />
+                      <span className="text-[10px] text-slate-500 w-8">{(proj.transitions.find(tr=>tr.position===pos)?.duration??DTX).toFixed(1)}s</span>
+                    </div>
+                    <button onClick={()=>rmTx(pos)} className="text-[10px] text-red-500 hover:text-red-600">Remove transition</button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
+
+      {/* Export Modal */}
+      {showExport&&(
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Exporting Video</h3>
+            <p className="text-sm text-slate-500 mb-4">{exportProg||'Preparing…'}</p>
+            <div className="w-full bg-slate-100 rounded-full h-2 mb-4"><div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width:exportProg.includes('%')?(exportProg.match(/\d+%/)||['0%'])[0]:'0%'}} /></div>
+            <p className="text-xs text-slate-400">Recording at 30 FPS via WebM. Please keep this tab active.</p>
+          </div>
+        </div>
+      )}
     </>
   )
 }
