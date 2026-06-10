@@ -73,7 +73,7 @@ export default function VideoStudioPage() {
   useEffect(()=>{window.addEventListener("resize",resize);return()=>window.removeEventListener("resize",resize)},[resize])
   const togglePlay=useCallback(()=>{if(!clips.length)return;if(!playing){playStart.current=performance.now()/1000;playOff.current=playTime;audioRef.current?.start();setPlaying(true)}else{playOff.current=playTime;audioRef.current?.stop();setPlaying(false)}},[clips.length,playing,playTime])
   const stop=useCallback(()=>{playOff.current=0;setPlayTime(0);audioRef.current?.stop();setPlaying(false);if(vidRef.current){vidRef.current.pause();vidRef.current.src=""}},[clips.length,playing,playTime])
-  const handleFiles=useCallback(async(files:FileList|File[])=>{setUploading(true);const nc=[];for(const f of Array.from(files)){if(!f.type.startsWith("image/")&&!f.type.startsWith("video/"))continue;const url=URL.createObjectURL(f);let d=5;if(f.type.startsWith("video/")){try{d=await getVideoDuration(url)}catch{}}nc.push({id:uid(),url,name:f.name,duration:d,trimStart:0,trimEnd:d,sortOrder:proj.clips.length+nc.length})}setProj(p=>({...p,clips:[...p.clips,...nc]}));setUploading(false)},[getVideoDuration,proj.clips.length])
+  const handleFiles=useCallback(async(files:FileList|File[])=>{setUploading(true);const nc:VideoClip[]=[];for(const f of Array.from(files)){if(!f.type.startsWith("image/")&&!f.type.startsWith("video/"))continue;const url=URL.createObjectURL(f);let d=5;if(f.type.startsWith("video/")){try{d=await getVideoDuration(url)}catch{}}nc.push({id:uid(),url,name:f.name,duration:d,trimStart:0,trimEnd:d,sortOrder:proj.clips.length+nc.length})}setProj(p=>({...p,clips:[...p.clips,...nc]}));setUploading(false)},[getVideoDuration,proj.clips.length])
   const setBranding=useCallback((p:Partial<Brand>)=>setProj(s=>({...s,branding:{...s.branding,...p}})),[])
   const setTx=useCallback((pos:number,p:Partial<VideoTransition>)=>{setProj(s=>{const ex=s.transitions.find(tr=>tr.position===pos);const nx={id:ex?.id||uid(),type:(p.type as VideoTransitionType)??ex?.type??'fade',duration:p.duration??ex?.duration??DTX,position:pos};return{...s,transitions:ex?s.transitions.map(tr=>tr.position===pos?nx:tr):[...s.transitions,nx]}})},[])
   const rmTx=useCallback((pos:number)=>setProj(s=>({...s,transitions:s.transitions.filter(tr=>tr.position!==pos)})),[])
@@ -85,11 +85,11 @@ export default function VideoStudioPage() {
     const cvs=document.createElement("canvas");cvs.width=w;cvs.height=h;offRef.current=cvs
     const ctx=cvs.getContext("2d")!;ctx.fillStyle="#05070f";ctx.fillRect(0,0,w,h)
     if(!audioRef.current)audioRef.current=new MusicEngine();await audioRef.current.init()
-    audioRef.current.setMusicVolume(proj.audio.musicVolume);audioRef.current.setMasterVolume(proj.audio.masterVolume);audioRef.current.start()
+    audioRef.current.setMusic(proj.audio.musicVolume);audioRef.current.setMaster(proj.audio.masterVolume);audioRef.current.start()
     const stream=cvs.captureStream(30);try{const a=audioRef.current as any;if(a.ctx){const dest=a.ctx.createMediaStreamDestination();if(a.pg)a.pg.connect(dest);dest.stream.getAudioTracks().forEach((t:any)=>stream.addTrack(t))}}catch{}
     const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")?"video/webm;codecs=vp9":"video/webm"
     const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:5_000_000})
-    const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)}
+    const chunks:Blob[]=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)}
     rec.onstop=()=>{const blob=new Blob(chunks,{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=proj.projectName.replace(/\s+/g,"_")+".webm";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),5000);setExporting(false);setExportProg("");setShowExport(false);audioRef.current?.stop()}
     rec.start(1000);setExportProg("Rendering...")
     const fps=30,fd=1/fps;let cur=0
