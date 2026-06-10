@@ -159,6 +159,8 @@ export default function VideoStudioPage() {
                 <canvas ref={mainRef} className="rounded-lg shadow-lg bg-black" style={{maxWidth:'100%',maxHeight:'calc(100svh - 260px)'}} />
               </div>
               <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-500">
+                <button onClick={togglePlay} disabled={!clips.length} className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-40">{playing?'⏸ Pause':'▶ Play'}</button>
+                <button onClick={stop} className="px-3 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium">⏹ Stop</button>
                 <span>{fmt(playTime)}</span>
                 <input type="range" min={0} max={totalDur} step="0.1" value={playTime} onChange={e=>{setPlayTime(parseFloat(e.target.value));playOff.current=parseFloat(e.target.value);if(playing){audioRef.current?.stop();setPlaying(false)}}} className="flex-1" />
                 <span>{fmt(totalDur)}</span>
