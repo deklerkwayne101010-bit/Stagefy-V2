@@ -15,7 +15,7 @@ interface Project{clips:VideoClip[];transitions:VideoTransition[];branding:Brand
 const INIT:Project={clips:[],transitions:[],branding:{agentName:'',phone:'',email:'',logoDataUrl:null},aspectRatio:'16:9',audio:{masterVolume:0.8,musicVolume:0.4,sfxVolume:0.6},projectName:'Untitled Walkthrough'}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8)
 const clamp=(v:number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,v))
-const aspectSz=(a:VideoAspectRatio,w:number)=>{switch(a){case'16:9':return{w,h:Math.round(w*9/16)}case'9:16':return{w,h:Math.round(w*16/9)}case'1:1':return{w,h:w};default:return{w,h:Math.round(w*9/16)}}}
+const aspectSz=(a:VideoAspectRatio,w:number)=>{switch(a){case'16:9':return{w,h:Math.round(w*9/16)};case'9:16':return{w,h:Math.round(w*16/9)};case'1:1':return{w,h:w};default:return{w,h:Math.round(w*9/16)}}}
 const fmt=(s:number)=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0')
 class MusicEngine{private c:AudioContext|null=null;private mg:GainNode|null=null;private pg:GainNode|null=null;private on=false;private tid:number|null=null;private nodes:OscillatorNode[]=[]
 async init(){if(!this.c){this.c=new AudioContext();this.mg=this.c.createGain();this.pg=this.c.createGain();this.pg.gain.value=0.4;this.mg.connect(this.c.destination);this.pg.connect(this.mg)}}
