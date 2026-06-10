@@ -33,8 +33,7 @@ const bFade=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{const bk=t<0.5?t*
 const bSlide=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{const o=w*t;if(a)ctx.drawImage(a,-o,0,w,h);if(b)ctx.drawImage(b,w-o,0,w,h)}
 const bZoom=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{const sa=1+0.3*t,sb=1+0.3*(1-t);const oxa=((w*sa)-w)/2,oya=((h*sa)-h)/2;const oxb=((w*sb)-w)/2,oyb=((h*sb)-h)/2;if(a)ctx.drawImage(a,-oxa,-oya,w*sa,h*sa);if(b)ctx.drawImage(b,-oxb,-oyb,w*sb,h*sb)}
 const doTx=(ctx:any,w:number,h:number,tp:string,a:any,b:any,t:number)=>{switch(tp){case'fade':return bCross(ctx,w,h,a,b,t);case'fade-black':return bFade(ctx,w,h,a,b,t);case'slide':return bSlide(ctx,w,h,a,b,t);case'zoom':return bZoom(ctx,w,h,a,b,t);default:if(b)ctx.drawImage(b,0,0,w,h)}}
-function drawBrand(ctx:any,w:number,h:number,b:Brand){const ch=Math.max(100,Math.round(h*0.20));const y=h-ch;const r=14;ctx.clearRect(0,y-4,w,ch+4);ctx.save();ctx.beginPath();ctx.moveTo(r,y);ctx.lineTo(w-r,y);ctx.quadraticCurveTo(w,y,w,y+r);ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.lineTo(0,y+r);ctx.quadraticCurveTo(0,y,r,y);ctx.closePath();ctx.fillStyle='rgba(6,10,22,0.82)';ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1.4;ctx.stroke();ctx.restore();const sw=7;const gd=ctx.createLinearGradient(0,y,sw,y+ch);gd.addColorStop(0,'#c8102e');gd.addColorStop(1,'#0057a0');ctx.fillStyle=gd;ctx.beginPath();ctx.moveTo(0,y+r);ctx.lineTo(sw,y);ctx.lineTo(sw,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();const px=22,lx=px+sw;if(b.logoDataUrl){const sz=Math.min(ch-28,88);const li=new Image();li.src=b.logoDataUrl;const ly=y+(ch-sz)/2;ctx.save();ctx.beginPath();ctx.roundRect(lx-4,ly-4,sz+8,sz+8,12);ctx.clip();ctx.drawImage(li,lx,ly,sz,sz);ctx.restore()}else{const bx=lx+36,by=y+ch/2,br=26;ctx.beginPath();ctx.ellipse(bx-8,by+2,br*0.9,br*1.05,0,0,Math.PI*2);ctx.fillStyle='#6b0012';ctx.fill();ctx.beginPath();ctx.ellipse(bx+2,by-2,br*0.7,br*0.82,0,0,Math.PI*2);ctx.fillStyle='#d91a2b';ctx.fill();ctx.beginPath();ctx.ellipse(bx+5,by-3,br*0.42,br*0.52,0,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.beginPath();ctx.moveTo(bx+2,by-14);ctx.lineTo(bx+18,by+8);ctx.lineTo(bx-14,by+8);ctx.closePath();ctx.fillStyle='#0057a0';ctx.fill();ctx.beginPath();ctx.ellipse(bx,by,br+4,br+4,0,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.stroke()}const tl=b.logoDataUrl?lx+104:lx+64;let ty=y+ch*0.36;ctx.fillStyle='#fff';ctx.textBaseline='middle';if(b.agentName){ctx.font='bold '+Math.max(16,Math.round(w*0.028))+'px Inter,system-ui,sans-serif';ctx.fillText(b.agentName,tl,ty-1)}if(b.phone){ctx.font=Math.max(13,Math.round(w*0.022))+'px Inter,system-ui,sans-serif';ctx.fillStyle='#dde6f2';ctx.fillText('Tel: '+b.phone,tl,ty+20)}if(b.email){ctx.fillStyle='#b0bed1';ctx.fillText('E '+b.email,tl,ty+40)}}
-
+function drawBrand(ctx:any,w:number,h:number,b:Brand){const ch=Math.max(100,Math.round(h*0.20));const y=h-ch;const r=14;ctx.clearRect(0,y-4,w,ch+4);ctx.save();ctx.beginPath();ctx.moveTo(r,y);ctx.lineTo(w-r,y);ctx.quadraticCurveTo(w,y,w,y+r);ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.lineTo(0,y+r);ctx.quadraticCurveTo(0,y,r,y);ctx.closePath();ctx.fillStyle='rgba(6,10,22,0.82)';ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1.4;ctx.stroke();ctx.restore();const sw=7;const gd=ctx.createLinearGradient(0,y,sw,y+ch);gd.addColorStop(0,'#c8102e');gd.addColorStop(1,'#0057a0');ctx.fillStyle=gd;ctx.beginPath();ctx.moveTo(0,y+r);ctx.lineTo(sw,y);ctx.lineTo(sw,h);ctx.lineTo(0,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();const px=22,lx=px+sw;if(b.logoDataUrl){const sz=Math.min(ch-28,88);const li=new Image();li.src=b.logoDataUrl;const ly=y+(ch-sz)/2;ctx.save();ctx.beginPath();ctx.roundRect(lx-4,ly-4,sz+8,sz+8,12);ctx.clip();ctx.drawImage(li,lx,ly,sz,sz);ctx.restore()}else{const bx=lx+36,by=y+ch/2,br=26;ctx.beginPath();ctx.ellipse(bx-8,by+2,br*0.9,br*1.05,0,0,Math.PI*2);ctx.fillStyle='#6b0012';ctx.fill();ctx.beginPath();ctx.ellipse(bx+2,by-2,br*0.7,br*0.82,0,0,Math.PI*2);ctx.fillStyle='#d91a2b';ctx.fill();ctx.beginPath();ctx.ellipse(bx+5,by-3,br*0.42,br*0.52,0,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.beginPath();ctx.moveTo(bx+2,by-14);ctx.lineTo(bx+18,by+8);ctx.lineTo(bx-14,by+8);ctx.closePath();ctx.fillStyle='#0057a0';ctx.fill();ctx.beginPath();ctx.ellipse(bx,by,br+4,br+4,0,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.stroke()}const tl=b.logoDataUrl?lx+104:lx+64;let ty=y+ch*0.36;ctx.fillStyle='#fff';ctx.textBaseline='middle';if(b.agentName){ctx.font='bold '+Math.max(16,Math.round(w*0.028))+'px Inter,system-ui,sans-serif';ctx.fillText(b.agentName,tl,ty-1)}if(b.phone){ctx.font=Math.max(13,Math.round(w*0.022))+'px Inter,system-ui,sans-serif';ctx.fillStyle='#dde6f2';ctx.fillText('Tel: '+b.phone,tl,ty+20)}if(b.email){ctx.fillStyle='#b0bed1';ctx.fillText('E '+b.email,tl,ty)}ctx.fillStyle='#b0bed1';ctx.textAlign='right';ctx.font='10px Inter,system-ui,sans-serif';ctx.fillText('www.yourdomain.co.za',w-12,y+ch-8);ctx.textAlign='start'}
 export default function VideoStudioPage() {
   const { user } = useAuth()
   const { getVideoDuration } = useFFmpeg()
@@ -100,7 +99,7 @@ export default function VideoStudioPage() {
   useEffect(()=>{try{const s=localStorage.getItem("vsProj");if(s){const p=JSON.parse(s);setProj(v=>({...v,...p,branding:p.branding??v.branding,audio:p.audio??v.audio}))}}catch{}},[])
   useEffect(()=>{audioRef.current?.setMaster(proj.audio.masterVolume);audioRef.current?.setMusic(proj.audio.musicVolume)},[proj.audio.masterVolume,proj.audio.musicVolume])
   return (
-    <div className="flex h-[100svh] flex-col bg-[#0b0f19] text-slate-200 overflow-hidden">
+    <>
       <header className="flex items-center justify-between border-b border-slate-800 bg-[#0f1320] px-4 py-2 shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-xl">🎬</span>
@@ -213,17 +212,6 @@ export default function VideoStudioPage() {
           </Card>
         </aside>
       </div>
-
-      {showExport&&(
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center">
-          <div className="bg-[#141926] border border-slate-700 rounded-xl p-6 shadow-2xl max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-white mb-2">Exporting Video</h3>
-            <p className="text-sm text-slate-400 mb-4">{exportProg||'Preparing…'}</p>
-            <div className="w-full bg-slate-800 rounded-full h-2 mb-4"><div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width:exportProg.includes('%')?(exportProg.match(/\d+%/)||['0%'])[0]:'0%'}} /></div>
-            <p className="text-xs text-slate-500">Recording at 30 FPS via WebM. Please keep this tab active.</p>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   )
 }
