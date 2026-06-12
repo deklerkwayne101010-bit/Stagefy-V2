@@ -39,7 +39,12 @@ export default function VideoStudioPage() {
   const { getVideoDuration } = useFFmpeg()
   const [proj, setProj] = useState<Project>(INIT)
   const [playing, setPlaying] = useState(false)
-  const [playTime, setPlayTime] = useState(0)
+  const [playTimeState, setPlayTimeState] = useState(0)
+  const playTimeRef = useRef(0)
+  const rafTimeRef = useRef<{last:number;ts:number}>({last:0,ts:0})
+  useEffect(()=>{playTimeRef.current=playTimeState},[playTimeState])
+  const getPlayTime = useCallback(()=>playing?playTimeRef.current:playTimeState,[playing,playTimeState])
+  const setPlayTime = useCallback((v:number)=>{playTimeRef.current=v;if(!playing)setPlayTimeState(v)},[playing])
   const [exporting, setExporting] = useState(false)
   const [exportProg, setExportProg] = useState("")
   const [showExport, setShowExport] = useState(false)
@@ -55,25 +60,27 @@ export default function VideoStudioPage() {
   const clips = useMemo(()=>proj.clips.slice().sort((a,b)=>a.sortOrder-b.sortOrder),[proj.clips])
   const totalDur = useMemo(()=>{let t=0;for(let i=0;i<clips.length;i++){t+=clips[i].trimEnd-clips[i].trimStart}return Math.max(t,0.1)},[clips])
   const clipDurs = useMemo(()=>clips.map(c=>c.trimEnd-c.trimStart),[clips])
-  const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clipDurs[i]||0;if(playTime<acc+dur){const tx=proj.transitions.find(tr=>tr.position===i);const txDur=tx?tx.duration:0;const hasTr=i<clips.length-1&&txDur>0&&playTime>=acc+dur-txDur;const withinTr=hasTr&&playTime>=acc+dur-txDur;const lt=withinTr?dur:playTime-acc;const prog=withinTr?clamp((playTime-(acc+dur-txDur))/txDur,0,1):0;return{i,lt,dur,hasTr,prog,ttype:tx?.type||'fade',next:hasTr?i+1:-1}}acc+=dur}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,ttype:'fade',next:-1}},[clips,clipDurs,playTime,proj.transitions])
+  const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clipDurs[i]||0;if(playTimeState<acc+dur){const tx=proj.transitions.find(tr=>tr.position===i);const txDur=tx?tx.duration:0;const hasTr=i<clips.length-1&&txDur>0&&playTimeState>=acc+dur-txDur;const withinTr=hasTr&&playTimeState>=acc+dur-txDur;const lt=withinTr?dur:playTimeState-acc;const prog=withinTr?clamp((playTimeState-(acc+dur-txDur))/txDur,0,1):0;return{i,lt,dur,hasTr,prog,ttype:tx?.type||'fade',next:hasTr?i+1:-1}}acc+=dur}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,ttype:'fade',next:-1}},[clips,clipDurs,playTimeState,proj.transitions])
   const loadImg = useCallback((url:string):Promise<HTMLImageElement>=>{const cached=imgCache.current.get(url);if(cached&&cached.complete)return Promise.resolve(cached);return new Promise((res,rej)=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>{imgCache.current.set(url,im);res(im)};im.onerror=()=>rej(new Error("img fail"));im.src=url})},[])
-  const renderFrame = useCallback(async(time:number)=>{
+  const renderFrame = useCallback((time:number)=>{
     const cvs=mainRef.current;if(!cvs)return;const ctx=cvs.getContext("2d");if(!ctx)return;const w=cvs.width,h=cvs.height;if(!w||!h)return;
     ctx.clearRect(0,0,w,h);ctx.fillStyle="#05070f";ctx.fillRect(0,0,w,h);
-    const{i:i,lt,dur,hasTr,prog,ttype,next}=curIdx;
+    const t=getPlayTime()
+    let acc=0
+    let i=0;let lt=0;let dur=1;let hasTr=false;let prog=0;let ttype='fade';let next=-1
+    for(;i<clips.length;i++){const cDur=clipDurs[i]||0;if(t<acc+cDur){lt=t-acc;dur=cDur;const tx=proj.transitions.find(tr=>tr.position===i);const txDur=tx?tx.duration:0;hasTr=i<clips.length-1&&txDur>0&&t>=acc+cDur-txDur;if(hasTr){prog=clamp((t-(acc+cDur-txDur))/txDur,0,1);ttype=tx?.type||'fade';next=i+1}break}acc+=cDur}
     if(i>=0&&i<clips.length){const clip=clips[i];const src=clip.url;const isV=src.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src);
-      let curImg:HTMLImageElement|null=null;if(!isV){try{curImg=await loadImg(src)}catch{ctx.fillStyle="#111827";ctx.fillRect(0,0,w,h)}}
       if(isV){if(!vidRef.current){vidRef.current=document.createElement("video");vidRef.current.crossOrigin="anonymous";vidRef.current.muted=true;vidRef.current.preload="auto";vidRef.current.setAttribute("playsinline","")}const v=vidRef.current;if(v.src!==src)v.src=src;if(playing){const seek=clip.trimStart+lt;if(Math.abs(v.currentTime-seek)>0.3)v.currentTime=seek;if(v.paused)v.play().catch(()=>{})}const vw=v.videoWidth||w,vh=v.videoHeight||h;const sc=Math.max(w/Math.max(vw,1),h/Math.max(vh,1));const dw=vw*sc,dh=vh*sc;ctx.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh)}
-      else if(curImg){const k=kb(dur,lt);const iw=w*k.s,ih=h*k.s;ctx.drawImage(curImg,(w-iw)/2+k.x*w,(h-ih)/2+k.y*h,iw,ih)}
-      if(hasTr&&next>=0&&next<clips.length){const nc=clips[next];const isNV=nc.url.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(nc.url);const trImg=isNV?null:await loadImg(nc.url);doTx(ctx,w,h,ttype,isV?null:curImg,trImg,prog)}
-    }else{ctx.fillStyle="#1e293b";ctx.fillRect(0,0,w,h);ctx.fillStyle="#64748b";ctx.font="16px Inter,system-ui,sans-serif";ctx.textAlign="center";ctx.fillText("Add listing photos",w/2,h/2);ctx.textAlign="start"}
+      else{const cached=imgCache.current.get(src);const img=cached instanceof HTMLImageElement&&cached.complete?cached:null;if(!img)ctx.fillStyle="#111827";ctx.fillRect(0,0,w,h);if(img){const k=kb(dur,lt);const iw=w*k.s,ih=h*k.s;ctx.drawImage(img,(w-iw)/2+k.x*w,(h-ih)/2+k.y*h,iw,ih)}}
+      if(hasTr&&next>=0&&next<clips.length){const nc=clips[next];const isNV=nc.url.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(nc.url);if(!isNV){const nCached=imgCache.current.get(nc.url);const nImg=nCached instanceof HTMLImageElement&&nCached.complete?nCached:null;doTx(ctx,w,h,ttype,null,nImg,prog)}}}
+    else{ctx.fillStyle="#1e293b";ctx.fillRect(0,0,w,h);ctx.fillStyle="#64748b";ctx.font="16px Inter,system-ui,sans-serif";ctx.textAlign="center";ctx.fillText("Add listing photos",w/2,h/2);ctx.textAlign="start"}
     drawBrand(ctx,w,h,proj.branding)
-  },[clips,curIdx,loadImg,playing,proj.branding])
+  },[clips,clipDurs,getPlayTime,playing,proj.branding,proj.transitions])
   const resize=useCallback(()=>{const c=mainRef.current;if(!c)return;const p=c.parentElement;if(!p)return;const sz=aspectSz(proj.aspectRatio,Math.min(960,p.clientWidth-8));c.width=sz.w;c.height=sz.h},[proj.aspectRatio])
-  useEffect(()=>{resize();const loop=()=>{if(playing){const now=performance.now()/1000;const el=now-playStart.current+playOff.current;if(el>=totalDur){setPlaying(false);setPlayTime(0);playOff.current=0}else setPlayTime(el)}renderFrame(performance.now()/1000).catch(()=>{});rafRef.current=requestAnimationFrame(loop)};rafRef.current=requestAnimationFrame(loop);return()=>cancelAnimationFrame(rafRef.current)},[playing,renderFrame,totalDur,resize])
+  useEffect(()=>{resize();const loop=()=>{if(playing){const now=performance.now()/1000;const d=rafTimeRef.current?now-rafTimeRef.current.last:0;if(d>0&&d<0.5){playTimeRef.current=Math.min(playTimeRef.current+d,totalDur);if(rafTimeRef.current&&now-rafTimeRef.current.ts>0.25){setPlayTimeState(playTimeRef.current);rafTimeRef.current.ts=now}}else{rafTimeRef.current={last:now,ts:now}}if(playTimeRef.current>=totalDur){setPlaying(false);playTimeRef.current=0;setPlayTimeState(0)}else{renderFrame(now)}}rafRef.current=requestAnimationFrame(loop)};rafTimeRef.current={last:performance.now()/1000,ts:performance.now()/1000};rafRef.current=requestAnimationFrame(loop);return()=>cancelAnimationFrame(rafRef.current)},[playing,renderFrame,totalDur,resize,setPlayTimeState])
   useEffect(()=>{window.addEventListener("resize",resize);return()=>window.removeEventListener("resize",resize)},[resize])
-  const togglePlay=useCallback(()=>{if(!clips.length)return;if(!playing){playStart.current=performance.now()/1000;playOff.current=playTime;audioRef.current?.start();setPlaying(true)}else{playOff.current=playTime;audioRef.current?.stop();setPlaying(false)}},[clips.length,playing,playTime])
-  const stop=useCallback(()=>{playOff.current=0;setPlayTime(0);audioRef.current?.stop();setPlaying(false);if(vidRef.current){vidRef.current.pause();vidRef.current.src=""}},[clips.length,playing,playTime])
+  const togglePlay=useCallback(()=>{if(!clips.length)return;if(!playing){playTimeRef.current=playTimeState;audioRef.current?.start();setPlaying(true)}else{setPlayTimeState(playTimeRef.current);audioRef.current?.stop();setPlaying(false)}},[clips.length,playing,playTimeState,setPlayTimeState])
+  const stop=useCallback(()=>{playTimeRef.current=0;setPlayTimeState(0);audioRef.current?.stop();setPlaying(false);if(vidRef.current){vidRef.current.pause();vidRef.current.src=""}},[setPlayTimeState])
   const handleFiles=useCallback(async(files:FileList|File[])=>{setUploading(true);const nc:VideoClip[]=[];for(const f of Array.from(files)){if(!f.type.startsWith("image/")&&!f.type.startsWith("video/"))continue;const url=URL.createObjectURL(f);let d=5;if(f.type.startsWith("video/")){try{d=await getVideoDuration(url)}catch{}}nc.push({id:uid(),url,name:f.name,duration:d,trimStart:0,trimEnd:d,sortOrder:proj.clips.length+nc.length})}setProj(p=>({...p,clips:[...p.clips,...nc]}));setUploading(false)},[getVideoDuration,proj.clips.length])
   const setBranding=useCallback((p:Partial<Brand>)=>setProj(s=>({...s,branding:{...s.branding,...p}})),[])
   const setTx=useCallback((pos:number,p:Partial<VideoTransition>)=>{setProj(s=>{const ex=s.transitions.find(tr=>tr.position===pos);const nx={id:ex?.id||uid(),type:(p.type as VideoTransitionType)??ex?.type??'fade',duration:p.duration??ex?.duration??DTX,position:pos};return{...s,transitions:ex?s.transitions.map(tr=>tr.position===pos?nx:tr):[...s.transitions,nx]}})},[])
@@ -164,8 +171,8 @@ export default function VideoStudioPage() {
               <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-500">
                 <button onClick={togglePlay} disabled={!clips.length} className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium disabled:opacity-40">{playing?'⏸ Pause':'▶ Play'}</button>
                 <button onClick={stop} className="px-3 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium">⏹ Stop</button>
-                <span>{fmt(playTime)}</span>
-                <input type="range" min={0} max={totalDur} step="0.1" value={playTime} onChange={e=>{setPlayTime(parseFloat(e.target.value));playOff.current=parseFloat(e.target.value);if(playing){audioRef.current?.stop();setPlaying(false)}}} className="flex-1" />
+                <span>{fmt(playTimeState)}</span>
+                <input type="range" min={0} max={totalDur} step="0.1" value={playTimeState} onChange={e=>{setPlayTime(parseFloat(e.target.value));if(playing){audioRef.current?.stop();setPlaying(false);setPlayTimeState(parseFloat(e.target.value))}else{playTimeRef.current=parseFloat(e.target.value);setPlayTimeState(parseFloat(e.target.value))}}} className="flex-1" />
                 <span>{fmt(totalDur)}</span>
               </div>
             </Card>
