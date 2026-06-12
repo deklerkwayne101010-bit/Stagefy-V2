@@ -29,7 +29,7 @@ private tone(f:number,v:number,d:number){if(!this.c)return;const o=this.c.create
 }
 const kb=(dur:number,t:number)=>{const p=clamp(t/Math.max(dur,0.1),0,1);const e=0.5-0.5*Math.cos(p*Math.PI);return{s:1+0.14*e,x:-0.05+0.1*e,y:-0.03+0.06*e}}
 const bCross=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{const e=0.5-0.5*Math.cos(clamp(t,0,1)*Math.PI);if(a){ctx.globalAlpha=1-e;ctx.drawImage(a,0,0,w,h);ctx.globalAlpha=1}if(b){ctx.globalAlpha=e;ctx.drawImage(b,0,0,w,h);ctx.globalAlpha=1}}
-const bFade=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{if(t<0.5){const a2=t*2;ctx.fillStyle='rgba(0,0,0,'+clamp(a2,0,1)+')';ctx.fillRect(0,0,w,h);if(a){ctx.globalAlpha=1-a2;ctx.drawImage(a,0,0,w,h);ctx.globalAlpha=1}}else{const a2=(t-0.5)*2;if(b){ctx.globalAlpha=a2;ctx.drawImage(b,0,0,w,h);ctx.globalAlpha=1}ctx.fillStyle='rgba(0,0,0,'+(1-clamp(a2,0,1))+')';ctx.fillRect(0,0,w,h)}}
+const bFade=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{const e=0.5-0.5*Math.cos(clamp(t,0,1)*Math.PI);if(t<0.5){if(a){ctx.globalAlpha=1-e;ctx.drawImage(a,0,0,w,h);ctx.globalAlpha=1}const bk=clamp(e,0,1);ctx.fillStyle='rgba(0,0,0,'+bk+')';ctx.fillRect(0,0,w,h)}else{const bk=1-clamp(e,0,1);ctx.fillStyle='rgba(0,0,0,'+bk+')';ctx.fillRect(0,0,w,h);if(b){ctx.globalAlpha=e;ctx.drawImage(b,0,0,w,h);ctx.globalAlpha=1}}}
 const bSlide=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{const e=0.5-0.5*Math.cos(clamp(t,0,1)*Math.PI);const o=w*e;if(a)ctx.drawImage(a,-o,0,w,h);if(b)ctx.drawImage(b,w-o,0,w,h)}
 const bZoom=(ctx:any,w:number,h:number,a:any,b:any,t:number)=>{const e=0.5-0.5*Math.cos(clamp(t,0,1)*Math.PI);const sa=1+0.3*e,sb=1+0.3*(1-e);const oxa=((w*sa)-w)/2,oya=((h*sa)-h)/2;const oxb=((w*sb)-w)/2,oyb=((h*sb)-h)/2;if(a)ctx.drawImage(a,-oxa,-oya,w*sa,h*sa);if(b)ctx.drawImage(b,-oxb,-oyb,w*sb,h*sb)}
 const doTx=(ctx:any,w:number,h:number,tp:string,a:any,b:any,t:number)=>{switch(tp){case'fade':return bCross(ctx,w,h,a,b,t);case'fade-black':return bFade(ctx,w,h,a,b,t);case'slide':return bSlide(ctx,w,h,a,b,t);case'zoom':return bZoom(ctx,w,h,a,b,t);default:if(b)ctx.drawImage(b,0,0,w,h)}}
@@ -53,8 +53,9 @@ export default function VideoStudioPage() {
   const imgCache = useRef(new Map())
   const vidRef = useRef<HTMLVideoElement|null>(null)
   const clips = useMemo(()=>proj.clips.slice().sort((a,b)=>a.sortOrder-b.sortOrder),[proj.clips])
-  const totalDur = useMemo(()=>{let t=0;for(let i=0;i<clips.length;i++){t+=clips[i].trimEnd-clips[i].trimStart;if(i<clips.length-1){const tx=proj.transitions.find(tr=>tr.position===i);t+=tx?tx.duration:DTX}}return Math.max(t,0.1)},[clips,proj.transitions])
-  const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clips[i].trimEnd-clips[i].trimStart;const tx=proj.transitions.find(tr=>tr.position===i)?.duration??DTX;if(playTime<acc+dur){const prog=clamp((playTime-(acc+dur-tx))/tx,0,1);const hasTr=i<clips.length-1&&playTime>=acc+dur-tx&&playTime<=acc+dur;return{i,lt:playTime-acc,dur,hasTr,prog,ttype:(proj.transitions.find(tr=>tr.position===i)?.type||'fade') as VideoTransitionType,next:hasTr?i+1:-1}}acc+=dur+tx}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,ttype:'fade',next:-1}},[clips,playTime,proj.transitions])
+  const totalDur = useMemo(()=>{let t=0;for(let i=0;i<clips.length;i++){t+=clips[i].trimEnd-clips[i].trimStart}return Math.max(t,0.1)},[clips])
+  const clipDurs = useMemo(()=>clips.map(c=>c.trimEnd-c.trimStart),[clips])
+  const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clipDurs[i]||0;if(playTime<acc+dur){const tx=proj.transitions.find(tr=>tr.position===i);const txDur=tx?tx.duration:0;const hasTr=i<clips.length-1&&txDur>0&&playTime>=acc+dur-txDur;const withinTr=hasTr&&playTime>=acc+dur-txDur;const lt=withinTr?dur:playTime-acc;const prog=withinTr?clamp((playTime-(acc+dur-txDur))/txDur,0,1):0;return{i,lt,dur,hasTr,prog,ttype:tx?.type||'fade',next:hasTr?i+1:-1}}acc+=dur}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,ttype:'fade',next:-1}},[clips,clipDurs,playTime,proj.transitions])
   const loadImg = useCallback((url:string):Promise<HTMLImageElement>=>{const cached=imgCache.current.get(url);if(cached&&cached.complete)return Promise.resolve(cached);return new Promise((res,rej)=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>{imgCache.current.set(url,im);res(im)};im.onerror=()=>rej(new Error("img fail"));im.src=url})},[])
   const renderFrame = useCallback(async(time:number)=>{
     const cvs=mainRef.current;if(!cvs)return;const ctx=cvs.getContext("2d");if(!ctx)return;const w=cvs.width,h=cvs.height;if(!w||!h)return;
@@ -99,6 +100,7 @@ export default function VideoStudioPage() {
   useEffect(()=>{const t=setTimeout(()=>{try{localStorage.setItem("vsProj",JSON.stringify({clips:proj.clips,transitions:proj.transitions,branding:proj.branding,aspectRatio:proj.aspectRatio,audio:proj.audio,projectName:proj.projectName}))}catch{}},400);return()=>clearTimeout(t)},[proj])
   useEffect(()=>{try{const s=localStorage.getItem("vsProj");if(s){const p=JSON.parse(s);setProj(v=>({...v,...p,branding:p.branding??v.branding,audio:p.audio??v.audio}))}}catch{}},[])
   useEffect(()=>{audioRef.current?.setMaster(proj.audio.masterVolume);audioRef.current?.setMusic(proj.audio.musicVolume)},[proj.audio.masterVolume,proj.audio.musicVolume])
+  useEffect(()=>{for(const c of clips){const src=c.url;if(src&&!src.startsWith('blob:')&&!/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src)){const cached=imgCache.current.get(src);if(!cached||!(cached instanceof HTMLImageElement&&cached.complete)){loadImg(src).catch(()=>{})}}}},[clips.map(c=>c.url).join('|')])
   return (
     <>
       <Header title="Video Studio" subtitle="Create professional real estate walkthroughs" />
