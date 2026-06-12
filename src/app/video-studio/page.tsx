@@ -58,9 +58,9 @@ export default function VideoStudioPage() {
   const imgCache = useRef(new Map())
   const vidRef = useRef<HTMLVideoElement|null>(null)
   const clips = useMemo(()=>proj.clips.slice().sort((a,b)=>a.sortOrder-b.sortOrder),[proj.clips])
-  const totalDur = useMemo(()=>{let t=0;for(let i=0;i<clips.length;i++){t+=clips[i].trimEnd-clips[i].trimStart;if(i<clips.length-1){const tx=proj.transitions.find(tr=>tr.position===i);t+=tx?tx.duration:DTX}}return Math.max(t,0.1)},[clips.map(c=>c.trimEnd-c.trimStart).join('|')])
   const clipDurs = useMemo(()=>clips.map(c=>c.trimEnd-c.trimStart),[clips])
   const txDurs = useMemo(()=>clips.map((_,i)=>i<clips.length-1?(proj.transitions.find(tr=>tr.position===i)?.duration??DTX):0),[clips,proj.transitions])
+  const totalDur = useMemo(()=>{let t=0;for(let i=0;i<clips.length;i++){t+=clips[i].trimEnd-clips[i].trimStart;if(i<clips.length-1){const tx=proj.transitions.find(tr=>tr.position===i);t+=tx?tx.duration:DTX}}return Math.max(t,0.1)},[clipDurs.join('|'), txDurs.join('|')])
   const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=dur+txDur;if(playTimeState<acc+seg){const lt=playTimeState-acc;const prog=clamp(lt/dur,0,1);const hasTr=i<clips.length-1&&lt>=dur;const tProg=hasTr?clamp((lt-dur)/txDur,0,1):0;return{i,lt,dur,hasTr,prog,tProg,ttype:proj.transitions.find(tr=>tr.position===i)?.type||'fade',next:hasTr?i+1:-1}}acc+=seg}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,tProg:0,ttype:'fade',next:-1}},[clips,clipDurs,txDurs,playTimeState,proj.transitions])
   const loadImg = useCallback((url:string):Promise<HTMLImageElement>=>{const cached=imgCache.current.get(url);if(cached&&cached.complete)return Promise.resolve(cached);return new Promise((res,rej)=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>{imgCache.current.set(url,im);res(im)};im.onerror=()=>rej(new Error("img fail"));im.src=url})},[])
   const clipsRef=useRef(clips);clipsRef.current=clips

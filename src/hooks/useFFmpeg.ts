@@ -27,11 +27,26 @@ export function useFFmpeg() {
   const getVideoDuration = useCallback(async (url: string): Promise<number> => {
     return new Promise((resolve) => {
       const video = document.createElement('video')
+      video.preload = 'auto'
       video.src = url
-      video.onloadedmetadata = () => {
-        resolve(video.duration || 10)
+      const done = (duration: number) => {
+        if (duration && isFinite(duration) && duration > 0) {
+          resolve(duration)
+        } else {
+          resolve(5)
+        }
       }
-      video.onerror = () => resolve(10)
+      const handler = () => done(video.duration)
+      const onError = () => resolve(5)
+      video.addEventListener('loadedmetadata', handler, { once: true })
+      video.addEventListener('durationchange', handler, { once: true })
+      video.addEventListener('error', onError, { once: true })
+      setTimeout(() => {
+        done(video.duration || 5)
+        video.removeEventListener('loadedmetadata', handler)
+        video.removeEventListener('durationchange', handler)
+        video.removeEventListener('error', onError)
+      }, 3000)
     })
   }, [])
 
