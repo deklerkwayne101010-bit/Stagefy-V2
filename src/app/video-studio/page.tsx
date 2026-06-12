@@ -63,23 +63,38 @@ export default function VideoStudioPage() {
   const txDurs = useMemo(()=>clips.map((_,i)=>i<clips.length-1?(proj.transitions.find(tr=>tr.position===i)?.duration??DTX):0),[clips,proj.transitions])
   const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=dur+txDur;if(playTimeState<acc+seg){const lt=playTimeState-acc;const prog=clamp(lt/dur,0,1);const hasTr=i<clips.length-1&&lt>=dur;const tProg=hasTr?clamp((lt-dur)/txDur,0,1):0;return{i,lt,dur,hasTr,prog,tProg,ttype:proj.transitions.find(tr=>tr.position===i)?.type||'fade',next:hasTr?i+1:-1}}acc+=seg}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,tProg:0,ttype:'fade',next:-1}},[clips,clipDurs,txDurs,playTimeState,proj.transitions])
   const loadImg = useCallback((url:string):Promise<HTMLImageElement>=>{const cached=imgCache.current.get(url);if(cached&&cached.complete)return Promise.resolve(cached);return new Promise((res,rej)=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>{imgCache.current.set(url,im);res(im)};im.onerror=()=>rej(new Error("img fail"));im.src=url})},[])
-  const renderFrame = useCallback((time:number)=>{
+  const clipsRef=useRef(clips);clipsRef.current=clips
+  const clipDursRef=useRef(clipDurs);clipDursRef.current=clipDurs
+  const txDursRef=useRef(txDurs);txDursRef.current=txDurs
+  const transitionsRef=useRef(proj.transitions);transitionsRef.current=proj.transitions
+  const brandingRef=useRef(proj.branding);brandingRef.current=proj.branding
+  const playingRef=useRef(playing);playingRef.current=playing
+  const renderRef=useRef<((t:number)=>void)|null>(null)
+  const renderFrame=useCallback((time:number)=>{
     const cvs=mainRef.current;if(!cvs)return;const ctx=cvs.getContext("2d");if(!ctx)return;const w=cvs.width,h=cvs.height;if(!w||!h)return;
     ctx.clearRect(0,0,w,h);ctx.fillStyle="#05070f";ctx.fillRect(0,0,w,h);
-    const t=getPlayTime()
+    const t=playTimeRef.current
+    const clips=clipsRef.current
+    const clipDurs=clipDursRef.current
+    const txDurs=txDursRef.current
+    const transitions=transitionsRef.current
+    const branding=brandingRef.current
+    const playing=playingRef.current
     let acc=0
     let i=0;let lt=0;let dur=1;let hasTr=false;let tProg=0;let ttype='fade';let nextIdx=-1
-    for(;i<clips.length;i++){const cDur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=cDur+txDur;if(t<acc+seg){lt=t-acc;dur=cDur;hasTr=i<clips.length-1&&lt>=cDur;if(hasTr){tProg=clamp((lt-cDur)/txDur,0,1);ttype=proj.transitions.find(tr=>tr.position===i)?.type||'fade';nextIdx=i+1}break}acc+=seg}
+    for(;i<clips.length;i++){const cDur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=cDur+txDur;if(t<acc+seg){lt=t-acc;dur=cDur;hasTr=i<clips.length-1&&lt>=cDur;if(hasTr){tProg=clamp((lt-cDur)/txDur,0,1);ttype=transitions.find(tr=>tr.position===i)?.type||'fade';nextIdx=i+1}break}acc+=seg}
     if(i>=0&&i<clips.length){const clip=clips[i];const src=clip.url;const isV=src.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src);
       const effDur=dur;
       if(isV){if(!vidRef.current){vidRef.current=document.createElement("video");vidRef.current.crossOrigin="anonymous";vidRef.current.muted=true;vidRef.current.preload="auto";vidRef.current.setAttribute("playsinline","")}const v=vidRef.current;if(v.src!==src)v.src=src;if(playing){const seek=clip.trimStart+Math.max(0,lt-0.05);if(v.readyState>=2){if(Math.abs(v.currentTime-seek)>0.5)v.currentTime=seek;if(v.paused)v.play().catch(()=>{})}if(v.duration&&isFinite(v.duration)){const vd=v.duration-clip.trimStart;if(vd>0){const p=clamp(lt/Math.max(effDur,0.1),0,1);const effT=p*vd;if(Math.abs(v.currentTime-(clip.trimStart+effT))>0.4)v.currentTime=clip.trimStart+effT}}}const vw=v.videoWidth||w,vh=v.videoHeight||h;const sc=Math.max(w/Math.max(vw,1),h/Math.max(vh,1));const dw=vw*sc,dh=vh*sc;ctx.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh)}
       else{const cached=imgCache.current.get(src);const img=cached instanceof HTMLImageElement&&cached.complete?cached:null;if(!img)ctx.fillStyle="#111827";ctx.fillRect(0,0,w,h);if(img){const k=kb(effDur,lt);const iw=w*k.s,ih=h*k.s;ctx.drawImage(img,(w-iw)/2+k.x*w,(h-ih)/2+k.y*h,iw,ih)}}
       if(hasTr&&nextIdx>=0&&nextIdx<clips.length){const nc=clips[nextIdx];const isNV=nc.url.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(nc.url);if(!isNV){const nCached=imgCache.current.get(nc.url);const nImg=nCached instanceof HTMLImageElement&&nCached.complete?nCached:null;doTx(ctx,w,h,ttype,null,nImg,tProg)}}}
     else{ctx.fillStyle="#1e293b";ctx.fillRect(0,0,w,h);ctx.fillStyle="#64748b";ctx.font="16px Inter,system-ui,sans-serif";ctx.textAlign="center";ctx.fillText("Add listing photos",w/2,h/2);ctx.textAlign="start"}
-    drawBrand(ctx,w,h,proj.branding)
-  },[clips,clipDurs,txDurs,getPlayTime,playing,proj.branding,proj.transitions])
+    drawBrand(ctx,w,h,branding)
+  },[])
+  useEffect(()=>{renderRef.current=renderFrame},[renderFrame])
+  const getRenderFrame=useCallback((time:number)=>{renderRef.current?.(time)},[renderFrame])
   const resize=useCallback(()=>{const c=mainRef.current;if(!c)return;const p=c.parentElement;if(!p)return;const sz=aspectSz(proj.aspectRatio,Math.min(960,p.clientWidth-8));c.width=sz.w;c.height=sz.h},[proj.aspectRatio])
-  useEffect(()=>{resize();const loop=()=>{if(playing){const now=performance.now()/1000;const d=rafTimeRef.current?now-rafTimeRef.current.last:0;if(d>0&&d<0.5){playTimeRef.current=Math.min(playTimeRef.current+d,totalDur);if(rafTimeRef.current&&now-rafTimeRef.current.ts>0.25){setPlayTimeState(playTimeRef.current);rafTimeRef.current.ts=now}}else{rafTimeRef.current={last:now,ts:now}}if(playTimeRef.current>=totalDur){setPlaying(false);playTimeRef.current=0;setPlayTimeState(0)}else{renderFrame(now)}}rafRef.current=requestAnimationFrame(loop)};rafTimeRef.current={last:performance.now()/1000,ts:performance.now()/1000};rafRef.current=requestAnimationFrame(loop);return()=>cancelAnimationFrame(rafRef.current)},[playing,renderFrame,totalDur,resize,setPlayTimeState])
+  useEffect(()=>{resize();const loop=()=>{if(playingRef.current){const now=performance.now()/1000;const d=rafTimeRef.current?now-rafTimeRef.current.last:0;if(d>0&&d<0.5){playTimeRef.current=Math.min(playTimeRef.current+d,totalDur);if(rafTimeRef.current&&now-rafTimeRef.current.ts>0.25){setPlayTimeState(playTimeRef.current);rafTimeRef.current.ts=now}}else{rafTimeRef.current={last:now,ts:now}}if(playTimeRef.current>=totalDur){setPlaying(false);playTimeRef.current=0;setPlayTimeState(0)}else{getRenderFrame(now)}}rafRef.current=requestAnimationFrame(loop)};rafTimeRef.current={last:performance.now()/1000,ts:performance.now()/1000};rafRef.current=requestAnimationFrame(loop);return()=>cancelAnimationFrame(rafRef.current)},[totalDur,resize,setPlayTimeState,getRenderFrame])
   useEffect(()=>{window.addEventListener("resize",resize);return()=>window.removeEventListener("resize",resize)},[resize])
   const togglePlay=useCallback(()=>{if(!clips.length)return;if(!playing){playTimeRef.current=playTimeState;audioRef.current?.start();setPlaying(true)}else{setPlayTimeState(playTimeRef.current);audioRef.current?.stop();setPlaying(false)}},[clips.length,playing,playTimeState,setPlayTimeState])
   const stop=useCallback(()=>{playTimeRef.current=0;setPlayTimeState(0);audioRef.current?.stop();setPlaying(false);if(vidRef.current){vidRef.current.pause();vidRef.current.src=""}},[setPlayTimeState])
@@ -108,7 +123,7 @@ export default function VideoStudioPage() {
   },[clips.length,exporting,proj,renderFrame,totalDur])
   useEffect(()=>{const t=setTimeout(()=>{try{localStorage.setItem("vsProj",JSON.stringify({clips:proj.clips,transitions:proj.transitions,branding:proj.branding,aspectRatio:proj.aspectRatio,audio:proj.audio,projectName:proj.projectName}))}catch{}},400);return()=>clearTimeout(t)},[proj])
   useEffect(()=>{try{const s=localStorage.getItem("vsProj");if(s){const p=JSON.parse(s);setProj(v=>({...v,...p,branding:p.branding??v.branding,audio:p.audio??v.audio}))}}catch{}},[])
-  useEffect(()=>{audioRef.current?.setMaster(proj.audio.masterVolume);audioRef.current?.setMusic(proj.audio.musicVolume)},[proj.audio.masterVolume,proj.audio.musicVolume])
+  useEffect(()=>{playingRef.current=playing},[playing])
   useEffect(()=>{for(const c of clips){const src=c.url;if(src&&!/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src)){const cached=imgCache.current.get(src);if(!cached||!(cached instanceof HTMLImageElement&&cached.complete)){loadImg(src).catch(()=>{})}}}},[clips.map(c=>c.url).join('|')])
   return (
     <>
