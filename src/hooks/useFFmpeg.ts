@@ -28,25 +28,24 @@ export function useFFmpeg() {
     return new Promise((resolve) => {
       const video = document.createElement('video')
       video.preload = 'auto'
+      video.muted = true
       video.src = url
-      const done = (duration: number) => {
-        if (duration && isFinite(duration) && duration > 0) {
-          resolve(duration)
-        } else {
-          resolve(5)
-        }
+      const done = () => {
+        const d = video.duration
+        if (d && isFinite(d) && d > 0) resolve(d)
+        else resolve(30)
       }
-      const handler = () => done(video.duration)
-      const onError = () => resolve(5)
-      video.addEventListener('loadedmetadata', handler, { once: true })
-      video.addEventListener('durationchange', handler, { once: true })
-      video.addEventListener('error', onError, { once: true })
-      setTimeout(() => {
-        done(video.duration || 5)
+      const cleanup = () => {
         video.removeEventListener('loadedmetadata', handler)
         video.removeEventListener('durationchange', handler)
         video.removeEventListener('error', onError)
-      }, 3000)
+      }
+      const handler = () => { cleanup(); done() }
+      const onError = () => { cleanup(); resolve(30) }
+      video.addEventListener('loadedmetadata', handler, { once: true })
+      video.addEventListener('durationchange', handler, { once: true })
+      video.addEventListener('error', onError, { once: true })
+      setTimeout(() => { cleanup(); done() }, 5000)
     })
   }, [])
 

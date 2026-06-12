@@ -40,11 +40,6 @@ export default function VideoStudioPage() {
   const [proj, setProj] = useState<Project>(INIT)
   const [playing, setPlaying] = useState(false)
   const [playTimeState, setPlayTimeState] = useState(0)
-  const playTimeRef = useRef(0)
-  const rafTimeRef = useRef<{last:number;ts:number}>({last:0,ts:0})
-  useEffect(()=>{playTimeRef.current=playTimeState},[playTimeState])
-  const getPlayTime = useCallback(()=>playing?playTimeRef.current:playTimeState,[playing,playTimeState])
-  const setPlayTime = useCallback((v:number)=>{playTimeRef.current=v;if(!playing)setPlayTimeState(v)},[playing])
   const [exporting, setExporting] = useState(false)
   const [exportProg, setExportProg] = useState("")
   const [showExport, setShowExport] = useState(false)
@@ -52,8 +47,8 @@ export default function VideoStudioPage() {
   const mainRef = useRef<HTMLCanvasElement|null>(null)
   const offRef = useRef<HTMLCanvasElement|null>(null)
   const rafRef = useRef<number>(0)
-  const playStart = useRef(0)
-  const playOff = useRef(0)
+  const playTimeRef = useRef(0)
+  const rafTimeRef = useRef<{last:number;ts:number}>({last:0,ts:0})
   const audioRef = useRef<MusicEngine|null>(null)
   const imgCache = useRef(new Map())
   const vidRef = useRef<HTMLVideoElement|null>(null)
@@ -62,6 +57,9 @@ export default function VideoStudioPage() {
   const txDurs = useMemo(()=>clips.map((_,i)=>i<clips.length-1?(proj.transitions.find(tr=>tr.position===i)?.duration??DTX):0),[clips,proj.transitions])
   const totalDur = useMemo(()=>{let t=0;for(let i=0;i<clips.length;i++){t+=clips[i].trimEnd-clips[i].trimStart;if(i<clips.length-1){const tx=proj.transitions.find(tr=>tr.position===i);t+=tx?tx.duration:DTX}}return Math.max(t,0.1)},[clipDurs.join('|'), txDurs.join('|')])
   const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=dur+txDur;if(playTimeState<acc+seg){const lt=playTimeState-acc;const prog=clamp(lt/dur,0,1);const hasTr=i<clips.length-1&&lt>=dur;const tProg=hasTr?clamp((lt-dur)/txDur,0,1):0;return{i,lt,dur,hasTr,prog,tProg,ttype:proj.transitions.find(tr=>tr.position===i)?.type||'fade',next:hasTr?i+1:-1}}acc+=seg}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,tProg:0,ttype:'fade',next:-1}},[clips,clipDurs,txDurs,playTimeState,proj.transitions])
+  useEffect(()=>{playTimeRef.current=playTimeState},[playTimeState])
+  const getPlayTime = useCallback(()=>playing?playTimeRef.current:playTimeState,[playing,playTimeState])
+  const setPlayTime = useCallback((v:number)=>{playTimeRef.current=v;if(!playing)setPlayTimeState(v)},[playing])
   const loadImg = useCallback((url:string):Promise<HTMLImageElement>=>{const cached=imgCache.current.get(url);if(cached&&cached.complete)return Promise.resolve(cached);return new Promise((res,rej)=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>{imgCache.current.set(url,im);res(im)};im.onerror=()=>rej(new Error("img fail"));im.src=url})},[])
   const clipsRef=useRef(clips);clipsRef.current=clips
   const clipDursRef=useRef(clipDurs);clipDursRef.current=clipDurs
@@ -73,7 +71,7 @@ export default function VideoStudioPage() {
   const renderFrame=useCallback((time:number)=>{
     const cvs=mainRef.current;if(!cvs)return;const ctx=cvs.getContext("2d");if(!ctx)return;const w=cvs.width,h=cvs.height;if(!w||!h)return;
     ctx.clearRect(0,0,w,h);ctx.fillStyle="#05070f";ctx.fillRect(0,0,w,h);
-    const t=playTimeRef.current
+    const t=getPlayTime()
     const clips=clipsRef.current
     const clipDurs=clipDursRef.current
     const txDurs=txDursRef.current
@@ -85,7 +83,7 @@ export default function VideoStudioPage() {
     for(;i<clips.length;i++){const cDur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=cDur+txDur;if(t<acc+seg){lt=t-acc;dur=cDur;hasTr=i<clips.length-1&&lt>=cDur;if(hasTr){tProg=clamp((lt-cDur)/txDur,0,1);ttype=transitions.find(tr=>tr.position===i)?.type||'fade';nextIdx=i+1}break}acc+=seg}
     if(i>=0&&i<clips.length){const clip=clips[i];const src=clip.url;const isV=src.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src);
       const effDur=dur;
-      if(isV){if(!vidRef.current){vidRef.current=document.createElement("video");vidRef.current.crossOrigin="anonymous";vidRef.current.muted=true;vidRef.current.preload="auto";vidRef.current.setAttribute("playsinline","")}const v=vidRef.current;if(v.src!==src)v.src=src;if(playing){const seek=clip.trimStart+Math.max(0,lt-0.05);if(v.readyState>=2){if(Math.abs(v.currentTime-seek)>0.5)v.currentTime=seek;if(v.paused)v.play().catch(()=>{})}if(v.duration&&isFinite(v.duration)){const vd=v.duration-clip.trimStart;if(vd>0){const p=clamp(lt/Math.max(effDur,0.1),0,1);const effT=p*vd;if(Math.abs(v.currentTime-(clip.trimStart+effT))>0.4)v.currentTime=clip.trimStart+effT}}}const vw=v.videoWidth||w,vh=v.videoHeight||h;const sc=Math.max(w/Math.max(vw,1),h/Math.max(vh,1));const dw=vw*sc,dh=vh*sc;ctx.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh)}
+      if(isV){if(!vidRef.current){vidRef.current=document.createElement("video");vidRef.current.crossOrigin="anonymous";vidRef.current.muted=true;vidRef.current.preload="auto";vidRef.current.setAttribute("playsinline","")}const v=vidRef.current;if(v.src!==src){v.src=src;v.load()}if(playing){v.play().catch(()=>{})}const vw=v.videoWidth||w,vh=v.videoHeight||h;const sc=Math.max(w/Math.max(vw,1),h/Math.max(vh,1));const dw=vw*sc,dh=vh*sc;ctx.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh)}
       else{const cached=imgCache.current.get(src);const img=cached instanceof HTMLImageElement&&cached.complete?cached:null;if(!img)ctx.fillStyle="#111827";ctx.fillRect(0,0,w,h);if(img){const k=kb(effDur,lt);const iw=w*k.s,ih=h*k.s;ctx.drawImage(img,(w-iw)/2+k.x*w,(h-ih)/2+k.y*h,iw,ih)}}
       if(hasTr&&nextIdx>=0&&nextIdx<clips.length){const nc=clips[nextIdx];const isNV=nc.url.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(nc.url);if(!isNV){const nCached=imgCache.current.get(nc.url);const nImg=nCached instanceof HTMLImageElement&&nCached.complete?nCached:null;doTx(ctx,w,h,ttype,null,nImg,tProg)}}}
     else{ctx.fillStyle="#1e293b";ctx.fillRect(0,0,w,h);ctx.fillStyle="#64748b";ctx.font="16px Inter,system-ui,sans-serif";ctx.textAlign="center";ctx.fillText("Add listing photos",w/2,h/2);ctx.textAlign="start"}
@@ -104,8 +102,7 @@ export default function VideoStudioPage() {
   const rmTx=useCallback((pos:number)=>setProj(s=>({...s,transitions:s.transitions.filter(tr=>tr.position!==pos)})),[])
   const rmClip=useCallback((id:string)=>setProj(s=>{const idx=s.clips.findIndex(c=>c.id===id);return{...s,clips:s.clips.filter(c=>c.id!==id),transitions:s.transitions.filter(tr=>tr.position!==idx)}}),[])
   const moveClip=useCallback((from:number,to:number)=>{setProj(s=>{const arr=[...s.clips].sort((a,b)=>a.sortOrder-b.sortOrder);const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...s,clips:arr.map((c,i)=>({...c,sortOrder:i}))}})},[])
-  const startExport=useCallback(async()=>{
-    if(clips.length===0||exporting)return;setExporting(true);setExportProg("Preparing...");setShowExport(true)
+  const startExport=useCallback(async()=>{if(clips.length===0||exporting)return;setExporting(true);setExportProg("Preparing...");setShowExport(true)
     const{w,h}=aspectSz(proj.aspectRatio,1280)
     const cvs=document.createElement("canvas");cvs.width=w;cvs.height=h;offRef.current=cvs
     const ctx=cvs.getContext("2d")!;ctx.fillStyle="#05070f";ctx.fillRect(0,0,w,h)
@@ -123,8 +120,8 @@ export default function VideoStudioPage() {
   },[clips.length,exporting,proj,renderFrame,totalDur])
   useEffect(()=>{const t=setTimeout(()=>{try{localStorage.setItem("vsProj",JSON.stringify({clips:proj.clips,transitions:proj.transitions,branding:proj.branding,aspectRatio:proj.aspectRatio,audio:proj.audio,projectName:proj.projectName}))}catch{}},400);return()=>clearTimeout(t)},[proj])
   useEffect(()=>{try{const s=localStorage.getItem("vsProj");if(s){const p=JSON.parse(s);setProj(v=>({...v,...p,branding:p.branding??v.branding,audio:p.audio??v.audio}))}}catch{}},[])
-  useEffect(()=>{playingRef.current=playing},[playing])
   useEffect(()=>{for(const c of clips){const src=c.url;if(src&&!/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src)){const cached=imgCache.current.get(src);if(!cached||!(cached instanceof HTMLImageElement&&cached.complete)){loadImg(src).catch(()=>{})}}}},[clips.map(c=>c.url).join('|')])
+  useEffect(()=>{const v=vidRef.current;if(v&&v.src){const update=()=>{if(v.duration&&isFinite(v.duration)){setProj(s=>({...s,clips:s.clips.map(c=>c.url===v.src?{...c,trimEnd:v.duration}:c)}))}};v.addEventListener('loadedmetadata',update);v.addEventListener('durationchange',update);return()=>{v.removeEventListener('loadedmetadata',update);v.removeEventListener('durationchange',update)}}},[clips.map(c=>c.url).join('|')])
   return (
     <>
       <Header title="Video Studio" subtitle="Create professional real estate walkthroughs" />
