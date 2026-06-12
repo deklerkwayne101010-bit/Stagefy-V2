@@ -9,6 +9,7 @@ import{useFFmpeg}from'@/hooks/useFFmpeg'
 const ASPECT=[{value:'16:9',label:'Landscape 16:9'},{value:'9:16',label:'Portrait 9:16'}]
 const TXTYPES=[{value:'fade',label:'Crossfade'},{value:'fade-black',label:'Fade-Black'},{value:'slide',label:'Slide-Left'},{value:'zoom',label:'Zoom-In'},{value:'none',label:'None'}]
 const DTX=1.0
+const computeTotalDur=(clips:any[],txDurs:number[],txs:any[],vid:HTMLVideoElement|null):number=>{let t=0;for(let i=0;i<clips.length;i++){const c=clips[i];const isV=(c.url||'').startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(c.url||'');let d=Math.max(c.duration||0,c.trimEnd-c.trimStart);if(isV&&vid&&vid.src===c.url&&vid.readyState>=2&&isFinite(vid.duration))d=vid.duration-c.trimStart;t+=Math.max(d,0.1);if(i<clips.length-1){const tx=txs.find((tr:any)=>tr.position===i);t+=tx?tx.duration:DTX}}return Math.max(t,0.1)}
 interface Brand{agentName:string;phone:string;email:string;logoDataUrl:string|null}
 interface Audio{masterVolume:number;musicVolume:number;sfxVolume:number}
 interface Project{clips:VideoClip[];transitions:VideoTransition[];branding:Brand;aspectRatio:VideoAspectRatio;audio:Audio;projectName:string}
@@ -55,7 +56,7 @@ export default function VideoStudioPage() {
   const clips = useMemo(()=>proj.clips.slice().sort((a,b)=>a.sortOrder-b.sortOrder),[proj.clips])
   const clipDurs = useMemo(()=>clips.map(c=>c.trimEnd-c.trimStart),[clips])
   const txDurs = useMemo(()=>clips.map((_,i)=>i<clips.length-1?(proj.transitions.find(tr=>tr.position===i)?.duration??DTX):0),[clips,proj.transitions])
-  const totalDur = useMemo(()=>{let t=0;for(let i=0;i<clips.length;i++){t+=clips[i].trimEnd-clips[i].trimStart;if(i<clips.length-1){const tx=proj.transitions.find(tr=>tr.position===i);t+=tx?tx.duration:DTX}}return Math.max(t,0.1)},[clipDurs.join('|'), txDurs.join('|')])
+  const totalDur = computeTotalDur(clips,txDurs,proj.transitions,vidRef.current)
   const curIdx = useMemo(()=>{let acc=0;for(let i=0;i<clips.length;i++){const dur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=dur+txDur;if(playTimeState<acc+seg){const lt=playTimeState-acc;const prog=clamp(lt/dur,0,1);const hasTr=i<clips.length-1&&lt>=dur;const tProg=hasTr?clamp((lt-dur)/txDur,0,1):0;return{i,lt,dur,hasTr,prog,tProg,ttype:proj.transitions.find(tr=>tr.position===i)?.type||'fade',next:hasTr?i+1:-1}}acc+=seg}return{i:-1,lt:0,dur:1,hasTr:false,prog:0,tProg:0,ttype:'fade',next:-1}},[clips,clipDurs,txDurs,playTimeState,proj.transitions])
   useEffect(()=>{playTimeRef.current=playTimeState},[playTimeState])
   const getPlayTime = useCallback(()=>playing?playTimeRef.current:playTimeState,[playing,playTimeState])
@@ -71,20 +72,18 @@ export default function VideoStudioPage() {
   const renderFrame=useCallback((time:number)=>{
     const cvs=mainRef.current;if(!cvs)return;const ctx=cvs.getContext("2d");if(!ctx)return;const w=cvs.width,h=cvs.height;if(!w||!h)return;
     ctx.clearRect(0,0,w,h);ctx.fillStyle="#05070f";ctx.fillRect(0,0,w,h);
-    const t=getPlayTime()
+    const t=playTimeRef.current
     const clips=clipsRef.current
-    const clipDurs=clipDursRef.current
     const txDurs=txDursRef.current
     const transitions=transitionsRef.current
     const branding=brandingRef.current
     const playing=playingRef.current
     let acc=0
     let i=0;let lt=0;let dur=1;let hasTr=false;let tProg=0;let ttype='fade';let nextIdx=-1
-    for(;i<clips.length;i++){const cDur=clipDurs[i]||0;const txDur=txDurs[i]||0;const seg=cDur+txDur;if(t<acc+seg){lt=t-acc;dur=cDur;hasTr=i<clips.length-1&&lt>=cDur;if(hasTr){tProg=clamp((lt-cDur)/txDur,0,1);ttype=transitions.find(tr=>tr.position===i)?.type||'fade';nextIdx=i+1}break}acc+=seg}
+    for(;i<clips.length;i++){const src=clips[i].url;const isV=src.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src);const stored=clips[i].trimEnd-clips[i].trimStart;let effDur=stored;if(isV&&vidRef.current&&vidRef.current.src===src&&vidRef.current.readyState>=2&&isFinite(vidRef.current.duration))effDur=vidRef.current.duration-clips[i].trimStart;const txDur=txDurs[i]||0;const seg=Math.max(effDur,0.1)+txDur;if(t<acc+seg){lt=Math.min(t-acc,effDur);dur=effDur;hasTr=i<clips.length-1&&lt>=effDur&&txDur>0;if(hasTr){tProg=clamp((lt-effDur)/txDur,0,1);ttype=transitions.find(tr=>tr.position===i)?.type||'fade';nextIdx=i+1}break}acc+=seg}
     if(i>=0&&i<clips.length){const clip=clips[i];const src=clip.url;const isV=src.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src);
-      const effDur=dur;
-      if(isV){if(!vidRef.current){vidRef.current=document.createElement("video");vidRef.current.crossOrigin="anonymous";vidRef.current.muted=true;vidRef.current.preload="auto";vidRef.current.setAttribute("playsinline","")}const v=vidRef.current;const srcChanged=v.src!==src;if(srcChanged){v.src=src;v.load();const update=()=>{const d=v.duration;if(d&&isFinite(d)&&d>0){setProj(s=>({...s,clips:s.clips.map(c=>c.url===src?{...c,trimEnd:d}:c)}))}};v.addEventListener('loadedmetadata',update,{once:true});v.addEventListener('durationchange',update,{once:true})}if(playing){v.play().catch(()=>{})}const vw=v.videoWidth||w,vh=v.videoHeight||h;const sc=Math.max(w/Math.max(vw,1),h/Math.max(vh,1));const dw=vw*sc,dh=vh*sc;ctx.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh)}
-      else{const cached=imgCache.current.get(src);const img=cached instanceof HTMLImageElement&&cached.complete?cached:null;if(!img)ctx.fillStyle="#111827";ctx.fillRect(0,0,w,h);if(img){const k=kb(effDur,lt);const iw=w*k.s,ih=h*k.s;ctx.drawImage(img,(w-iw)/2+k.x*w,(h-ih)/2+k.y*h,iw,ih)}}
+      if(isV){if(!vidRef.current){vidRef.current=document.createElement("video");vidRef.current.crossOrigin="anonymous";vidRef.current.muted=true;vidRef.current.preload="auto";vidRef.current.setAttribute("playsinline","")}const v=vidRef.current;if(v.src!==src){v.src=src;v.load()}if(playing){v.play().catch(()=>{})}const vw=v.videoWidth||w,vh=v.videoHeight||h;const sc=Math.max(w/Math.max(vw,1),h/Math.max(vh,1));const dw=vw*sc,dh=vh*sc;ctx.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh)}
+      else{const cached=imgCache.current.get(src);const img=cached instanceof HTMLImageElement&&cached.complete?cached:null;if(!img)ctx.fillStyle="#111827";ctx.fillRect(0,0,w,h);if(img){const k=kb(dur,lt);const iw=w*k.s,ih=h*k.s;ctx.drawImage(img,(w-iw)/2+k.x*w,(h-ih)/2+k.y*h,iw,ih)}}
       if(hasTr&&nextIdx>=0&&nextIdx<clips.length){const nc=clips[nextIdx];const isNV=nc.url.startsWith("blob:")||/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(nc.url);if(!isNV){const nCached=imgCache.current.get(nc.url);const nImg=nCached instanceof HTMLImageElement&&nCached.complete?nCached:null;doTx(ctx,w,h,ttype,null,nImg,tProg)}}}
     else{ctx.fillStyle="#1e293b";ctx.fillRect(0,0,w,h);ctx.fillStyle="#64748b";ctx.font="16px Inter,system-ui,sans-serif";ctx.textAlign="center";ctx.fillText("Add listing photos",w/2,h/2);ctx.textAlign="start"}
     drawBrand(ctx,w,h,branding)
@@ -92,7 +91,7 @@ export default function VideoStudioPage() {
   useEffect(()=>{renderRef.current=renderFrame},[renderFrame])
   const getRenderFrame=useCallback((time:number)=>{renderRef.current?.(time)},[renderFrame])
   const resize=useCallback(()=>{const c=mainRef.current;if(!c)return;const p=c.parentElement;if(!p)return;const sz=aspectSz(proj.aspectRatio,Math.min(960,p.clientWidth-8));c.width=sz.w;c.height=sz.h},[proj.aspectRatio])
-  useEffect(()=>{resize();const loop=()=>{if(playingRef.current){const now=performance.now()/1000;const d=rafTimeRef.current?now-rafTimeRef.current.last:0;if(d>0&&d<0.5){playTimeRef.current=Math.min(playTimeRef.current+d,totalDur);if(rafTimeRef.current&&now-rafTimeRef.current.ts>0.25){setPlayTimeState(playTimeRef.current);rafTimeRef.current.ts=now}}else{rafTimeRef.current={last:now,ts:now}}if(playTimeRef.current>=totalDur){setPlaying(false);playTimeRef.current=0;setPlayTimeState(0)}else{getRenderFrame(now)}}rafRef.current=requestAnimationFrame(loop)};rafTimeRef.current={last:performance.now()/1000,ts:performance.now()/1000};rafRef.current=requestAnimationFrame(loop);return()=>cancelAnimationFrame(rafRef.current)},[totalDur,resize,setPlayTimeState,getRenderFrame])
+  useEffect(()=>{resize();const loop=()=>{if(playingRef.current){const now=performance.now()/1000;const d=rafTimeRef.current?now-rafTimeRef.current.last:0;if(d>0&&d<0.5){playTimeRef.current=Math.min(playTimeRef.current+d,computeTotalDur(clipsRef.current,txDursRef.current,transitionsRef.current,vidRef.current));if(rafTimeRef.current&&now-rafTimeRef.current.ts>0.25){setPlayTimeState(playTimeRef.current);rafTimeRef.current.ts=now}}else{rafTimeRef.current={last:now,ts:now}}if(playTimeRef.current>=computeTotalDur(clipsRef.current,txDursRef.current,transitionsRef.current,vidRef.current)){setPlaying(false);playTimeRef.current=0;setPlayTimeState(0)}else{getRenderFrame(now)}}rafRef.current=requestAnimationFrame(loop)};rafTimeRef.current={last:performance.now()/1000,ts:performance.now()/1000};rafRef.current=requestAnimationFrame(loop);return()=>cancelAnimationFrame(rafRef.current)},[resize,setPlayTimeState,getRenderFrame])
   useEffect(()=>{window.addEventListener("resize",resize);return()=>window.removeEventListener("resize",resize)},[resize])
   const togglePlay=useCallback(()=>{if(!clips.length)return;if(!playing){playTimeRef.current=playTimeState;audioRef.current?.start();setPlaying(true)}else{setPlayTimeState(playTimeRef.current);audioRef.current?.stop();setPlaying(false)}},[clips.length,playing,playTimeState,setPlayTimeState])
   const stop=useCallback(()=>{playTimeRef.current=0;setPlayTimeState(0);audioRef.current?.stop();setPlaying(false);if(vidRef.current){vidRef.current.pause();vidRef.current.src=""}},[setPlayTimeState])
@@ -119,7 +118,7 @@ export default function VideoStudioPage() {
     if(rec.state==="recording")rec.stop()
   },[clips.length,exporting,proj,renderFrame,totalDur])
   useEffect(()=>{const t=setTimeout(()=>{try{localStorage.setItem("vsProj",JSON.stringify({clips:proj.clips,transitions:proj.transitions,branding:proj.branding,aspectRatio:proj.aspectRatio,audio:proj.audio,projectName:proj.projectName}))}catch{}},400);return()=>clearTimeout(t)},[proj])
-  useEffect(()=>{try{const s=localStorage.getItem("vsProj");if(s){const p=JSON.parse(s);setProj(v=>({...v,...p,branding:p.branding??v.branding,audio:p.audio??v.audio}))}}catch{}},[])
+  useEffect(()=>{try{const s=localStorage.getItem("vsProj");if(s){const p=JSON.parse(s);const migrated={...p,clips:(p.clips||[]).map((c:any)=>{if(!/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(c.url||''))return c;const d=c.trimEnd-c.trimStart;return d<3?{...c,trimEnd:60,duration:60}:c})};setProj(v=>({...v,...migrated,branding:migrated.branding??v.branding,audio:migrated.audio??v.audio}))}}catch{}},[])
   useEffect(()=>{for(const c of clips){const src=c.url;if(src&&!/\.(mp4|webm|mov|avi)(\?.*)?$/i.test(src)){const cached=imgCache.current.get(src);if(!cached||!(cached instanceof HTMLImageElement&&cached.complete)){loadImg(src).catch(()=>{})}}}},[clips.map(c=>c.url).join('|')])
   useEffect(()=>{const v=vidRef.current;if(v&&v.src){const update=()=>{if(v.duration&&isFinite(v.duration)){setProj(s=>({...s,clips:s.clips.map(c=>c.url===v.src?{...c,trimEnd:v.duration}:c)}))}};v.addEventListener('loadedmetadata',update);v.addEventListener('durationchange',update);return()=>{v.removeEventListener('loadedmetadata',update);v.removeEventListener('durationchange',update)}}},[clips.map(c=>c.url).join('|')])
   return (
