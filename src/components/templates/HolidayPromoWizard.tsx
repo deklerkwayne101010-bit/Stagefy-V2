@@ -158,6 +158,15 @@ const holidays: Holiday[] = [
     prompt: 'Create a heartfelt Mother\'s Day promotional real estate poster. Use a soft pink, white, and gold colour palette. Feature flowers, a nurturing home scene, or elegant feminine design elements. Include a touching message like "Home is where Mum is — find her dream kitchen" or "For the woman who makes a house a home". The design should be elegant and emotional while maintaining professional real estate marketing.',
   },
   {
+    id: 'fathers-day',
+    name: "Father's Day",
+    date: 'Third Sunday in June',
+    icon: '👔',
+    category: 'celebration',
+    colors: ['#1e3a8a', '#2563eb', '#f59e0b', '#ffffff'],
+    prompt: 'Create a polished Father\'s Day promotional real estate poster. Use a confident navy, white, and warm gold colour palette. Feature imagery of a dad, family home, or a strong masculine yet warm lifestyle scene. Include a message like "Give Dad the home he deserves" or "This Father\'s Day, celebrate the man who built your home". The design should feel appreciative, professional, and ready for social media.',
+  },
+  {
     id: 'youth-day',
     name: 'Youth Day',
     date: '16 June',
