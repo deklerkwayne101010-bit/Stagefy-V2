@@ -11,6 +11,10 @@
     "reset-monthly-credits": "node scripts/reset-monthly-credits.js"
   },
   "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/types": "^0.12.4",
+    "@ffmpeg/util": "^0.12.2",
     "@fullcalendar/daygrid": "^6.1.20",
     "@fullcalendar/interaction": "^6.1.20",
     "@fullcalendar/react": "^6.1.20",

@@ -270,6 +270,7 @@ export const CREDIT_COSTS = {
   video_transition: 5,
   video_text_overlay: 2,
   video_full_edit: 10,
+  video_editor_simple: 1,
 } as const
 
 export type CreditOperation = keyof typeof CREDIT_COSTS
