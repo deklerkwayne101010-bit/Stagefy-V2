@@ -111,7 +111,7 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname()
   const { user } = useAuth()
-  const [expandedItems, setExpandedItems] = useState<string[]>(['CRM'])
+  const [expandedItems, setExpandedItems] = useState<string[]>([])
   const [freshCredits, setFreshCredits] = useState<number | null>(null)
 
   // Fetch fresh credits from database on mount

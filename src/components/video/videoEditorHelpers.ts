@@ -89,14 +89,28 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
 
-  const cardHeight = Math.round(options.height * 0.22)
+  const cardHeight = Math.round(options.height * 0.24)
   const y = options.height - cardHeight
-  const padding = Math.round(options.width * 0.045)
-  const avatarSize = Math.round(cardHeight * 0.52)
+  const padding = Math.round(options.width * 0.05)
+  const radius = Math.round(cardHeight * 0.08)
+  const avatarSize = Math.round(cardHeight * 0.62)
+  const logoBoxSize = Math.round(cardHeight * 0.56)
+  const logoPadding = Math.round(logoBoxSize * 0.16)
+  const logoSize = logoBoxSize - logoPadding * 2
+  const gap = Math.round(options.width * 0.035)
 
   ctx.clearRect(0, 0, options.width, options.height)
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.78)'
-  roundRect(ctx, 0, y, options.width, cardHeight, 0)
+
+  const gradient = ctx.createLinearGradient(0, y, options.width, y + cardHeight)
+  gradient.addColorStop(0, 'rgba(15, 23, 42, 0.92)')
+  gradient.addColorStop(0.55, 'rgba(30, 64, 175, 0.86)')
+  gradient.addColorStop(1, 'rgba(2, 6, 23, 0.94)')
+  ctx.fillStyle = gradient
+  roundRect(ctx, 0, y, options.width, cardHeight, radius)
+  ctx.fill()
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.16)'
+  roundRect(ctx, padding, y + Math.round(cardHeight * 0.12), options.width - padding * 2, Math.max(3, Math.round(cardHeight * 0.035)), Math.round(cardHeight * 0.035))
   ctx.fill()
 
   const photoUrl = options.photoUrl || ''
@@ -107,9 +121,9 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
       ctx.beginPath()
       ctx.arc(padding + avatarSize / 2, y + cardHeight / 2, avatarSize / 2, 0, Math.PI * 2)
       ctx.clip()
-      ctx.drawImage(photo, padding, y + cardHeight / 2 - avatarSize / 2, avatarSize, avatarSize)
+      drawContainImage(ctx, photo, padding, y + cardHeight / 2 - avatarSize / 2, avatarSize, avatarSize, 0)
       ctx.restore()
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
       ctx.lineWidth = Math.max(3, Math.round(options.width * 0.006))
       ctx.beginPath()
       ctx.arc(padding + avatarSize / 2, y + cardHeight / 2, avatarSize / 2, 0, Math.PI * 2)
@@ -122,32 +136,46 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   }
 
   const logoUrl = options.logoUrl || ''
+  const logoX = options.width - padding - logoBoxSize
+  const logoY = y + Math.round(cardHeight * 0.12)
   if (logoUrl) {
     try {
       const logo = await loadImage(logoUrl)
-      const logoSize = Math.round(cardHeight * 0.34)
-      ctx.drawImage(logo, options.width - padding - logoSize, y + padding, logoSize, logoSize)
+      ctx.save()
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)'
+      roundRect(ctx, logoX, logoY, logoBoxSize, logoBoxSize, Math.round(logoBoxSize * 0.18))
+      ctx.fill()
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)'
+      roundRect(ctx, logoX + logoPadding / 2, logoY + logoPadding / 2, logoBoxSize - logoPadding, logoBoxSize - logoPadding, Math.round(logoBoxSize * 0.16))
+      ctx.fill()
+      drawContainImage(ctx, logo, logoX + logoPadding, logoY + logoPadding, logoSize, logoSize, 0)
+      ctx.restore()
     } catch {
     }
   }
 
-  const textX = padding + avatarSize + Math.round(options.width * 0.035)
-  const maxWidth = options.width - textX - padding - (logoUrl ? Math.round(cardHeight * 0.42) : 0)
+  const textX = padding + avatarSize + gap
+  const textRight = logoUrl ? logoX - gap : options.width - padding
+  const maxWidth = Math.max(120, textRight - textX)
+  const headlineY = y + Math.round(cardHeight * 0.16)
+  const detailsY = y + Math.round(cardHeight * 0.50)
+  const ctaY = y + cardHeight - Math.round(cardHeight * 0.28)
 
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `700 ${Math.max(24, Math.round(options.width * 0.045))}px Arial, sans-serif`
+  ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
-  wrapText(ctx, options.headline || options.agentName || 'Real Estate Agent', textX, y + Math.round(cardHeight * 0.12), maxWidth, Math.round(options.width * 0.04))
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.88)'
-  ctx.font = `500 ${Math.max(17, Math.round(options.width * 0.032))}px Arial, sans-serif`
-  const details = [options.phone, options.email, options.agency].filter(Boolean).join(' • ')
-  wrapText(ctx, details || 'Contact me today', textX, y + Math.round(cardHeight * 0.48), maxWidth, Math.round(options.width * 0.032))
-
   ctx.fillStyle = '#ffffff'
-  ctx.font = `700 ${Math.max(18, Math.round(options.width * 0.034))}px Arial, sans-serif`
-  ctx.textAlign = 'right'
-  ctx.fillText((options.cta || 'Call or WhatsApp').toUpperCase(), options.width - padding, y + cardHeight - Math.round(cardHeight * 0.28) - 4)
+  ctx.font = `800 ${Math.max(28, Math.round(options.width * 0.047))}px Arial, sans-serif`
+  wrapText(ctx, options.headline || options.agentName || 'Real Estate Agent', textX, headlineY, maxWidth, Math.round(options.width * 0.043))
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+  ctx.font = `600 ${Math.max(18, Math.round(options.width * 0.03))}px Arial, sans-serif`
+  const details = [options.phone, options.email, options.agency].filter(Boolean).join(' • ')
+  wrapText(ctx, details || 'Contact me today', textX, detailsY, maxWidth, Math.round(options.width * 0.034))
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
+  ctx.font = `800 ${Math.max(19, Math.round(options.width * 0.034))}px Arial, sans-serif`
+  ctx.textAlign = logoUrl ? 'left' : 'right'
+  ctx.fillText((options.cta || 'Call or WhatsApp').toUpperCase(), logoUrl ? textX : options.width - padding, ctaY)
 
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
   if (!blob) return null
@@ -190,6 +218,25 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   if (line) {
     ctx.fillText(line, x, y)
   }
+}
+
+function drawContainImage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  padding: number
+) {
+  const availableWidth = Math.max(1, width - padding * 2)
+  const availableHeight = Math.max(1, height - padding * 2)
+  const scale = Math.min(availableWidth / image.width, availableHeight / image.height)
+  const drawWidth = image.width * scale
+  const drawHeight = image.height * scale
+  const drawX = x + padding + (availableWidth - drawWidth) / 2
+  const drawY = y + padding + (availableHeight - drawHeight) / 2
+  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight)
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
