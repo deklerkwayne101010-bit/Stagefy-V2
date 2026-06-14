@@ -49,6 +49,7 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
   const [muteAudio, setMuteAudio] = useState(true)
   const [headline, setHeadline] = useState('Let’s find your next home')
   const [cta, setCta] = useState('Call or WhatsApp me today')
+  const [callingCardColor, setCallingCardColor] = useState('#0f172a')
   const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -73,6 +74,8 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
     const totalTransitionDuration = Math.max(0, clips.length - 1) * transitionDuration
     return Math.max(0, totalClipDuration - totalTransitionDuration)
   }, [clips, transitionDuration])
+
+  const normalizedCallingCardColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(callingCardColor) ? callingCardColor : '#0f172a'
 
   const canGenerate = clips.length >= 2 && !isExporting
 
@@ -329,6 +332,7 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
           enabled: true,
           headline,
           cta,
+          backgroundColor: normalizedCallingCardColor,
           agentName: agentProfile?.name_surname || user?.full_name || 'Real Estate Agent',
           phone: agentProfile?.phone || '',
           email: agentProfile?.email || '',
@@ -579,6 +583,24 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
                 <>
                   <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} />
                   <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Calling card colour</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={callingCardColor}
+                        onChange={event => setCallingCardColor(event.target.value)}
+                        className="h-12 w-14 rounded-xl border border-slate-200 bg-white p-1"
+                      />
+                      <Input
+                        type="text"
+                        value={callingCardColor}
+                        onChange={event => setCallingCardColor(event.target.value)}
+                        placeholder="#0f172a"
+                        className="uppercase"
+                      />
+                    </div>
+                  </div>
                   <div className="rounded-2xl border border-slate-200 p-4">
                     <p className="text-sm font-medium text-slate-900">Using profile</p>
                     <p className="mt-1 text-sm text-slate-500">{agentDisplayName}</p>
@@ -590,18 +612,18 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
 
               <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4">
                 <div className="relative aspect-[9/16] overflow-hidden rounded-xl bg-slate-800">
-                  <div className="absolute inset-x-0 bottom-0 min-h-[32%] bg-gradient-to-t from-slate-950 via-slate-900/90 to-blue-950/80 p-5 text-white">
+                  <div className="absolute inset-x-0 bottom-0 min-h-[26%] p-4 text-white" style={{ background: `linear-gradient(to top, ${normalizedCallingCardColor}, rgba(15, 23, 42, 0.92))` }}>
                     <div className="relative z-10 flex h-full items-end gap-4 pr-32">
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-lg font-extrabold leading-tight text-white">{headline || 'Real Estate Agent'}</p>
+                        <p className="line-clamp-2 text-base font-extrabold leading-tight text-white">{headline || 'Real Estate Agent'}</p>
                         <p className="mt-1 truncate text-xs font-semibold text-slate-100">{agentDisplayName}</p>
                         {agentDetails && <p className="mt-1 truncate text-[11px] text-slate-200">{agentDetails}</p>}
-                        <p className="mt-2 truncate text-xs font-extrabold uppercase tracking-wide text-blue-100">{cta}</p>
+                        <p className="mt-1.5 truncate text-xs font-extrabold uppercase tracking-wide text-blue-100">{cta}</p>
                       </div>
                     </div>
                     {agentProfile?.logo_url && (
                       <div
-                        className="absolute right-4 top-4 h-28 w-28 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
+                        className="absolute right-4 top-4 h-24 w-24 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
                         style={{ backgroundImage: `url(${agentProfile.logo_url})` } as React.CSSProperties}
                       />
                     )}

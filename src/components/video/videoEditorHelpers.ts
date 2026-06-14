@@ -32,6 +32,7 @@ export interface CallingCardOptions {
   phone: string
   email: string
   agency: string
+  backgroundColor: string
   photoUrl?: string | null
   logoUrl?: string | null
   width: number
@@ -89,28 +90,25 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
 
-  const cardHeight = Math.round(options.height * 0.32)
+  const cardHeight = Math.round(options.height * 0.26)
   const y = options.height - cardHeight
   const padding = Math.round(options.width * 0.05)
   const radius = Math.round(cardHeight * 0.08)
-  const avatarSize = Math.min(Math.round(cardHeight * 0.52), Math.round(options.width * 0.20))
-  const logoBoxSize = Math.min(Math.round(cardHeight * 0.34), Math.round(options.width * 0.14))
+  const avatarSize = Math.min(Math.round(cardHeight * 0.50), Math.round(options.width * 0.18))
+  const logoBoxSize = Math.min(Math.round(cardHeight * 0.32), Math.round(options.width * 0.13))
   const logoPadding = Math.round(logoBoxSize * 0.16)
   const logoSize = logoBoxSize - logoPadding * 2
   const gap = Math.round(options.width * 0.035)
 
   ctx.clearRect(0, 0, options.width, options.height)
 
+  const cardColor = normalizeHexColor(options.backgroundColor)
   const gradient = ctx.createLinearGradient(0, y, options.width, y + cardHeight)
-  gradient.addColorStop(0, 'rgba(15, 23, 42, 0.92)')
-  gradient.addColorStop(0.55, 'rgba(30, 64, 175, 0.86)')
+  gradient.addColorStop(0, hexToRgba(cardColor, 0.96))
+  gradient.addColorStop(0.65, hexToRgba(cardColor, 0.86))
   gradient.addColorStop(1, 'rgba(2, 6, 23, 0.94)')
   ctx.fillStyle = gradient
   roundRect(ctx, 0, y, options.width, cardHeight, radius)
-  ctx.fill()
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.16)'
-  roundRect(ctx, padding, y + Math.round(cardHeight * 0.12), options.width - padding * 2, Math.max(3, Math.round(cardHeight * 0.035)), Math.round(cardHeight * 0.035))
   ctx.fill()
 
   const photoUrl = options.photoUrl || ''
@@ -157,12 +155,12 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const textX = padding + avatarSize + gap
   const textRight = logoUrl ? logoX - gap : options.width - padding
   const maxWidth = Math.max(120, textRight - textX)
-  const textTop = y + Math.round(cardHeight * 0.16)
-  const textBottom = y + cardHeight - Math.round(cardHeight * 0.16)
-  const headlineFontSize = Math.round(clamp(options.width * 0.045, 22, 36))
-  const nameFontSize = Math.round(clamp(options.width * 0.03, 14, 22))
-  const detailsFontSize = Math.round(clamp(options.width * 0.027, 13, 20))
-  const ctaFontSize = Math.round(clamp(options.width * 0.032, 16, 24))
+  const textTop = y + Math.round(cardHeight * 0.12)
+  const textBottom = y + cardHeight - Math.round(cardHeight * 0.12)
+  const headlineFontSize = Math.round(clamp(options.width * 0.04, 20, 32))
+  const nameFontSize = Math.round(clamp(options.width * 0.026, 12, 18))
+  const detailsFontSize = Math.round(clamp(options.width * 0.024, 12, 18))
+  const ctaFontSize = Math.round(clamp(options.width * 0.028, 14, 20))
   const headlineLineHeight = Math.round(headlineFontSize * 1.08)
   const nameLineHeight = Math.round(nameFontSize * 1.25)
   const detailsLineHeight = Math.round(detailsFontSize * 1.25)
@@ -192,6 +190,21 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
   if (!blob) return null
   return new Uint8Array(await blob.arrayBuffer())
+}
+
+function normalizeHexColor(color: string) {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : '#0f172a'
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = normalizeHexColor(hex).replace('#', '')
+  const full = normalized.length === 3
+    ? normalized.split('').map(char => char + char).join('')
+    : normalized
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function drawInitials(ctx: CanvasRenderingContext2D, name: string, x: number, y: number, size: number) {
