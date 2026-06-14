@@ -588,25 +588,26 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4">
-              <div className="relative aspect-[9/16] overflow-hidden rounded-xl bg-slate-800">
-                <div className="absolute inset-x-0 bottom-0 min-h-[30%] bg-gradient-to-t from-slate-950 via-slate-900/90 to-blue-950/80 p-5 text-white">
-                  <div className="absolute left-5 top-5 h-1 w-[calc(100%-40px)] rounded-full bg-white/20" />
-                  <div className="relative z-10 pr-24">
-                    <p className="text-xl font-extrabold leading-tight">{headline || 'Real Estate Agent'}</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">{agentDisplayName}</p>
-                    {agentDetails && <p className="mt-1 text-xs text-slate-200">{agentDetails}</p>}
-                    <p className="mt-4 text-sm font-extrabold uppercase tracking-wide text-blue-100">{cta}</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4">
+                <div className="relative aspect-[9/16] overflow-hidden rounded-xl bg-slate-800">
+                  <div className="absolute inset-x-0 bottom-0 min-h-[32%] bg-gradient-to-t from-slate-950 via-slate-900/90 to-blue-950/80 p-5 text-white">
+                    <div className="relative z-10 flex h-full items-end gap-4 pr-32">
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-lg font-extrabold leading-tight text-white">{headline || 'Real Estate Agent'}</p>
+                        <p className="mt-1 truncate text-xs font-semibold text-slate-100">{agentDisplayName}</p>
+                        {agentDetails && <p className="mt-1 truncate text-[11px] text-slate-200">{agentDetails}</p>}
+                        <p className="mt-2 truncate text-xs font-extrabold uppercase tracking-wide text-blue-100">{cta}</p>
+                      </div>
+                    </div>
+                    {agentProfile?.logo_url && (
+                      <div
+                        className="absolute right-4 top-4 h-28 w-28 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
+                        style={{ backgroundImage: `url(${agentProfile.logo_url})` } as React.CSSProperties}
+                      />
+                    )}
                   </div>
-                  {agentProfile?.logo_url && (
-                    <div
-                      className="absolute right-4 top-5 h-20 w-20 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
-                      style={{ backgroundImage: `url(${agentProfile.logo_url})` } as React.CSSProperties}
-                    />
-                  )}
                 </div>
               </div>
-            </div>
           </div>
         )}
 

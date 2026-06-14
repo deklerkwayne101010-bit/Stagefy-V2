@@ -89,12 +89,12 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
 
-  const cardHeight = Math.round(options.height * 0.24)
+  const cardHeight = Math.round(options.height * 0.32)
   const y = options.height - cardHeight
   const padding = Math.round(options.width * 0.05)
   const radius = Math.round(cardHeight * 0.08)
-  const avatarSize = Math.round(cardHeight * 0.62)
-  const logoBoxSize = Math.round(cardHeight * 0.56)
+  const avatarSize = Math.min(Math.round(cardHeight * 0.52), Math.round(options.width * 0.20))
+  const logoBoxSize = Math.min(Math.round(cardHeight * 0.34), Math.round(options.width * 0.14))
   const logoPadding = Math.round(logoBoxSize * 0.16)
   const logoSize = logoBoxSize - logoPadding * 2
   const gap = Math.round(options.width * 0.035)
@@ -157,25 +157,37 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const textX = padding + avatarSize + gap
   const textRight = logoUrl ? logoX - gap : options.width - padding
   const maxWidth = Math.max(120, textRight - textX)
-  const headlineY = y + Math.round(cardHeight * 0.16)
-  const detailsY = y + Math.round(cardHeight * 0.50)
-  const ctaY = y + cardHeight - Math.round(cardHeight * 0.28)
+  const textTop = y + Math.round(cardHeight * 0.16)
+  const textBottom = y + cardHeight - Math.round(cardHeight * 0.16)
+  const headlineFontSize = Math.round(clamp(options.width * 0.045, 22, 36))
+  const nameFontSize = Math.round(clamp(options.width * 0.03, 14, 22))
+  const detailsFontSize = Math.round(clamp(options.width * 0.027, 13, 20))
+  const ctaFontSize = Math.round(clamp(options.width * 0.032, 16, 24))
+  const headlineLineHeight = Math.round(headlineFontSize * 1.08)
+  const nameLineHeight = Math.round(nameFontSize * 1.25)
+  const detailsLineHeight = Math.round(detailsFontSize * 1.25)
+  const ctaLineHeight = Math.round(ctaFontSize * 1.25)
 
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
   ctx.fillStyle = '#ffffff'
-  ctx.font = `800 ${Math.max(28, Math.round(options.width * 0.047))}px Arial, sans-serif`
-  wrapText(ctx, options.headline || options.agentName || 'Real Estate Agent', textX, headlineY, maxWidth, Math.round(options.width * 0.043))
+  ctx.font = `800 ${headlineFontSize}px Arial, sans-serif`
+  let nextTextY = wrapText(ctx, options.headline || options.agentName || 'Real Estate Agent', textX, textTop, maxWidth, headlineLineHeight, 2)
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-  ctx.font = `600 ${Math.max(18, Math.round(options.width * 0.03))}px Arial, sans-serif`
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.94)'
+  ctx.font = `700 ${nameFontSize}px Arial, sans-serif`
+  nextTextY = wrapText(ctx, options.agentName, textX, nextTextY + Math.round(cardHeight * 0.025), maxWidth, nameLineHeight, 1)
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.86)'
+  ctx.font = `600 ${detailsFontSize}px Arial, sans-serif`
   const details = [options.phone, options.email, options.agency].filter(Boolean).join(' • ')
-  wrapText(ctx, details || 'Contact me today', textX, detailsY, maxWidth, Math.round(options.width * 0.034))
+  nextTextY = wrapText(ctx, details || 'Contact me today', textX, nextTextY + Math.round(cardHeight * 0.025), maxWidth, detailsLineHeight, 2)
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
-  ctx.font = `800 ${Math.max(19, Math.round(options.width * 0.034))}px Arial, sans-serif`
+  const ctaY = Math.max(nextTextY + Math.round(cardHeight * 0.03), textBottom - ctaFontSize)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.98)'
+  ctx.font = `800 ${ctaFontSize}px Arial, sans-serif`
   ctx.textAlign = logoUrl ? 'left' : 'right'
-  ctx.fillText((options.cta || 'Call or WhatsApp').toUpperCase(), logoUrl ? textX : options.width - padding, ctaY)
+  ctx.fillText(fitSingleLine(ctx, (options.cta || 'Call or WhatsApp').toUpperCase(), maxWidth), logoUrl ? textX : options.width - padding, ctaY)
 
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
   if (!blob) return null
@@ -200,24 +212,52 @@ function drawInitials(ctx: CanvasRenderingContext2D, name: string, x: number, y:
   ctx.fillText(initials, x + size / 2, y + size / 2 + 2)
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
-  const words = text.split(/\s+/)
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function fitSingleLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  if (ctx.measureText(text).width <= maxWidth) return text
+
+  let fitted = text
+  while (fitted.length > 0 && ctx.measureText(`${fitted}…`).width > maxWidth) {
+    fitted = fitted.slice(0, -1)
+  }
+  return `${fitted.trim()}…`
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, maxLines = Infinity) {
+  const words = text.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
   let line = ''
 
-  words.forEach(word => {
+  for (const word of words) {
     const testLine = line ? `${line} ${word}` : word
     if (ctx.measureText(testLine).width > maxWidth && line) {
-      ctx.fillText(line, x, y)
+      lines.push(line)
       line = word
-      y += lineHeight
+      if (lines.length === maxLines) break
     } else {
       line = testLine
     }
-  })
-
-  if (line) {
-    ctx.fillText(line, x, y)
   }
+
+  if (lines.length < maxLines && line) {
+    lines.push(line)
+  }
+
+  const fullText = words.join(' ')
+  const wrappedText = lines.join(' ')
+  if (lines.length === maxLines && wrappedText !== fullText) {
+    let ellipsisLine = lines[maxLines - 1]
+    while (ellipsisLine.length > 0 && ctx.measureText(`${ellipsisLine}…`).width > maxWidth) {
+      ellipsisLine = ellipsisLine.slice(0, -1)
+    }
+    lines[maxLines - 1] = `${ellipsisLine.trim()}…`
+  }
+
+  lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight))
+  return y + lines.length * lineHeight
 }
 
 function drawContainImage(
