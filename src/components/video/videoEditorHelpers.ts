@@ -98,9 +98,10 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const padding = Math.round(options.width * 0.05)
   const radius = Math.round(cardHeight * 0.08)
   const avatarSize = Math.min(Math.round(cardHeight * 0.46), Math.round(options.width * 0.16))
-  const logoBoxSize = Math.min(Math.round(cardHeight * 0.42), Math.round(options.width * 0.18))
-  const logoPadding = Math.round(logoBoxSize * 0.16)
-  const logoSize = logoBoxSize - logoPadding * 2
+  const logoBoxWidth = Math.min(Math.round(cardHeight * 0.50), Math.round(options.width * 0.20))
+  const logoBoxHeight = Math.min(Math.round(cardHeight * 0.72), Math.round(options.width * 0.24))
+  const logoPadding = Math.round(Math.min(logoBoxWidth, logoBoxHeight) * 0.16)
+  const logoSize = Math.min(logoBoxWidth, logoBoxHeight) - logoPadding * 2
   const gap = Math.round(options.width * 0.035)
 
   ctx.clearRect(0, 0, options.width, options.height)
@@ -137,19 +138,19 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   }
 
   const logoUrl = options.logoUrl || ''
-  const logoX = options.width - padding - logoBoxSize
-  const logoY = y + Math.round(cardHeight * 0.12)
+  const logoX = options.width - padding - logoBoxWidth
+  const logoY = y + Math.round(cardHeight * 0.10)
   if (logoUrl) {
     try {
       const logo = await loadImage(logoUrl)
       ctx.save()
       ctx.fillStyle = 'rgba(255, 255, 255, 0.18)'
-      roundRect(ctx, logoX, logoY, logoBoxSize, logoBoxSize, Math.round(logoBoxSize * 0.18))
+      roundRect(ctx, logoX, logoY, logoBoxWidth, logoBoxHeight, Math.round(Math.min(logoBoxWidth, logoBoxHeight) * 0.18))
       ctx.fill()
       ctx.fillStyle = 'rgba(255, 255, 255, 0.92)'
-      roundRect(ctx, logoX + logoPadding / 2, logoY + logoPadding / 2, logoBoxSize - logoPadding, logoBoxSize - logoPadding, Math.round(logoBoxSize * 0.16))
+      roundRect(ctx, logoX + logoPadding / 2, logoY + logoPadding / 2, logoBoxWidth - logoPadding, logoBoxHeight - logoPadding, Math.round(Math.min(logoBoxWidth, logoBoxHeight) * 0.16))
       ctx.fill()
-      drawContainImage(ctx, logo, logoX + logoPadding, logoY + logoPadding, logoSize, logoSize, 0)
+      drawContainImage(ctx, logo, logoX + logoPadding, logoY + logoPadding, logoBoxWidth - logoPadding, logoBoxHeight - logoPadding, 0)
       ctx.restore()
     } catch {
     }
