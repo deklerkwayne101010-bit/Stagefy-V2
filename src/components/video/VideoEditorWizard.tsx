@@ -49,6 +49,9 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
   const [muteAudio, setMuteAudio] = useState(true)
   const [headline, setHeadline] = useState('Let’s find your next home')
   const [cta, setCta] = useState('Call or WhatsApp me today')
+  const [propertyPrice, setPropertyPrice] = useState('')
+  const [bedrooms, setBedrooms] = useState('')
+  const [bathrooms, setBathrooms] = useState('')
   const [callingCardColor, setCallingCardColor] = useState('#0f172a')
   const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -333,6 +336,9 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
           headline,
           cta,
           backgroundColor: normalizedCallingCardColor,
+          propertyPrice,
+          bedrooms,
+          bathrooms,
           agentName: agentProfile?.name_surname || user?.full_name || 'Real Estate Agent',
           phone: agentProfile?.phone || '',
           email: agentProfile?.email || '',
@@ -583,6 +589,11 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
                 <>
                   <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} />
                   <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} />
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" />
+                    <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" />
+                    <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Calling card colour</label>
                     <div className="flex gap-2">
@@ -612,18 +623,23 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
 
               <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4">
                 <div className="relative aspect-[9/16] overflow-hidden rounded-xl bg-slate-800">
-                  <div className="absolute inset-x-0 bottom-0 min-h-[26%] p-4 text-white" style={{ background: `linear-gradient(to top, ${normalizedCallingCardColor}, rgba(15, 23, 42, 0.92))` }}>
+                  <div className="absolute inset-x-0 bottom-0 min-h-[22%] p-3 text-white" style={{ background: `linear-gradient(to top, ${normalizedCallingCardColor}, rgba(15, 23, 42, 0.92))` }}>
                     <div className="relative z-10 flex h-full items-end gap-4 pr-32">
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-2 text-base font-extrabold leading-tight text-white">{headline || 'Real Estate Agent'}</p>
                         <p className="mt-1 truncate text-xs font-semibold text-slate-100">{agentDisplayName}</p>
+                        {propertyPrice || bedrooms || bathrooms ? (
+                          <p className="mt-1 truncate text-[11px] text-slate-200">
+                            {[propertyPrice ? `Price: ${propertyPrice}` : '', bedrooms ? `${bedrooms} bed${bedrooms === '1' ? '' : 's'}` : '', bathrooms ? `${bathrooms} bath${bathrooms === '1' ? '' : 's'}` : ''].filter(Boolean).join(' • ')}
+                          </p>
+                        ) : null}
                         {agentDetails && <p className="mt-1 truncate text-[11px] text-slate-200">{agentDetails}</p>}
                         <p className="mt-1.5 truncate text-xs font-extrabold uppercase tracking-wide text-blue-100">{cta}</p>
                       </div>
                     </div>
                     {agentProfile?.logo_url && (
                       <div
-                        className="absolute right-4 top-4 h-24 w-24 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
+                        className="absolute right-4 top-4 h-20 w-20 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
                         style={{ backgroundImage: `url(${agentProfile.logo_url})` } as React.CSSProperties}
                       />
                     )}

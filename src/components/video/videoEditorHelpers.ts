@@ -28,11 +28,14 @@ export interface CallingCardOptions {
   enabled: boolean
   headline: string
   cta: string
+  backgroundColor: string
+  propertyPrice: string
+  bedrooms: string
+  bathrooms: string
   agentName: string
   phone: string
   email: string
   agency: string
-  backgroundColor: string
   photoUrl?: string | null
   logoUrl?: string | null
   width: number
@@ -90,12 +93,12 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
 
-  const cardHeight = Math.round(options.height * 0.26)
+  const cardHeight = Math.round(options.height * 0.22)
   const y = options.height - cardHeight
   const padding = Math.round(options.width * 0.05)
   const radius = Math.round(cardHeight * 0.08)
-  const avatarSize = Math.min(Math.round(cardHeight * 0.50), Math.round(options.width * 0.18))
-  const logoBoxSize = Math.min(Math.round(cardHeight * 0.32), Math.round(options.width * 0.13))
+  const avatarSize = Math.min(Math.round(cardHeight * 0.46), Math.round(options.width * 0.16))
+  const logoBoxSize = Math.min(Math.round(cardHeight * 0.28), Math.round(options.width * 0.12))
   const logoPadding = Math.round(logoBoxSize * 0.16)
   const logoSize = logoBoxSize - logoPadding * 2
   const gap = Math.round(options.width * 0.035)
@@ -155,12 +158,12 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const textX = padding + avatarSize + gap
   const textRight = logoUrl ? logoX - gap : options.width - padding
   const maxWidth = Math.max(120, textRight - textX)
-  const textTop = y + Math.round(cardHeight * 0.12)
-  const textBottom = y + cardHeight - Math.round(cardHeight * 0.12)
-  const headlineFontSize = Math.round(clamp(options.width * 0.04, 20, 32))
-  const nameFontSize = Math.round(clamp(options.width * 0.026, 12, 18))
-  const detailsFontSize = Math.round(clamp(options.width * 0.024, 12, 18))
-  const ctaFontSize = Math.round(clamp(options.width * 0.028, 14, 20))
+  const textTop = y + Math.round(cardHeight * 0.10)
+  const textBottom = y + cardHeight - Math.round(cardHeight * 0.10)
+  const headlineFontSize = Math.round(clamp(options.width * 0.038, 20, 30))
+  const nameFontSize = Math.round(clamp(options.width * 0.024, 12, 17))
+  const detailsFontSize = Math.round(clamp(options.width * 0.023, 12, 17))
+  const ctaFontSize = Math.round(clamp(options.width * 0.026, 14, 19))
   const headlineLineHeight = Math.round(headlineFontSize * 1.08)
   const nameLineHeight = Math.round(nameFontSize * 1.25)
   const detailsLineHeight = Math.round(detailsFontSize * 1.25)
@@ -175,6 +178,17 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   ctx.fillStyle = 'rgba(255, 255, 255, 0.94)'
   ctx.font = `700 ${nameFontSize}px Arial, sans-serif`
   nextTextY = wrapText(ctx, options.agentName, textX, nextTextY + Math.round(cardHeight * 0.025), maxWidth, nameLineHeight, 1)
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+  ctx.font = `600 ${detailsFontSize}px Arial, sans-serif`
+  const propertyDetails = [
+    options.propertyPrice ? `Price: ${options.propertyPrice}` : '',
+    options.bedrooms ? `${options.bedrooms} bed${options.bedrooms === '1' ? '' : 's'}` : '',
+    options.bathrooms ? `${options.bathrooms} bath${options.bathrooms === '1' ? '' : 's'}` : '',
+  ].filter(Boolean).join(' • ')
+  if (propertyDetails) {
+    nextTextY = wrapText(ctx, propertyDetails, textX, nextTextY + Math.round(cardHeight * 0.025), maxWidth, detailsLineHeight, 1)
+  }
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.86)'
   ctx.font = `600 ${detailsFontSize}px Arial, sans-serif`
