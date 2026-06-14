@@ -31,6 +31,11 @@ const navigation = [
   {
     name: 'Image to Video',
     href: '/image-to-video',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zm0 4h10M7 12h10M9 4v16m6-16v16" />
+      </svg>
+    ),
   },
   {
     name: 'Video Editor',
