@@ -98,8 +98,8 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
   const padding = Math.round(options.width * 0.05)
   const radius = Math.round(cardHeight * 0.08)
   const avatarSize = Math.min(Math.round(cardHeight * 0.46), Math.round(options.width * 0.16))
-  const logoBoxWidth = Math.min(Math.round(cardHeight * 0.78), Math.round(options.width * 0.28))
-  const logoBoxHeight = Math.min(Math.round(cardHeight * 0.62), Math.round(options.width * 0.18))
+  const logoBoxWidth = Math.min(Math.round(cardHeight * 0.95), Math.round(options.width * 0.35))
+  const logoBoxHeight = Math.min(Math.round(cardHeight * 0.62), Math.round(options.width * 0.22))
   const logoPadding = Math.round(Math.min(logoBoxWidth, logoBoxHeight) * 0.14)
   const logoSize = Math.min(logoBoxWidth, logoBoxHeight) - logoPadding * 2
   const gap = Math.round(options.width * 0.035)
