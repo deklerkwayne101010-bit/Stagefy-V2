@@ -187,7 +187,7 @@ export async function generateCallingCardPng(options: CallingCardOptions): Promi
     options.bathrooms ? `${options.bathrooms} bath${options.bathrooms === '1' ? '' : 's'}` : '',
   ].filter(Boolean).join(' • ')
   if (propertyDetails) {
-    nextTextY = wrapText(ctx, propertyDetails, textX, nextTextY + Math.round(cardHeight * 0.025), maxWidth, detailsLineHeight, 1)
+    nextTextY = wrapText(ctx, `Property details: ${propertyDetails}`, textX, nextTextY + Math.round(cardHeight * 0.025), maxWidth, detailsLineHeight, 1)
   }
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.86)'

@@ -585,15 +585,19 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
                 <span className="font-medium text-slate-900">Add bottom calling card</span>
               </label>
 
+              <div>
+                <p className="text-sm font-medium text-slate-900 mb-3">Property details</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" />
+                  <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" />
+                  <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" />
+                </div>
+              </div>
+
               {callingCardEnabled && (
                 <>
                   <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} />
                   <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} />
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" />
-                    <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" />
-                    <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Calling card colour</label>
                     <div className="flex gap-2">
@@ -629,8 +633,8 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
                         <p className="line-clamp-2 text-base font-extrabold leading-tight text-white">{headline || 'Real Estate Agent'}</p>
                         <p className="mt-1 truncate text-xs font-semibold text-slate-100">{agentDisplayName}</p>
                         {propertyPrice || bedrooms || bathrooms ? (
-                          <p className="mt-1 truncate text-[11px] text-slate-200">
-                            {[propertyPrice ? `Price: ${propertyPrice}` : '', bedrooms ? `${bedrooms} bed${bedrooms === '1' ? '' : 's'}` : '', bathrooms ? `${bathrooms} bath${bathrooms === '1' ? '' : 's'}` : ''].filter(Boolean).join(' • ')}
+                          <p className="mt-1 truncate text-xs font-semibold text-blue-100">
+                            {['Property details:', propertyPrice ? `Price: ${propertyPrice}` : '', bedrooms ? `${bedrooms} bed${bedrooms === '1' ? '' : 's'}` : '', bathrooms ? `${bathrooms} bath${bathrooms === '1' ? '' : 's'}` : ''].filter(Boolean).join(' ')}
                           </p>
                         ) : null}
                         {agentDetails && <p className="mt-1 truncate text-[11px] text-slate-200">{agentDetails}</p>}
