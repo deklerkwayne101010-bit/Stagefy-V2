@@ -643,7 +643,7 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
                     </div>
                     {agentProfile?.logo_url && (
                       <div
-                        className="absolute right-4 top-4 h-36 w-24 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
+                        className="absolute right-4 top-4 h-44 w-28 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
                         style={{ backgroundImage: `url(${agentProfile.logo_url})` } as React.CSSProperties}
                       />
                     )}
