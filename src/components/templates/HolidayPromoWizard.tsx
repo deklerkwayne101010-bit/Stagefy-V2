@@ -7,7 +7,7 @@
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { StyleSelector } from './StyleSelector'
-import { buildColorPalettePrompt } from './colorPrompt'
+import { buildColorPalettePrompt, removeExistingColorPaletteInstructions } from './colorPrompt'
 
 interface HolidayPromoWizardProps {
   isOpen: boolean
@@ -426,12 +426,16 @@ export function HolidayPromoWizard({
     if (!selectedHoliday) return ''
 
     let prompt = customPrompt || selectedHoliday.prompt
+    const selectedPalette = selectedColors.filter(color => color.trim())
+
+    if (selectedPalette.length > 0) {
+      prompt = removeExistingColorPaletteInstructions(prompt)
+    }
 
     // Orientation
     prompt += ` The layout should be ${orientation === 'portrait' ? 'a vertical portrait format ideal for Instagram Stories' : orientation === 'landscape' ? 'a horizontal landscape format ideal for Facebook and LinkedIn posts' : 'a square format suitable for all social media platforms'}.`
 
     // Color scheme
-    const selectedPalette = selectedColors.filter(color => color.trim())
     const agencyPalette = agencyBrandColors?.filter(color => color.trim()) || []
     if (selectedPalette.length > 0) {
       prompt += buildColorPalettePrompt(selectedPalette, 'selected color palette')

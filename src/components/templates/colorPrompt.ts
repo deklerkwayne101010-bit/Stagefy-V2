@@ -9,3 +9,10 @@ export function buildColorPalettePrompt(colors: string[], fallbackLabel = 'Selec
 
   return ` COLOR PALETTE REQUIREMENT: Use exactly this ${fallbackLabel}: ${palette.join(', ')}. Apply ${primary} as the dominant color/background (60%), ${secondary} as the secondary color (30%), and ${accent} as the accent/highlight color (10%) using the 60/30/10 design rule. Do NOT substitute another palette. Use these exact colors for headers, backgrounds, borders, icons, text accents, buttons, cards, and agent branding.`
 }
+
+export function removeExistingColorPaletteInstructions(prompt: string): string {
+  return prompt
+    .replace(/\bUse [^.]*?(?:colour|color) palette[^.]*\./gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
