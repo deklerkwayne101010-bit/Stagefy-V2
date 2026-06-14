@@ -1,12 +1,14 @@
 // Admin Dashboard
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
+import { useAuth } from '@/lib/auth-context'
+import { uploadImage } from '@/lib/supabase'
 
 interface ShopProduct {
   id: string
@@ -253,10 +255,15 @@ function OrdersTab() {
 }
 
 export default function AdminPage() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'usage' | 'orders' | 'products'>('overview')
   const [products, setProducts] = useState<ShopProduct[]>([])
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null)
+  const productImageInputRef = useRef<HTMLInputElement>(null)
+  const [productImageFile, setProductImageFile] = useState<File | null>(null)
+  const [productImagePreview, setProductImagePreview] = useState<string | null>(null)
+  const [isUploadingProductImage, setIsUploadingProductImage] = useState(false)
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
@@ -334,6 +341,22 @@ export default function AdminPage() {
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.fullName.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const handleProductImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setProductImageFile(file)
+    setProductImagePreview(URL.createObjectURL(file))
+  }
+
+  const clearProductImage = () => {
+    setProductImageFile(null)
+    setProductImagePreview(null)
+    if (productImageInputRef.current) {
+      productImageInputRef.current.value = ''
+    }
+  }
 
   // Stats for overview
   const stats = totals ? [
@@ -845,10 +868,48 @@ export default function AdminPage() {
                   {/* Image */}
                   <div>
                     <h3 className="font-medium text-gray-900 mb-3 pb-2 border-b">Product Image</h3>
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Image URL</label>
-                      <Input placeholder="https://example.com/image.jpg" value={newProduct.image_url} onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})} />
-                      <p className="text-xs text-gray-500 mt-1">Paste a URL to an image (from Supabase Storage, Google Drive, etc.)</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Image URL</label>
+                        <Input placeholder="https://example.com/image.jpg" value={newProduct.image_url} onChange={(e) => setNewProduct({...newProduct, image_url: e.target.value})} />
+                        <p className="text-xs text-gray-500 mt-1">Paste a URL to an image, or upload one directly below.</p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                        <input
+                          ref={productImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProductImageSelect}
+                          className="hidden"
+                        />
+                        <Button type="button" variant="outline" onClick={() => productImageInputRef.current?.click()} disabled={isUploadingProductImage}>
+                          {productImageFile ? 'Change Image' : 'Upload Image'}
+                        </Button>
+                        {productImageFile && (
+                          <span className="text-sm text-gray-600">{productImageFile.name}</span>
+                        )}
+                        {(productImageFile || productImagePreview) && (
+                          <button
+                            type="button"
+                            onClick={clearProductImage}
+                            className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                            disabled={isUploadingProductImage}
+                          >
+                            Remove uploaded image
+                          </button>
+                        )}
+                      </div>
+
+                      {(productImagePreview || newProduct.image_url) && (
+                        <div className="relative w-full max-w-xs overflow-hidden rounded-lg border bg-gray-50">
+                          <img
+                            src={productImagePreview || newProduct.image_url || ''}
+                            alt="Product preview"
+                            className="h-48 w-full object-contain"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -861,10 +922,20 @@ export default function AdminPage() {
                         alert('Please login')
                         return
                       }
+
+                      let imageUrl = newProduct.image_url
+                      if (productImageFile && user?.id) {
+                        setIsUploadingProductImage(true)
+                        const uploadResult = await uploadImage(productImageFile, user.id)
+                        if (uploadResult.error || !uploadResult.data) {
+                          throw new Error(uploadResult.error?.message || 'Failed to upload product image')
+                        }
+                        imageUrl = uploadResult.data.url
+                      }
                       
                       const url = editingProduct ? '/api/shop/products' : '/api/shop/products'
                       const method = editingProduct ? 'PUT' : 'POST'
-                      const payload = editingProduct ? { id: editingProduct.id, ...newProduct } : newProduct
+                      const payload = editingProduct ? { id: editingProduct.id, ...newProduct, image_url: imageUrl } : { ...newProduct, image_url: imageUrl }
                       
                       console.log('Saving product:', payload)
                       
@@ -882,6 +953,9 @@ export default function AdminPage() {
                         setShowAddProduct(false)
                         setEditingProduct(null)
                         setNewProduct({ name: '', description: '', price: 0, sale_price: 0, category: 'other', status: 'active', image_url: '', color: '', size: '', sku: '', stock_quantity: 0, brand: '', weight: '' })
+                        setProductImageFile(null)
+                        setProductImagePreview(null)
+                        if (productImageInputRef.current) productImageInputRef.current.value = ''
                         // Refresh products
                         const res = await fetch('/api/shop/products')
                         const data = await res.json()
@@ -892,6 +966,8 @@ export default function AdminPage() {
                     } catch (e: any) { 
                       console.error(e)
                       alert('Error: ' + (e?.message || 'Unknown error'))
+                    } finally {
+                      setIsUploadingProductImage(false)
                     }
                   }}>
                     {editingProduct ? 'Update' : 'Add'}
@@ -924,20 +1000,22 @@ export default function AdminPage() {
                           <Button variant="outline" size="sm" onClick={() => {
                             setEditingProduct(p)
                             setNewProduct({ 
-                              name: p.name || '', 
-                              description: p.description || '', 
-                              price: p.price || 0, 
-                              sale_price: p.sale_price || 0, 
-                              category: p.category || 'other', 
-                              status: p.status || 'active', 
+                              name: p.name,
+                              description: p.description,
+                              price: p.price,
+                              sale_price: p.sale_price || 0,
+                              category: p.category,
+                              status: p.status,
                               image_url: p.image_url || '',
-                              color: (p as any).color || '',
-                              size: (p as any).size || '',
-                              sku: (p as any).sku || '',
-                              stock_quantity: (p as any).stock_quantity || 0,
-                              brand: (p as any).brand || '',
-                              weight: (p as any).weight || ''
+                              color: p.color || '',
+                              size: p.size || '',
+                              sku: p.sku || '',
+                              stock_quantity: p.stock_quantity || 0,
+                              brand: p.brand || '',
+                              weight: p.weight || ''
                             })
+                            setProductImageFile(null)
+                            setProductImagePreview(p.image_url || null)
                             setShowAddProduct(true)
                           }}>Edit</Button>
                           <Button variant="outline" size="sm" onClick={async () => {
