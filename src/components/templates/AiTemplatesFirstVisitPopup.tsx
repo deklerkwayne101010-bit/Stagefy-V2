@@ -42,7 +42,7 @@ export function AiTemplatesFirstVisitPopup({ isOpen, onClose, onDontShowAgain, o
               Welcome to AI Templates!
             </h3>
             <p className="text-gray-600 text-sm">
-              Create stunning marketing materials powered by Google Nano Banana Pro AI
+              Create stunning marketing materials with AI
             </p>
           </div>
 
@@ -62,7 +62,7 @@ export function AiTemplatesFirstVisitPopup({ isOpen, onClose, onDontShowAgain, o
               className="w-4 h-4 text-blue-600 rounded mt-0.5"
             />
             <label htmlFor="dontShowAgain" className="text-sm text-gray-600 cursor-pointer">
-              Don't show this again
+              Don&apos;t show this again
             </label>
           </div>
 
