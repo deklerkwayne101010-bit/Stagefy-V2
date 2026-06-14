@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StyleSelector } from './StyleSelector'
+import { buildColorPalettePrompt } from './colorPrompt'
 
 interface AgentShowcaseWizardProps {
   isOpen: boolean
@@ -146,8 +147,12 @@ export function AgentShowcaseWizard({
     }
 
     // Add color scheme info
-    if (colorScheme === 'agency' && agencyBrandColors) {
-      prompt += ` Use these brand colors: ${agencyBrandColors.join(', ')}`
+    const selectedPalette = selectedColors.filter(color => color.trim())
+    const agencyPalette = agencyBrandColors?.filter(color => color.trim()) || []
+    if (selectedPalette.length > 0) {
+      prompt += buildColorPalettePrompt(selectedPalette, 'selected color palette')
+    } else if (agencyPalette.length > 0) {
+      prompt += buildColorPalettePrompt(agencyPalette, 'agency brand colors')
     }
 
     // Add to prompt
@@ -401,7 +406,7 @@ export function AgentShowcaseWizard({
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          "{tagline}"
+                          &quot;{tagline}&quot;
                         </button>
                       ))}
                     </div>
@@ -447,7 +452,7 @@ export function AgentShowcaseWizard({
                 </div>
 
                 <p className="text-sm text-gray-500 mt-4 text-center">
-                  Click "Generate" to create your agent showcase template
+                  Click &quot;Generate&quot; to create your agent showcase template
                 </p>
               </div>
             )}

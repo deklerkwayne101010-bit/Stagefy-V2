@@ -7,6 +7,7 @@
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { StyleSelector } from './StyleSelector'
+import { buildColorPalettePrompt } from './colorPrompt'
 
 interface HolidayPromoWizardProps {
   isOpen: boolean
@@ -430,18 +431,16 @@ export function HolidayPromoWizard({
     prompt += ` The layout should be ${orientation === 'portrait' ? 'a vertical portrait format ideal for Instagram Stories' : orientation === 'landscape' ? 'a horizontal landscape format ideal for Facebook and LinkedIn posts' : 'a square format suitable for all social media platforms'}.`
 
     // Color scheme
-    if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
-      // RE/MAX brand colors - use 60/30/10 rule
-      const remaxColors = ['#000000', '#00102e', '#ff1300']
-      const shuffled = [...remaxColors].sort(() => Math.random() - 0.5)
-      const mainColor = shuffled[0]
-      const secondaryColor = shuffled[1]
-      const accentColor = shuffled[2]
-      prompt += ` Use ${mainColor} as the dominant color (60%), ${secondaryColor} as secondary (30%), and ${accentColor} as accent (10%) following the 60/30/10 design rule. Brand colors: ${remaxColors.join(', ')}.`
+    const selectedPalette = selectedColors.filter(color => color.trim())
+    const agencyPalette = agencyBrandColors?.filter(color => color.trim()) || []
+    if (selectedPalette.length > 0) {
+      prompt += buildColorPalettePrompt(selectedPalette, 'selected color palette')
+    } else if (colorScheme === 'agency' && agencyPalette.length > 0) {
+      prompt += buildColorPalettePrompt(agencyPalette, 'agency brand colors')
     } else if (colorScheme !== 'holiday-default') {
       const scheme = colorSchemes.find(c => c.id === colorScheme)
       if (scheme?.colors) {
-        prompt += ` Use this colour palette: ${scheme.colors.join(', ')}.`
+        prompt += buildColorPalettePrompt(scheme.colors, scheme.label)
       }
     }
 
