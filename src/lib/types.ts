@@ -257,10 +257,10 @@ export interface AIJob {
 
 export const CREDIT_COSTS = {
   photo_edit: 1,
-  image_to_video_3sec: 3,
-  image_to_video_5sec: 5,
-  image_to_video_10sec: 10,
-  image_to_video_15sec: 15,
+  image_to_video_3sec: 5,
+  image_to_video_5sec: 9,
+  image_to_video_10sec: 17,
+  image_to_video_15sec: 25,
   template_generation: 5,
   description_generation: 1,
   prompt_generation: 3,
