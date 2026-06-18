@@ -49,21 +49,24 @@ export default function ImageToVideoPage() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    
-    for (const file of files) {
-      // Show local preview immediately
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setSelectedImages(prev => [...prev, event.target?.result as string])
-      }
-      reader.readAsDataURL(file)
-      
-      // Upload to Supabase if user is logged in
-      if (user?.id) {
-        const { data, error } = await uploadImage(file, user.id)
-        if (!error && data) {
-          setSelectedImageUrls(prev => [...prev, data.url])
-        }
+    const file = files[0]
+    if (!file) return
+
+    if (mode === 'single') {
+      setSelectedImages([])
+      setSelectedImageUrls([])
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setSelectedImages(prev => [...prev, event.target?.result as string])
+    }
+    reader.readAsDataURL(file)
+
+    if (user?.id) {
+      const { data, error } = await uploadImage(file, user.id)
+      if (!error && data) {
+        setSelectedImageUrls(prev => [...prev, data.url])
       }
     }
   }
