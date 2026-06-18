@@ -13,17 +13,14 @@ import { canPerformAction, checkUserCredits } from '@/lib/credits'
 import { uploadImage } from '@/lib/supabase'
 
 const videoDurations = [
-  { value: '3', label: '3 seconds', credits: 3, description: 'Quick social media clip' },
-  { value: '5', label: '5 seconds', credits: 5, description: 'Standard listing preview' },
-  { value: '10', label: '10 seconds', credits: 10, description: 'Full property walkthrough' },
-  { value: '15', label: '15 seconds', credits: 15, description: 'Extended property showcase' },
+  { value: '3', label: '3 seconds', description: 'Quick social media clip' },
+  { value: '5', label: '5 seconds', description: 'Standard listing preview' },
+  { value: '10', label: '10 seconds', description: 'Full property walkthrough' },
+  { value: '15', label: '15 seconds', description: 'Extended property showcase' },
 ]
 
-const CREDIT_COSTS = {
-  '3': 3,
-  '5': 5,
-  '10': 10,
-  '15': 15,
+function calculateCredits(seconds: number): number {
+  return Math.ceil(seconds * (5 / 3))
 }
 
 export default function ImageToVideoPage() {
@@ -102,7 +99,7 @@ export default function ImageToVideoPage() {
     setSelectedImageUrls(prev => prev.filter((_, i) => i !== index))
   }
 
-  const creditCost = CREDIT_COSTS[duration as keyof typeof CREDIT_COSTS] || 8
+  const creditCost = calculateCredits(parseInt(duration))
 
   const handleSubmit = async () => {
     if (mode === 'frames' && selectedImages.length < 2) {
