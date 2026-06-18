@@ -383,7 +383,7 @@ export default function ImageToVideoPage() {
                   label="Video Duration"
                   value={duration}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDuration(e.target.value)}
-                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${d.credits} credits` }))}
+                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${calculateCredits(parseInt(d.value))} credits` }))}
                 />
                 
                 <div className="p-4 rounded-lg bg-blue-50">
