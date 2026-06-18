@@ -168,10 +168,6 @@ export async function POST(request: Request) {
       }
 
       const signed = await createReplicateSignedUploadUrl(userIdStr)
-      const replicateOutputConfig = {
-        format: 'mp4',
-        upload_url: signed.signedUrl,
-      } as const
 
       let prediction
       if (mode === 'frames') {
@@ -197,7 +193,10 @@ export async function POST(request: Request) {
               start_image: startImage,
               end_image: endImage,
             },
-            output: replicateOutputConfig,
+            output: {
+              format: 'mp4',
+              upload_url: signed.signedUrl,
+            },
           }),
         })
 
@@ -223,7 +222,6 @@ export async function POST(request: Request) {
               resolution: '720p',
               mode: 'normal',
             },
-            output: replicateOutputConfig,
           }),
         })
 
