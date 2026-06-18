@@ -9,7 +9,6 @@ export function calculateImageToVideoCredits(seconds: number): number {
 
 export { CREDIT_COSTS }
 export type { CreditOperation }
-export { calculateImageToVideoCredits }
 
 // Get the appropriate Supabase client (prefer admin for credit operations)
 function getCreditClient() {
