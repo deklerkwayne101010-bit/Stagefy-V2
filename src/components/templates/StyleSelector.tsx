@@ -32,6 +32,10 @@ export const colorSchemes: { name: string; colors: string[] }[] = [
   { name: 'Warm Orange', colors: ['#c2410c', '#ea580c', '#fb923c'] },
   { name: 'Classic Black', colors: ['#000000', '#1f2937', '#4b5563'] },
   { name: 'Soft Pink', colors: ['#9f1239', '#e11d48', '#f43f5e'] },
+  { name: 'RE/MAX Classic Red', colors: ['#ff1200', '#0043ff', '#f7f5ee'] },
+  { name: 'RE/MAX Deep Blue', colors: ['#0043ff', '#000e35', '#A3D4F2'] },
+  { name: 'RE/MAX Bold Red', colors: ['#aa1120', '#660000', '#f7f5ee'] },
+  { name: 'RE/MAX Navy', colors: ['#000e35', '#0043ff', '#FFFFFF'] },
 ]
 
 const STORAGE_KEY = 'stagefy_custom_colors'
