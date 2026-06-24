@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StyleSelector } from './StyleSelector'
+import { buildColorPalettePrompt } from './colorPrompt'
 
 type InfographicType =
   | 'market-stats'
@@ -373,22 +374,16 @@ export function InfographicWizard({
       prompt += `Populate the infographic with real, up-to-date statistics and information you find. `
 
       // Style
-      if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
-        // RE/MAX brand colors - use 60/30/10 rule
-        const remaxColors = ['#000000', '#00102e', '#ff1300']
-        const shuffled = [...remaxColors].sort(() => Math.random() - 0.5)
-        const mainColor = shuffled[0]
-        const secondaryColor = shuffled[1]
-        const accentColor = shuffled[2]
-        prompt += `Color palette: Use ${mainColor} as dominant (60%), ${secondaryColor} as secondary (30%), ${accentColor} as accent (10%) following 60/30/10 design rule. Brand colors: ${remaxColors.join(', ')}. `
+      const agencyPalette = agencyBrandColors?.filter(color => color.trim()) || []
+      const selectedPalette = selectedColors.filter(color => color.trim())
+      if (selectedPalette.length > 0) {
+        prompt += buildColorPalettePrompt(selectedPalette, 'selected color palette')
+      } else if (colorScheme === 'agency' && agencyPalette.length > 0) {
+        prompt += buildColorPalettePrompt(agencyPalette, 'agency brand colors')
       } else {
         const scheme = colorSchemes.find(c => c.id === colorScheme)
-        if (scheme) {
-          if ('colors' in scheme && scheme.colors) {
-            prompt += `Color palette: ${(scheme.colors as string[]).join(', ')}. Style: ${scheme.label}. `
-          } else {
-            prompt += `Style: ${scheme.label}. `
-          }
+        if (scheme && 'colors' in scheme && scheme.colors) {
+          prompt += buildColorPalettePrompt(scheme.colors as string[], scheme.label)
         }
       }
       prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. Font family: ${fontFamily}. Include icons: ${includeIcons ? 'yes' : 'no'}. `
@@ -510,22 +505,16 @@ export function InfographicWizard({
     }
 
     // Style
-    if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
-      // RE/MAX brand colors - use 60/30/10 rule
-      const remaxColors = ['#000000', '#00102e', '#ff1300']
-      const shuffled = [...remaxColors].sort(() => Math.random() - 0.5)
-      const mainColor = shuffled[0]
-      const secondaryColor = shuffled[1]
-      const accentColor = shuffled[2]
-      prompt += `Color palette: Use ${mainColor} as dominant (60%), ${secondaryColor} as secondary (30%), ${accentColor} as accent (10%) following 60/30/10 design rule. Brand colors: ${remaxColors.join(', ')}. `
+    const agencyPalette = agencyBrandColors?.filter(color => color.trim()) || []
+    const selectedPalette = selectedColors.filter(color => color.trim())
+    if (selectedPalette.length > 0) {
+      prompt += buildColorPalettePrompt(selectedPalette, 'selected color palette')
+    } else if (colorScheme === 'agency' && agencyPalette.length > 0) {
+      prompt += buildColorPalettePrompt(agencyPalette, 'agency brand colors')
     } else {
       const scheme = colorSchemes.find(c => c.id === colorScheme)
-      if (scheme) {
-        if ('colors' in scheme && scheme.colors) {
-          prompt += `Color palette: ${(scheme.colors as string[]).join(', ')}. Style: ${scheme.label}. `
-        } else {
-          prompt += `Style: ${scheme.label}. `
-        }
+      if (scheme && 'colors' in scheme && scheme.colors) {
+        prompt += buildColorPalettePrompt(scheme.colors as string[], scheme.label)
       }
     }
     prompt += `Orientation: ${orientation}. Visual style: ${visualStyle}. Font family: ${fontFamily}. Include icons: ${includeIcons ? 'yes' : 'no'}. `

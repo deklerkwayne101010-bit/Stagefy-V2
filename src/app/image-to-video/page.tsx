@@ -13,17 +13,14 @@ import { canPerformAction, checkUserCredits } from '@/lib/credits'
 import { uploadImage } from '@/lib/supabase'
 
 const videoDurations = [
-  { value: '3', label: '3 seconds', credits: 3, description: 'Quick social media clip' },
-  { value: '5', label: '5 seconds', credits: 5, description: 'Standard listing preview' },
-  { value: '10', label: '10 seconds', credits: 10, description: 'Full property walkthrough' },
-  { value: '15', label: '15 seconds', credits: 15, description: 'Extended property showcase' },
+  { value: '3', label: '3 seconds', description: 'Quick social media clip' },
+  { value: '5', label: '5 seconds', description: 'Standard listing preview' },
+  { value: '10', label: '10 seconds', description: 'Full property walkthrough' },
+  { value: '15', label: '15 seconds', description: 'Extended property showcase' },
 ]
 
-const CREDIT_COSTS = {
-  '3': 3,
-  '5': 5,
-  '10': 10,
-  '15': 15,
+function calculateCredits(seconds: number): number {
+  return Math.ceil(seconds * (5 / 3))
 }
 
 export default function ImageToVideoPage() {
@@ -52,21 +49,24 @@ export default function ImageToVideoPage() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    
-    for (const file of files) {
-      // Show local preview immediately
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setSelectedImages(prev => [...prev, event.target?.result as string])
-      }
-      reader.readAsDataURL(file)
-      
-      // Upload to Supabase if user is logged in
-      if (user?.id) {
-        const { data, error } = await uploadImage(file, user.id)
-        if (!error && data) {
-          setSelectedImageUrls(prev => [...prev, data.url])
-        }
+    const file = files[0]
+    if (!file) return
+
+    if (mode === 'single') {
+      setSelectedImages([])
+      setSelectedImageUrls([])
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setSelectedImages(prev => [...prev, event.target?.result as string])
+    }
+    reader.readAsDataURL(file)
+
+    if (user?.id) {
+      const { data, error } = await uploadImage(file, user.id)
+      if (!error && data) {
+        setSelectedImageUrls(prev => [...prev, data.url])
       }
     }
   }
@@ -102,7 +102,7 @@ export default function ImageToVideoPage() {
     setSelectedImageUrls(prev => prev.filter((_, i) => i !== index))
   }
 
-  const creditCost = CREDIT_COSTS[duration as keyof typeof CREDIT_COSTS] || 8
+  const creditCost = calculateCredits(parseInt(duration))
 
   const handleSubmit = async () => {
     if (mode === 'frames' && selectedImages.length < 2) {
@@ -386,7 +386,7 @@ export default function ImageToVideoPage() {
                   label="Video Duration"
                   value={duration}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDuration(e.target.value)}
-                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${d.credits} credits` }))}
+                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${calculateCredits(parseInt(d.value))} credits` }))}
                 />
                 
                 <div className="p-4 rounded-lg bg-blue-50">

@@ -78,8 +78,8 @@ export default function MediaPage() {
                 <Link href="/photo-edit">
                   <Button>Create Photo</Button>
                 </Link>
-                <Link href="/image-to-video">
-                  <Button variant="outline">Create Video</Button>
+                <Link href="/video-editor">
+                  <Button>Create Video</Button>
                 </Link>
               </div>
             )}

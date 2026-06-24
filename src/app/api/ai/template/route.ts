@@ -65,8 +65,8 @@ export async function POST(request: Request) {
     const templateVersion = version || 'standard'
     const isPro = templateVersion === 'pro'
 
-    // GPT Image 2 quality: standard = low, pro = auto
-    const quality = isPro ? 'auto' : 'low'
+    // GPT Image 2 quality: standard = medium, pro = high
+    const quality = isPro ? 'high' : 'medium'
 
     // Set credit cost based on version
     const creditCost = isPro ? 5 : 3

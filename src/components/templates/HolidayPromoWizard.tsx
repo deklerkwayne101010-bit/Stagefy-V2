@@ -7,6 +7,7 @@
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { StyleSelector } from './StyleSelector'
+import { buildColorPalettePrompt, removeExistingColorPaletteInstructions } from './colorPrompt'
 
 interface HolidayPromoWizardProps {
   isOpen: boolean
@@ -156,6 +157,15 @@ const holidays: Holiday[] = [
     category: 'celebration',
     colors: ['#e91e63', '#f48fb1', '#ffffff', '#fce4ec'],
     prompt: 'Create a heartfelt Mother\'s Day promotional real estate poster. Use a soft pink, white, and gold colour palette. Feature flowers, a nurturing home scene, or elegant feminine design elements. Include a touching message like "Home is where Mum is — find her dream kitchen" or "For the woman who makes a house a home". The design should be elegant and emotional while maintaining professional real estate marketing.',
+  },
+  {
+    id: 'fathers-day',
+    name: "Father's Day",
+    date: 'Third Sunday in June',
+    icon: '👔',
+    category: 'celebration',
+    colors: ['#1e3a8a', '#2563eb', '#f59e0b', '#ffffff'],
+    prompt: 'Create a polished Father\'s Day promotional real estate poster. Use a confident navy, white, and warm gold colour palette. Feature imagery of a dad, family home, or a strong masculine yet warm lifestyle scene. Include a message like "Give Dad the home he deserves" or "This Father\'s Day, celebrate the man who built your home". The design should feel appreciative, professional, and ready for social media.',
   },
   {
     id: 'youth-day',
@@ -416,23 +426,25 @@ export function HolidayPromoWizard({
     if (!selectedHoliday) return ''
 
     let prompt = customPrompt || selectedHoliday.prompt
+    const selectedPalette = selectedColors.filter(color => color.trim())
+
+    if (selectedPalette.length > 0) {
+      prompt = removeExistingColorPaletteInstructions(prompt)
+    }
 
     // Orientation
     prompt += ` The layout should be ${orientation === 'portrait' ? 'a vertical portrait format ideal for Instagram Stories' : orientation === 'landscape' ? 'a horizontal landscape format ideal for Facebook and LinkedIn posts' : 'a square format suitable for all social media platforms'}.`
 
     // Color scheme
-    if (colorScheme === 'agency' && agencyBrandColors && agencyBrandColors.length > 0) {
-      // RE/MAX brand colors - use 60/30/10 rule
-      const remaxColors = ['#000000', '#00102e', '#ff1300']
-      const shuffled = [...remaxColors].sort(() => Math.random() - 0.5)
-      const mainColor = shuffled[0]
-      const secondaryColor = shuffled[1]
-      const accentColor = shuffled[2]
-      prompt += ` Use ${mainColor} as the dominant color (60%), ${secondaryColor} as secondary (30%), and ${accentColor} as accent (10%) following the 60/30/10 design rule. Brand colors: ${remaxColors.join(', ')}.`
+    const agencyPalette = agencyBrandColors?.filter(color => color.trim()) || []
+    if (selectedPalette.length > 0) {
+      prompt += buildColorPalettePrompt(selectedPalette, 'selected color palette')
+    } else if (colorScheme === 'agency' && agencyPalette.length > 0) {
+      prompt += buildColorPalettePrompt(agencyPalette, 'agency brand colors')
     } else if (colorScheme !== 'holiday-default') {
       const scheme = colorSchemes.find(c => c.id === colorScheme)
       if (scheme?.colors) {
-        prompt += ` Use this colour palette: ${scheme.colors.join(', ')}.`
+        prompt += buildColorPalettePrompt(scheme.colors, scheme.label)
       }
     }
 

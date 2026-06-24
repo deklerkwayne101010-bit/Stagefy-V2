@@ -3,6 +3,10 @@ import { supabase, getAdminClient } from './supabase'
 import { CREDIT_COSTS, type CreditOperation, type User } from './types'
 
 // Credit costs per operation (matches database schema)
+export function calculateImageToVideoCredits(seconds: number): number {
+  return Math.ceil(seconds * (5 / 3))
+}
+
 export { CREDIT_COSTS }
 export type { CreditOperation }
 

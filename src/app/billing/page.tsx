@@ -97,7 +97,7 @@ export default function BillingPage() {
     } catch (error) {
       console.error('Failed to fetch billing data:', error)
     }
-  }, [user?.id])
+  }, [refreshUser, user?.id])
 
   useEffect(() => {
     fetchData()
@@ -336,6 +336,13 @@ export default function BillingPage() {
                   <div>
                     <p className="font-medium text-slate-900">Photo Editing</p>
                     <p className="text-sm text-slate-400">Enhance and edit your listing photos</p>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">1 credit</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-medium text-slate-900">Video Editor</p>
+                    <p className="text-sm text-slate-400">Merge short clips with a transition and calling card</p>
                   </div>
                   <span className="text-lg font-bold text-blue-600">1 credit</span>
                 </div>

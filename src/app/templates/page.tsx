@@ -18,6 +18,7 @@ import { LayoutGenerationPopup } from '@/components/templates/LayoutGenerationPo
 import { PromptReviewInterface } from '@/components/templates/PromptReviewInterface'
 import { AgentProfilePopup } from '@/components/templates/AgentProfilePopup'
 import { AiTemplatesFirstVisitPopup } from '@/components/templates/AiTemplatesFirstVisitPopup'
+import { buildColorPalettePrompt } from '@/components/templates/colorPrompt'
 import { TEMPLATE_CATEGORIES, type TemplateCategory } from '@/lib/types'
 
 // Marketplace Templates - Preset templates available to all users
@@ -1405,7 +1406,7 @@ if (type.value === 'professional') {
                       <option value="seeff">Seeff</option>
                       <option value="era">ERA South Africa</option>
                       <option value="harcourts">Harcourts South Africa</option>
-                      <option value="sothebys">Lew Geffen Sotheby's International Realty</option>
+                      <option value="sothebys">Lew Geffen Sotheby&apos;s International Realty</option>
                       <option value="century-21">Century 21 South Africa</option>
                       <option value="rawson">Rawson Properties</option>
                       <option value="chas-everitt">Chas Everitt</option>
@@ -1479,7 +1480,7 @@ if (type.value === 'professional') {
                     </div>
                   </div>
                   <p className="text-sm text-gray-500 mt-4 text-center">
-                    This is how your contact information will appear in templates when "Add Agent Profile" is enabled.
+                    This is how your contact information will appear in templates when &quot;Add Agent Profile&quot; is enabled.
                   </p>
                 </div>
               )}
@@ -1550,19 +1551,23 @@ if (type.value === 'professional') {
           const agencyName = agencyInfo ? agencyInfo.name : 'RE/MAX'
           
           // Use wizard selected colors or fall back to agency brand colors
-          let brandColors: string
-          if (data.selectedColors && data.selectedColors.length > 0) {
-            brandColors = data.selectedColors.join(', ')
-          } else if (agencyInfo) {
-            brandColors = [agencyInfo.primary_color, agencyInfo.secondary_color, agencyInfo.accent_color].filter(Boolean).join(', ')
-          } else {
-            brandColors = '#ff1300 (red), #00102e (navy), #000000 (black)'
-          }
+          const selectedPalette = data.selectedColors?.filter(color => color.trim()) || []
+          const paletteColors = selectedPalette.length > 0
+            ? selectedPalette
+            : agencyInfo
+              ? [agencyInfo.primary_color, agencyInfo.secondary_color, agencyInfo.accent_color].filter(Boolean) as string[]
+              : ['#ff1300', '#00102e', '#000000']
+          const colorPalettePrompt = buildColorPalettePrompt(
+            paletteColors,
+            agencyInfo && selectedPalette.length === 0 ? `${agencyName} brand colors` : 'selected color palette'
+          )
           
           // Build the prompt using the exact format the user provided
           let prompt = `Create a stunning professional real estate marketing flyer with the following specifications:
 
-HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography using brand colors: ${brandColors}.
+${colorPalettePrompt}
+
+HEADER: A bold header banner with "${data.propertyDetails.header || 'New Listing'}" text in modern sans-serif typography using the selected palette colors: ${paletteColors.join(', ')}.
 
 PHOTO LAYOUT: ${layoutSuggestion}. IMPORTANT: Use exactly ${data.photoFrames} photo frame(s) - no more, no less. Each photo frame should have rounded corners, subtle drop shadows, and space for property images. The frames should be arranged in an aesthetically pleasing symmetric grid. Do NOT add any extra photos or random images.
 
@@ -1579,7 +1584,7 @@ PROPERTY INFO SECTION: Display the following property details clearly on the fly
             const totalImages = data.photoFrames + (agentPhoto ? 1 : 0) + (agentLogo ? 1 : 0)
             const agentPhotoIndex = data.photoFrames + 1
             const agentLogoIndex = data.photoFrames + (agentPhoto ? 2 : 1)
-            const cardColor = agencyInfo?.primary_color || '#00102e'
+            const cardColor = paletteColors[0] || '#00102e'
             
             if (data.includeAgent && agentName.trim()) {
               prompt += `AGENT PROFILE SECTION: ${agentPhoto ? `Use the agent photo at image position ${agentPhotoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agent photo provided.'} ${agentLogo ? `Use the agency logo at image position ${agentLogoIndex} exactly ONCE - do NOT duplicate or repeat it.` : 'No agency logo provided.'} Include agent name (${agentName}) in bold, phone number (${agentPhone}), email address (${agentEmail}), and a professional "For more info contact" header. Place this in a contrasting colored card using brand color ${cardColor}. Do NOT use these images in the property photo frames.`

@@ -128,12 +128,16 @@ export function getAdminClient() {
 // Storage bucket name
 const UPLOADS_BUCKET = 'uploads'
 
+type MediaItemType = 'image' | 'video' | 'template'
+
 /**
- * Upload an image to Supabase Storage and save record to database
+ * Upload media to Supabase Storage and save record to database
  */
-export async function uploadImage(
+export async function uploadMedia(
   file: File,
-  userId: string
+  userId: string,
+  type: MediaItemType,
+  title = file.name
 ): Promise<{ data: { id: string; url: string } | null; error: Error | null }> {
   const client = getSupabaseClient()
   if (!client) {
@@ -141,40 +145,37 @@ export async function uploadImage(
   }
 
   try {
-    // Generate unique filename
     const timestamp = Date.now()
     const randomStr = Math.random().toString(36).substring(2, 8)
-    const fileName = `${userId}/${timestamp}-${randomStr}-${file.name}`
+    const safeFolder = type === 'video' ? 'videos' : type === 'template' ? 'templates' : 'images'
+    const fileName = `${userId}/${safeFolder}/${timestamp}-${randomStr}-${file.name}`
 
-    // Upload to storage
-    const { data: uploadData, error: uploadError } = await client.storage
+    const { error: uploadError } = await client.storage
       .from(UPLOADS_BUCKET)
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: false,
+        contentType: file.type || undefined,
       })
 
     if (uploadError) {
-      // Check if bucket doesn't exist
       if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')) {
         throw new Error('Storage bucket "uploads" not found. Please create it in Supabase Dashboard → Storage → New Bucket (name: uploads, make it public)')
       }
       throw uploadError
     }
 
-    // Get public URL
     const { data: { publicUrl } } = client.storage
       .from(UPLOADS_BUCKET)
       .getPublicUrl(fileName)
 
-    // Save to media_items table
     const { data: mediaData, error: dbError } = await (client
       .from('media_items') as any)
       .insert({
         user_id: userId,
-        type: 'image',
+        type,
         url: publicUrl,
-        title: file.name,
+        title,
       })
       .select('id, url')
       .single()
@@ -185,8 +186,18 @@ export async function uploadImage(
 
     return { data: mediaData, error: null }
   } catch (err: any) {
-    return { data: null, error: new Error(err.message || 'Failed to upload image') }
+    return { data: null, error: new Error(err.message || `Failed to upload ${type}`) }
   }
+}
+
+/**
+ * Upload an image to Supabase Storage and save record to database
+ */
+export async function uploadImage(
+  file: File,
+  userId: string
+): Promise<{ data: { id: string; url: string } | null; error: Error | null }> {
+  return uploadMedia(file, userId, 'image')
 }
 
 /**

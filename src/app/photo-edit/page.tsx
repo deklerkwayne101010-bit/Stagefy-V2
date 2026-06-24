@@ -49,21 +49,28 @@ export default function PhotoEditPage() {
   const [savePromptName, setSavePromptName] = useState('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
 
-  // Load saved prompts from localStorage on mount
+  // Load saved prompts for the current user only
   useEffect(() => {
+    if (!user?.id) {
+      setSavedPrompts([])
+      return
+    }
+
     try {
-      const stored = localStorage.getItem('stagefy-saved-prompts')
+      const stored = localStorage.getItem(`stagefy-saved-prompts-${user.id}`)
       if (stored) {
         setSavedPrompts(JSON.parse(stored))
+      } else {
+        setSavedPrompts([])
       }
     } catch {
-      // ignore
+      setSavedPrompts([])
     }
-  }, [])
+  }, [user?.id])
 
-  // Save a prompt
+  // Save a prompt for the current user only
   const handleSavePrompt = () => {
-    if (!customPrompt.trim() || !savePromptName.trim()) return
+    if (!customPrompt.trim() || !savePromptName.trim() || !user?.id) return
 
     const newPrompt = {
       id: Date.now().toString(),
@@ -71,18 +78,24 @@ export default function PhotoEditPage() {
       prompt: customPrompt.trim(),
     }
 
-    const updated = [...savedPrompts, newPrompt]
-    setSavedPrompts(updated)
-    localStorage.setItem('stagefy-saved-prompts', JSON.stringify(updated))
+    setSavedPrompts(prev => {
+      const updated = [...prev, newPrompt]
+      localStorage.setItem(`stagefy-saved-prompts-${user.id}`, JSON.stringify(updated))
+      return updated
+    })
     setSavePromptName('')
     setShowSaveDialog(false)
   }
 
   // Delete a saved prompt
   const handleDeletePrompt = (id: string) => {
-    const updated = savedPrompts.filter(p => p.id !== id)
-    setSavedPrompts(updated)
-    localStorage.setItem('stagefy-saved-prompts', JSON.stringify(updated))
+    if (!user?.id) return
+
+    setSavedPrompts(prev => {
+      const updated = prev.filter(p => p.id !== id)
+      localStorage.setItem(`stagefy-saved-prompts-${user.id}`, JSON.stringify(updated))
+      return updated
+    })
   }
 
   // Load a saved prompt
@@ -504,7 +517,7 @@ export default function PhotoEditPage() {
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => setShowSaveDialog(true)}
-                  disabled={!customPrompt.trim()}
+                  disabled={!customPrompt.trim() || !user}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

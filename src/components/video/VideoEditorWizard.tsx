@@ -1,647 +1,720 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import type { FFmpeg } from '@ffmpeg/ffmpeg'
+import { useAuth } from '@/lib/auth-context'
+import { uploadMedia } from '@/lib/supabase'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
-import { useFFmpeg } from '@/hooks/useFFmpeg'
-import { getSupabaseClient } from '@/lib/supabase'
-import type { VideoClip, VideoTemplate, VideoEditorState, VideoTransition } from '@/lib/types'
+import { Card, CardHeader } from '@/components/ui/Card'
+import { Input, Select } from '@/components/ui/Input'
+import { CreditBadge } from '@/components/ui/Badge'
+import {
+  type AgentProfile,
+  type CallingCardOptions,
+  type VideoClipItem,
+  type VideoEditorFormat,
+  formatBytes,
+  formatDuration,
+  generateCallingCardPng,
+  getVideoDuration,
+  videoEditorFormats,
+} from './videoEditorHelpers'
 
-type VideoEditorStep = 'upload' | 'trim' | 'arrange' | 'transitions' | 'text' | 'export'
+type VideoEditorStep = 'format' | 'clips' | 'transition' | 'calling_card' | 'review'
+
+const MAX_CLIPS = 10
+const MAX_CLIP_SECONDS = 5
+const MIN_CLIP_SECONDS = 1
+const CREDIT_COST = 1
+const TRANSITION_OPTIONS = [
+  { value: '0.3', label: 'Fast - 0.3s' },
+  { value: '0.5', label: 'Smooth - 0.5s' },
+  { value: '0.8', label: 'Soft - 0.8s' },
+]
 
 interface VideoEditorWizardProps {
-  isOpen: boolean
-  onClose: () => void
-  onComplete: (data: VideoEditorState) => void
+  isOpen?: boolean
 }
 
-const VIDEO_TEMPLATES: VideoTemplate[] = [
-  {
-    id: 'property_showcase',
-    name: 'Property Showcase',
-    category: 'real_estate',
-    description: 'Quick property video with smooth transitions',
-    duration: 30,
-    transitions: [{ id: 't1', type: 'fade', duration: 1, position: 5 }],
-    textOverlays: [
-      { id: 'txt1', text: 'Property Tour', style: 'elegant', position: { x: 50, y: 10 }, startTime: 0, duration: 5, fontSize: 48 },
-      { id: 'txt2', text: 'For Sale', style: 'elegant', position: { x: 50, y: 90 }, startTime: 25, duration: 5, fontSize: 36 }
-    ],
-    aspectRatio: '16:9',
-  },
-  {
-    id: 'social_reel',
-    name: 'Social Reel',
-    category: 'social',
-    description: '9:16 vertical video for social media',
-    duration: 15,
-    transitions: [],
-    textOverlays: [],
-    aspectRatio: '9:16',
-  },
-  {
-    id: 'testimonial',
-    name: 'Testimonial Montage',
-    category: 'marketing',
-    description: 'Client review compilation',
-    duration: 20,
-    transitions: [{ id: 't1', type: 'slide', duration: 1, position: 10 }],
-    textOverlays: [],
-    aspectRatio: '16:9',
-  }
-]
-
-const CTA_TEMPLATES = [
-  { id: 'schedule_tour', name: 'Schedule Tour', title: 'Schedule Your Tour', subtitle: 'Click to Book a Viewing', style: 'gradient-blue' },
-  { id: 'contact_agent', name: 'Contact Agent', title: 'Have Questions?', subtitle: 'Contact Your Agent Today', style: 'gradient-green' },
-  { id: 'view_listing', name: 'View Listing', title: 'See Full Listing', subtitle: 'More Photos & Details', style: 'gradient-purple' },
-  { id: 'custom', name: 'Custom', title: '', subtitle: '', style: 'solid' },
-]
-
-export function VideoEditorWizard({ isOpen, onClose, onComplete }: VideoEditorWizardProps) {
-  const [step, setStep] = useState<VideoEditorStep>('upload')
-  const [clips, setClips] = useState<VideoClip[]>([])
-  const [selectedTemplate, setSelectedTemplate] = useState<VideoTemplate | null>(null)
-  const [selectedCTA, setSelectedCTA] = useState<typeof CTA_TEMPLATES[0] | null>(null)
-  const [customCTATitle, setCustomCTATitle] = useState('')
-  const [customCTASubtitle, setCustomCTASubtitle] = useState('')
-  const [isUploading, setIsUploading] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [processingStep, setProcessingStep] = useState('')
+export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
+  const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { ffmpeg, isLoaded, loadFFmpeg, getVideoDuration, concatVideos, addTextOverlay, createCTACard } = useFFmpeg()
+  const ffmpegRef = useRef<FFmpeg | null>(null)
+  const [step, setStep] = useState<VideoEditorStep>('format')
+  const [format, setFormat] = useState<VideoEditorFormat>(videoEditorFormats[0])
+  const [clips, setClips] = useState<VideoClipItem[]>([])
+  const [transitionDuration, setTransitionDuration] = useState(0.5)
+  const [callingCardEnabled, setCallingCardEnabled] = useState(true)
+  const [muteAudio, setMuteAudio] = useState(true)
+  const [headline, setHeadline] = useState('Let’s find your next home')
+  const [cta, setCta] = useState('Call or WhatsApp me today')
+  const [propertyPrice, setPropertyPrice] = useState('')
+  const [bedrooms, setBedrooms] = useState('')
+  const [bathrooms, setBathrooms] = useState('')
+  const [callingCardColor, setCallingCardColor] = useState('#0f172a')
+  const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [logs, setLogs] = useState<string[]>([])
+  const [resultUrl, setResultUrl] = useState<string | null>(null)
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null)
+  const [userCredits, setUserCredits] = useState(user?.credits || 0)
+
+  const steps: { key: VideoEditorStep; label: string }[] = [
+    { key: 'format', label: 'Format' },
+    { key: 'clips', label: 'Clips' },
+    { key: 'transition', label: 'Transition' },
+    { key: 'calling_card', label: 'Calling Card' },
+    { key: 'review', label: 'Review' },
+  ]
+
+  const estimatedDuration = useMemo(() => {
+    const totalClipDuration = clips.reduce((total, clip) => total + clip.trimmedDuration, 0)
+    const totalTransitionDuration = Math.max(0, clips.length - 1) * transitionDuration
+    return Math.max(0, totalClipDuration - totalTransitionDuration)
+  }, [clips, transitionDuration])
+
+  const normalizedCallingCardColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(callingCardColor) ? callingCardColor : '#0f172a'
+
+  const canGenerate = clips.length >= 2 && !isExporting
+
+  useEffect(() => {
+    if (!isOpen) return
+    void loadAgentProfile()
+  }, [isOpen])
+
+  useEffect(() => {
+    return () => {
+      clips.forEach(clip => URL.revokeObjectURL(clip.url))
+      if (resultUrl) URL.revokeObjectURL(resultUrl)
+      ffmpegRef.current?.terminate()
+    }
+  }, [clips, resultUrl])
 
   if (!isOpen) return null
 
-  // Get a short-lived bearer token for the presign request
-  const getAccessToken = async (): Promise<string | null> => {
+  const currentStepIndex = steps.findIndex(item => item.key === step)
+
+  async function loadAgentProfile() {
     try {
-      const client = getSupabaseClient()
-      if (!client) return null
-      const { data } = await client.auth.getSession()
-      return data.session?.access_token ?? null
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/agent-profile', {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
+      const data = await response.json()
+      if (data.profile) {
+        setAgentProfile(data.profile)
+        if (data.profile.name_surname) {
+          setHeadline(`${data.profile.name_surname} | Real Estate Agent`)
+        }
+      }
     } catch {
-      return null
+      setAgentProfile(null)
     }
   }
 
-  // Upload a file via Supabase presigned URL so the file never passes
-  // through the Next.js serverless function (avoids Vercel's ~4.5 MB body cap).
-  const uploadViaPresigned = async (file: File, type: string): Promise<string> => {
-    const client = getSupabaseClient()
-    if (!client) throw new Error('Supabase client not available')
-    const token = await getAccessToken()
-    if (!token) throw new Error('No auth token - please log in again')
-
-    // Step 1: ask the server for a time-limited, single-use upload URL
-    const signRes = await fetch('/api/upload/sign', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        type,
-        filename: file.name,
-        contentType: file.type,
-        size: file.size,
-      }),
-    })
-
-    if (!signRes.ok) {
-      const detail = await signRes.json().catch(() => ({}))
-      throw new Error(detail?.error || `Failed to get upload URL: ${signRes.status}`)
-    }
-
-    const { uploadUrl, path: _path } = await signRes.json()
-    if (!uploadUrl) throw new Error('No upload URL in response')
-
-    // Step 2: PUT the file directly to Supabase Storage
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'PUT',
-      // Content-Type is already encoded in the presigned URL query string;
-      // sending it in the body too is harmless and some clients require it.
-      headers: { 'Content-Type': file.type },
-      body: file,
-    })
-
-    if (!uploadRes.ok) {
-      throw new Error(`Direct upload failed: ${uploadRes.status} ${uploadRes.statusText}`)
-    }
-
-    // Step 3: build the public URL for the editor
-    // getPublicUrl returns { data: { publicUrl: string } }
-    const { data: urlData } = await client.storage
-      .from('videos')
-      .getPublicUrl(_path)
-
-    return urlData.publicUrl
+  function isVideoFile(file: File) {
+    return file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
   }
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length === 0) return
-
-    setIsUploading(true)
-    for (const file of files) {
-      try {
-        const url = await uploadViaPresigned(file, 'video-editor')
-        const duration = await getVideoDuration(url)
-        const newClip: VideoClip = {
-          id: crypto.randomUUID(),
-          url,
-          name: file.name,
-          duration: duration || 10,
-          trimStart: 0,
-          trimEnd: duration || 10,
-          sortOrder: clips.length,
-        }
-        setClips(prev => [...prev, newClip])
-      } catch (error: any) {
-        console.error('Video upload error:', error)
-      }
+  function createId() {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID()
     }
-    setIsUploading(false)
-    // Reset the input so the same file can be re-selected if needed
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`
   }
 
-  const handleTemplateSelect = (template: VideoTemplate) => {
-    setSelectedTemplate(template)
-  }
-
-  const handleNext = () => {
-    const steps: VideoEditorStep[] = ['upload', 'trim', 'arrange', 'transitions', 'text', 'export']
-    const currentIndex = steps.indexOf(step)
-    if (currentIndex < steps.length - 1) {
-      setStep(steps[currentIndex + 1])
-    }
-  }
-
-  const handleBack = () => {
-    const steps: VideoEditorStep[] = ['upload', 'trim', 'arrange', 'transitions', 'text', 'export']
-    const currentIndex = steps.indexOf(step)
-    if (currentIndex > 0) {
-      setStep(steps[currentIndex - 1])
-    }
-  }
-
-  const handleExport = async () => {
-    setIsProcessing(true)
-    setProcessingStep('Processing video...')
-    
-    try {
-      const clipUrls = clips.map(c => c.url)
-      
-      const ctaOptions = selectedCTA ? {
-        title: selectedCTA.id === 'custom' ? customCTATitle : selectedCTA.title,
-        subtitle: selectedCTA.id === 'custom' ? customCTASubtitle : selectedCTA.subtitle,
-        style: selectedCTA.style as any
-      } : undefined
-      
-      const processedClips = []
-      for (let i = 0; i < clipUrls.length; i++) {
-        const clip = clips[i]
-        if (clip.trimStart > 0 || clip.trimEnd < clip.duration) {
-          setProcessingStep(`Trimming clip ${i + 1}...`)
-          // Would call trimVideo here
-        }
-        processedClips.push(clip.url)
-      }
-      
-      setProcessingStep('Concatenating clips...')
-      let finalBlob: Blob
-      
-      if (selectedCTA) {
-        setProcessingStep('Generating CTA card...')
-        const ctaBlob = await createCTACard({
-          title: selectedCTA.id === 'custom' ? customCTATitle : selectedCTA.title,
-          subtitle: selectedCTA.id === 'custom' ? customCTASubtitle : selectedCTA.subtitle,
-          style: selectedCTA.style as any
-        })
-        const ctaUrl = URL.createObjectURL(ctaBlob)
-        
-        setProcessingStep('Combining clips with CTA...')
-        const allUrls = [...processedClips, ctaUrl]
-        finalBlob = await concatVideos(allUrls)
-      } else {
-        finalBlob = await concatVideos(processedClips)
-      }
-
-      setProcessingStep('Finalizing...')
-      const outputUrl = URL.createObjectURL(finalBlob)
-      
-      const state: VideoEditorState = {
-        clips,
-        transitions: selectedTemplate?.transitions || [],
-        textOverlays: selectedTemplate?.textOverlays || [],
-        selectedTemplate,
-        outputSettings: {
-          resolution: '1080p',
-          format: 'mp4',
-          quality: 'high',
-        },
-        outputUrl,
-      }
-      onComplete(state)
-      onClose()
-    } catch (error) {
-      console.error('Export error:', error)
-      alert('Failed to process video. Please try again.')
-    } finally {
-      setIsProcessing(false)
-      setProcessingStep('')
-    }
-  }
-
-  const handleComplete = () => {
-    if (step === 'export') {
-      handleExport()
+  async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []).filter(isVideoFile)
+    if (files.length === 0) {
+      setError('Please select video files only.')
       return
     }
-    const state: VideoEditorState = {
-      clips,
-      transitions: selectedTemplate?.transitions || [],
-      textOverlays: selectedTemplate?.textOverlays || [],
-      selectedTemplate,
-      outputSettings: {
-        resolution: '1080p',
-        format: 'mp4',
-        quality: 'high',
-      },
+
+    const remainingSlots = MAX_CLIPS - clips.length
+    if (remainingSlots <= 0) {
+      setError(`You can add up to ${MAX_CLIPS} clips.`)
+      event.target.value = ''
+      return
     }
-    onComplete(state)
-    onClose()
+
+    const filesToAdd = files.slice(0, remainingSlots)
+    if (files.length > remainingSlots) {
+      setError(`Only ${remainingSlots} more clip${remainingSlots === 1 ? '' : 's'} can be added.`)
+    }
+
+    setIsUploading(true)
+    setError(null)
+
+    const newClips: VideoClipItem[] = []
+
+    for (const file of filesToAdd) {
+      try {
+        const duration = await getVideoDuration(file)
+        if (duration < MIN_CLIP_SECONDS) {
+          setError(`${file.name} is shorter than ${MIN_CLIP_SECONDS} second.`)
+          continue
+        }
+
+        const trimmedDuration = Math.min(duration, MAX_CLIP_SECONDS)
+        const url = URL.createObjectURL(file)
+        newClips.push({
+          id: createId(),
+          file,
+          name: file.name,
+          url,
+          duration,
+          trimmedDuration,
+          warning: duration > MAX_CLIP_SECONDS ? `Trimmed to ${MAX_CLIP_SECONDS}s` : undefined,
+        })
+      } catch {
+        setError(`Could not read ${file.name}. Try a different video file.`)
+      }
+    }
+
+    setClips(prev => [...prev, ...newClips])
+    setIsUploading(false)
+    event.target.value = ''
   }
 
-  const steps = [
-    { key: 'upload', label: 'Upload' },
-    { key: 'trim', label: 'Trim' },
-    { key: 'arrange', label: 'Arrange' },
-    { key: 'transitions', label: 'Transitions' },
-    { key: 'text', label: 'Text' },
-    { key: 'export', label: 'Export' },
-  ]
+  function removeClip(index: number) {
+    setClips(prev => {
+      const removed = prev[index]
+      if (removed) URL.revokeObjectURL(removed.url)
+      return prev.filter((_, clipIndex) => clipIndex !== index)
+    })
+  }
 
-  const currentStepIndex = steps.findIndex(s => s.key === step)
+  function moveClip(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction
+    if (nextIndex < 0 || nextIndex >= clips.length) return
+    setClips(prev => {
+      const next = [...prev]
+      const [item] = next.splice(index, 1)
+      next.splice(nextIndex, 0, item)
+      return next
+    })
+  }
+
+  function handleNext() {
+    if (step === 'format') {
+      setStep('clips')
+      return
+    }
+
+    if (step === 'clips') {
+      if (clips.length < 2) {
+        setError('Add at least 2 clips to continue.')
+        return
+      }
+      setStep('transition')
+      return
+    }
+
+    if (step === 'transition') {
+      setStep('calling_card')
+      return
+    }
+
+    if (step === 'calling_card') {
+      setStep('review')
+    }
+  }
+
+  function handleBack() {
+    if (step === 'clips') {
+      setStep('format')
+    } else if (step === 'transition') {
+      setStep('clips')
+    } else if (step === 'calling_card') {
+      setStep('transition')
+    } else if (step === 'review') {
+      setStep('calling_card')
+    }
+  }
+
+  async function handleExport() {
+    if (!canGenerate) {
+      setError('Add at least 2 clips before generating.')
+      return
+    }
+
+    setError(null)
+    setResultUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+    setResultBlob(null)
+    setLogs([])
+    setProgress(0)
+    setIsExporting(true)
+
+    let creditsReserved = false
+    let creditReference = ''
+
+    try {
+      if (user?.id) {
+        const { canPerformAction, reserveCredits } = await import('@/lib/credits')
+        const canPerform = await canPerformAction(user.id, CREDIT_COST)
+        if (!canPerform.canPerform) {
+          setError(canPerform.error || 'Not enough credits.')
+          setIsExporting(false)
+          return
+        }
+
+        creditReference = `video-editor-${Date.now()}`
+        const reservation = await reserveCredits(user.id, 'video_editor_simple', creditReference, CREDIT_COST)
+        if (!reservation.success) {
+          setError(reservation.error || 'Failed to reserve credits.')
+          setIsExporting(false)
+          return
+        }
+        creditsReserved = true
+      }
+
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+      const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
+
+      let ffmpeg = ffmpegRef.current
+      if (!ffmpeg) {
+        ffmpeg = new FFmpeg()
+        ffmpeg.on('progress', ({ progress: value }) => {
+          setProgress(Math.round(value * 100))
+        })
+        ffmpeg.on('log', ({ message }) => {
+          setLogs(prev => [...prev.slice(-8), message])
+        })
+        await ffmpeg.load({
+          coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
+          wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
+        })
+        ffmpegRef.current = ffmpeg
+      }
+
+      const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
+
+      for (let index = 0; index < clips.length; index += 1) {
+        const clip = clips[index]
+        const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
+        await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
+
+        const videoFilter = [
+          `trim=start=0:duration=${clip.trimmedDuration}`,
+          'setpts=PTS-STARTPTS',
+          `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase`,
+          `crop=${format.width}:${format.height}`,
+          'setsar=1',
+          'fps=30',
+          'format=yuv420p',
+        ].join(',')
+
+        const normalizeArgs = [
+          '-i', inputName,
+          '-vf', videoFilter,
+          ...(muteAudio ? ['-an'] : ['-af', 'aresample=async=1:first_pts=0', '-c:a', 'aac', '-b:a', '128k']),
+          '-c:v', 'libx264',
+          '-preset', 'veryfast',
+          '-shortest',
+          normalizedClips[index],
+        ]
+
+        const normalizeCode = await ffmpeg.exec(normalizeArgs)
+        if (normalizeCode !== 0) {
+          throw new Error(`Could not prepare clip ${index + 1}.`)
+        }
+      }
+
+      let callingCardBytes: Uint8Array | null = null
+      if (callingCardEnabled) {
+        callingCardBytes = await generateCallingCardPng({
+          enabled: true,
+          headline,
+          cta,
+          backgroundColor: normalizedCallingCardColor,
+          propertyPrice,
+          bedrooms,
+          bathrooms,
+          agentName: agentProfile?.name_surname || user?.full_name || 'Real Estate Agent',
+          phone: agentProfile?.phone || '',
+          email: agentProfile?.email || '',
+          agency: agentProfile?.agency_brand || '',
+          photoUrl: agentProfile?.photo_url || null,
+          logoUrl: agentProfile?.logo_url || null,
+          width: format.width,
+          height: format.height,
+        })
+
+        if (callingCardBytes) {
+          await ffmpeg.writeFile('calling-card.png', callingCardBytes)
+        }
+      }
+
+      const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
+      const videoFilters: string[] = []
+      const audioFilters: string[] = []
+      let currentVideo = '0:v'
+      let currentAudio = '0:a'
+      let currentDuration = clips[0].trimmedDuration
+
+      for (let index = 1; index < clips.length; index += 1) {
+        const offset = Math.max(0, currentDuration - transitionDuration)
+        videoFilters.push(`[${currentVideo}][${index}:v]xfade=transition=fade:duration=${transitionDuration}:offset=${offset}[v${index}]`)
+        if (!muteAudio) {
+          audioFilters.push(`[${currentAudio}][${index}:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a${index}]`)
+        }
+        currentVideo = `v${index}`
+        currentAudio = `a${index}`
+        currentDuration += clips[index].trimmedDuration - transitionDuration
+      }
+
+      const overlayFilter = callingCardBytes
+        ? `[${currentVideo}]overlay=x=0:y=H-h-24,format=yuv420p[vout]`
+        : `[${currentVideo}]format=yuv420p[vout]`
+      const filterParts = [...videoFilters, overlayFilter]
+
+      if (!muteAudio && audioFilters.length > 0) {
+        filterParts.push(...audioFilters)
+      }
+
+      const args = [
+        ...inputs,
+        ...(callingCardBytes ? ['-i', 'calling-card.png'] : []),
+        '-filter_complex', filterParts.join(';'),
+        '-map', '[vout]',
+        ...(!muteAudio && audioFilters.length > 0 ? ['-map', `[a${clips.length - 1}]`] : ['-an']),
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+        'output.mp4',
+      ]
+
+      const exportCode = await ffmpeg.exec(args)
+      if (exportCode !== 0) {
+        throw new Error('Could not generate the final video.')
+      }
+
+      const output = await ffmpeg.readFile('output.mp4')
+      const bytes = output instanceof Uint8Array ? output : new TextEncoder().encode(String(output))
+      const blob = new Blob([bytes as unknown as BlobPart], { type: 'video/mp4' })
+      const url = URL.createObjectURL(blob)
+      setResultBlob(blob)
+      setResultUrl(url)
+      setProgress(100)
+    } catch (err: any) {
+      if (creditsReserved && user?.id && creditReference) {
+        const { refundCredits } = await import('@/lib/credits')
+        await refundCredits(user.id, 'video_editor_simple', creditReference, CREDIT_COST)
+      }
+      setError(err?.message || 'Failed to generate video.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  async function handleSaveToLibrary() {
+    if (!resultBlob || !user?.id) return
+    setIsSaving(true)
+    setError(null)
+
+    try {
+      const file = new File([resultBlob], `stagefy-video-${Date.now()}.mp4`, { type: 'video/mp4' })
+      const result = await uploadMedia(file, user.id, 'video', 'Video Editor Export')
+      if (result.error) {
+        throw result.error
+      }
+      setError('Video saved to your media library.')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save video.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function downloadVideo() {
+    if (!resultUrl) return
+    const link = document.createElement('a')
+    link.href = resultUrl
+    link.download = `stagefy-video-${Date.now()}.mp4`
+    link.click()
+  }
+
+  const agentDisplayName = agentProfile?.name_surname || user?.full_name || 'Agent'
+  const agentDetails = [agentProfile?.phone, agentProfile?.email, agentProfile?.agency_brand].filter(Boolean).join(' • ')
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
-      
-      <div className="relative min-h-screen flex items-center justify-center p-4">
-        <div className="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Video Editor</h2>
-                <p className="text-sm text-gray-500 mt-1">Create stunning property videos</p>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader
+          title="Video Editor"
+          subtitle="Merge short clips into a social-ready video with an optional agent calling card"
+          action={<CreditBadge credits={userCredits} size="sm" />}
+        />
+
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2">
+            {steps.map((item, index) => (
+              <div key={item.key} className="flex items-center gap-2">
+                <span
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                    index <= currentStepIndex ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {index + 1}
+                </span>
+                <span className={`text-sm font-medium ${index <= currentStepIndex ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {item.label}
+                </span>
+                {index < steps.length - 1 && <span className="w-6 border-t border-slate-200" />}
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {step === 'format' && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {videoEditorFormats.map(option => (
+              <button
+                key={option.key}
+                onClick={() => setFormat(option)}
+                className={`rounded-2xl border-2 p-5 text-left transition-all ${
+                  format.key === option.key ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className={`mx-auto mb-4 rounded-lg bg-slate-900 ${option.key === 'landscape' ? 'aspect-video' : option.key === 'square' ? 'aspect-square' : 'aspect-[9/16]'}`} />
+                <p className="font-semibold text-slate-900">{option.label}</p>
+                <p className="mt-1 text-sm text-slate-500">{option.width}×{option.height}</p>
               </button>
+            ))}
+          </div>
+        )}
+
+        {step === 'clips' && (
+          <div className="space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium text-slate-900">Upload 3-5 second clips</p>
+                <p className="text-sm text-slate-500">Add 2-10 clips. Clips longer than 5 seconds are trimmed automatically.</p>
+              </div>
+              <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading || clips.length >= MAX_CLIPS}>
+                Add Clips
+              </Button>
+              <input ref={fileInputRef} type="file" accept="video/*" multiple className="hidden" onChange={handleFileSelect} />
             </div>
 
-            {/* Progress Steps */}
-            <div className="flex items-center gap-2">
-              {steps.map((s, index) => (
-                <React.Fragment key={s.key}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      index <= currentStepIndex
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}>
-                      {index + 1}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {clips.map((clip, index) => (
+                <div key={clip.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <video src={clip.url} className="aspect-[9/16] w-full rounded-xl bg-slate-900 object-cover" controls muted />
+                  <div className="mt-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{clip.name}</p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        <Badge variant="info" size="sm">{formatDuration(clip.duration)}</Badge>
+                        <Badge variant="secondary" size="sm">{formatBytes(clip.file.size)}</Badge>
+                      </div>
+                      {clip.warning && <p className="mt-1 text-xs text-amber-600">{clip.warning}</p>}
                     </div>
-                    <span className={`text-sm ${
-                      index <= currentStepIndex ? 'text-gray-900' : 'text-gray-500'
-                    }`}>
-                      {s.label}
-                    </span>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button onClick={() => moveClip(index, -1)} disabled={index === 0} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40">Up</button>
+                      <button onClick={() => moveClip(index, 1)} disabled={index === clips.length - 1} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40">Down</button>
+                      <button onClick={() => removeClip(index)} className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600">Remove</button>
+                    </div>
                   </div>
-                  {index < steps.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-2 ${
-                      index < currentStepIndex ? 'bg-blue-600' : 'bg-gray-200'
-                    }`} />
-                  )}
-                </React.Fragment>
+                </div>
+              ))}
+              {clips.length === 0 && (
+                <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-6 text-center text-slate-500">
+                  <svg className="mb-3 h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <p>No clips added yet.</p>
+                </div>
+              )}
+            </div>
+
+            {isUploading && <p className="text-sm text-slate-500">Reading clip durations…</p>}
+          </div>
+        )}
+
+        {step === 'transition' && (
+          <div className="space-y-5">
+            <div>
+              <p className="font-medium text-slate-900">Choose a transition</p>
+              <p className="text-sm text-slate-500">A simple fade is applied between every clip.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {TRANSITION_OPTIONS.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => setTransitionDuration(Number(option.value))}
+                  className={`rounded-2xl border-2 p-4 text-left transition-all ${
+                    transitionDuration === Number(option.value) ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-semibold text-slate-900">{option.label}</p>
+                </button>
               ))}
             </div>
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+              <input type="checkbox" checked={muteAudio} onChange={event => setMuteAudio(event.target.checked)} className="h-4 w-4" />
+              <span>
+                <span className="block font-medium text-slate-900">Mute original audio</span>
+                <span className="text-sm text-slate-500">Recommended for reliable browser export. Add music later in Facebook or TikTok.</span>
+              </span>
+            </label>
           </div>
+        )}
 
-          {isProcessing && (
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 mx-auto mb-4">
-                <svg className="animate-spin h-16 w-16 text-blue-600" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Processing Your Video</h3>
-              <p className="text-gray-500">{processingStep}</p>
-            </div>
-          )}
+        {step === 'calling_card' && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-5">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+                <input type="checkbox" checked={callingCardEnabled} onChange={event => setCallingCardEnabled(event.target.checked)} className="h-4 w-4" />
+                <span className="font-medium text-slate-900">Add bottom calling card</span>
+              </label>
 
-          {!isProcessing && (
-            <>
-              {/* Content */}
-              <div className="p-6">
-                {/* Step 1: Upload */}
-                {step === 'upload' && (
-                  <div>
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4">
-                        <span className="text-3xl">🎬</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Your Videos</h3>
-                      <p className="text-gray-500">Add the video clips you want to edit (3-5s each recommended)</p>
-                    </div>
-
-                    <div className="mb-6">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="video/mp4,video/quicktime,video/webm,video/x-msvideo"
-                        multiple
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        id="video-upload-input"
-                      />
-                      
-                      <label htmlFor="video-upload-input" className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
-                        {isUploading ? (
-                          <svg className="animate-spin h-8 w-8 text-blue-500" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                        ) : (
-                          <>
-                            <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span className="text-lg font-medium text-gray-700">Click to upload videos</span>
-                            <span className="text-sm text-gray-500 mt-1">MP4, MOV, WebM, AVI (max 50MB each)</span>
-                          </>
-                        )}
-                      </label>
-                    </div>
-
-                    {/* Uploaded Clips */}
-                    {clips.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-3">Uploaded Clips ({clips.length})</h4>
-                        <div className="space-y-2">
-                          {clips.map((clip, index) => (
-                            <div key={clip.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                              <div className="w-16 h-12 bg-gray-300 rounded flex-shrink-0">
-                                <video src={clip.url} className="w-full h-full object-cover rounded" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{clip.name}</p>
-                                <p className="text-sm text-gray-500">{clip.duration}s</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 2: Templates */}
-                {step === 'trim' && (
-                  <div>
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mb-4">
-                        <span className="text-3xl">🎨</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Choose a Template</h3>
-                      <p className="text-gray-500">Select a pre-designed style for your video</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {VIDEO_TEMPLATES.map((template) => (
-                        <button
-                          key={template.id}
-                          onClick={() => handleTemplateSelect(template)}
-                          className={`p-4 rounded-lg border-2 text-left transition-all ${
-                            selectedTemplate?.id === template.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="w-full h-24 bg-gray-200 rounded-lg mb-3 flex items-center justify-center">
-                            <span className="text-3xl">
-                              {template.id === 'property_showcase' ? '🏠' : 
-                               template.id === 'social_reel' ? '📱' : '⭐'}
-                            </span>
-                          </div>
-                          <p className="font-medium text-gray-900">{template.name}</p>
-                          <p className="text-xs text-gray-500 mt-1">{template.description}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 3: Arrange */}
-                {step === 'arrange' && (
-                  <div>
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4">
-                        <span className="text-3xl">📋</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Arrange Clips</h3>
-                      <p className="text-gray-500">Drag to reorder your video clips</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      {clips.map((clip, index) => (
-                        <div key={clip.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-medium">
-                            {index + 1}
-                          </div>
-                          <div className="w-16 h-12 bg-gray-300 rounded flex-shrink-0">
-                            <video src={clip.url} className="w-full h-full object-cover rounded" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{clip.name}</p>
-                            <p className="text-sm text-gray-500">{clip.duration}s</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 4: Transitions */}
-                {step === 'transitions' && (
-                  <div>
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl flex items-center justify-center mb-4">
-                        <span className="text-3xl">✨</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Transitions</h3>
-                      <p className="text-gray-500">Apply smooth transitions between clips</p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <label className="flex items-center gap-2">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedTemplate?.transitions?.some(t => t.type === 'fade')} 
-                            onChange={() => {}}
-                            className="w-4 h-4"
-                          />
-                          <span className="font-medium">Fade Transition</span>
-                        </label>
-                        <p className="text-sm text-gray-500 mt-1">Smooth cross-dissolve between clips</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 5: Text Overlays */}
-                {step === 'text' && (
-                  <div>
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4">
-                        <span className="text-3xl">🔤</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Text Overlays</h3>
-                      <p className="text-gray-500">Add titles and descriptions to your video</p>
-                    </div>
-
-                    <div className="space-y-4">
-                      {selectedTemplate?.textOverlays && selectedTemplate.textOverlays.length > 0 ? (
-                        selectedTemplate.textOverlays.map((txt, idx) => (
-                          <div key={txt.id} className="p-4 bg-gray-50 rounded-lg">
-                            <p className="font-medium text-gray-900">{txt.text}</p>
-                            <p className="text-sm text-gray-500">Style: {txt.style} • Duration: {txt.duration}s</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-gray-500 text-center py-4">No text overlays in this template</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 6: Export with CTA */}
-                {step === 'export' && (
-                  <div>
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4">
-                        <span className="text-3xl">🚀</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Export Video</h3>
-                      <p className="text-gray-500">Choose your export settings and add a call-to-action</p>
-                    </div>
-
-                    <div className="space-y-6">
-                      {/* CTA Card Selection */}
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-3">Call-to-Action Card (Optional)</h4>
-                        <p className="text-sm text-gray-500 mb-3">Add a final screen to drive engagement</p>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {CTA_TEMPLATES.map((cta) => (
-                            <button
-                              key={cta.id}
-                              onClick={() => setSelectedCTA(selectedCTA?.id === cta.id ? null : cta)}
-                              className={`p-3 rounded-lg border-2 text-center transition-all ${
-                                selectedCTA?.id === cta.id
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : 'border-gray-200 hover:border-gray-300'
-                              }`}
-                            >
-                              <div className={`w-full h-16 rounded mb-2 flex items-center justify-center text-white text-xs font-bold ${
-                                cta.style === 'gradient-blue' ? 'bg-gradient-to-br from-blue-500 to-blue-700' :
-                                cta.style === 'gradient-green' ? 'bg-gradient-to-br from-green-500 to-green-700' :
-                                cta.style === 'gradient-purple' ? 'bg-gradient-to-br from-purple-500 to-purple-700' :
-                                'bg-gray-800'
-                              }`}>
-                                {cta.title || 'Custom'}
-                              </div>
-                              <p className="text-xs font-medium">{cta.name}</p>
-                            </button>
-                          ))}
-                        </div>
-
-                        {selectedCTA?.id === 'custom' && (
-                          <div className="mt-4 space-y-3">
-                            <Input
-                              label="Title"
-                              value={customCTATitle}
-                              onChange={(e) => setCustomCTATitle(e.target.value)}
-                              placeholder="Enter CTA title"
-                            />
-                            <Input
-                              label="Subtitle"
-                              value={customCTASubtitle}
-                              onChange={(e) => setCustomCTASubtitle(e.target.value)}
-                              placeholder="Enter CTA subtitle"
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Output Settings */}
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-3">Output Settings</h4>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Resolution</label>
-                            <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                              <option value="1080p">1080p HD</option>
-                              <option value="720p">720p Standard</option>
-                              <option value="480p">480p Mobile</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          <strong>Credit Cost:</strong> 10 credits for full video edit
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4">
-                <div className="flex justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    disabled={step === 'upload'}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={step === 'export' ? handleExport : handleNext}
-                    disabled={step === 'upload' && clips.length === 0}
-                    className="px-6 py-2 rounded-lg text-white font-medium transition-all bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {step === 'export' ? 'Export Video' : 'Continue'}
-                  </button>
+              <div>
+                <p className="text-sm font-medium text-slate-900 mb-3">Property details</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" />
+                  <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" />
+                  <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" />
                 </div>
               </div>
-            </>
+
+              {callingCardEnabled && (
+                <>
+                  <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} />
+                  <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Calling card colour</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={callingCardColor}
+                        onChange={event => setCallingCardColor(event.target.value)}
+                        className="h-12 w-14 rounded-xl border border-slate-200 bg-white p-1"
+                      />
+                      <Input
+                        type="text"
+                        value={callingCardColor}
+                        onChange={event => setCallingCardColor(event.target.value)}
+                        placeholder="#0f172a"
+                        className="uppercase"
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-sm font-medium text-slate-900">Using profile</p>
+                    <p className="mt-1 text-sm text-slate-500">{agentDisplayName}</p>
+                    {agentDetails && <p className="mt-1 text-sm text-slate-500">{agentDetails}</p>}
+                  </div>
+                </>
+              )}
+            </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4">
+                <div className="relative aspect-[9/16] overflow-hidden rounded-xl bg-slate-800">
+                  <div className="absolute inset-x-0 bottom-0 min-h-[22%] p-3 text-white" style={{ background: `linear-gradient(to top, ${normalizedCallingCardColor}, rgba(15, 23, 42, 0.92))` }}>
+                    <div className="relative z-10 flex h-full items-end gap-4 pr-32">
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-base font-extrabold leading-tight text-white">{headline || 'Real Estate Agent'}</p>
+                        <p className="mt-1 truncate text-xs font-semibold text-slate-100">{agentDisplayName}</p>
+                        {propertyPrice || bedrooms || bathrooms ? (
+                          <p className="mt-1 truncate text-xs font-semibold text-blue-100">
+                            {['Property details:', propertyPrice ? `Price: ${propertyPrice}` : '', bedrooms ? `${bedrooms} bed${bedrooms === '1' ? '' : 's'}` : '', bathrooms ? `${bathrooms} bath${bathrooms === '1' ? '' : 's'}` : ''].filter(Boolean).join(' ')}
+                          </p>
+                        ) : null}
+                        {agentDetails && <p className="mt-1 truncate text-[11px] text-slate-200">{agentDetails}</p>}
+                        <p className="mt-1.5 truncate text-xs font-extrabold uppercase tracking-wide text-blue-100">{cta}</p>
+                      </div>
+                    </div>
+                    {agentProfile?.logo_url && (
+                      <div
+                        className="absolute right-4 top-4 h-32 w-56 rounded-2xl bg-white/90 p-2 bg-contain bg-center bg-no-repeat"
+                        style={{ backgroundImage: `url(${agentProfile.logo_url})` } as React.CSSProperties}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+          </div>
+        )}
+
+        {step === 'review' && (
+          <div className="space-y-5">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Format</p>
+                <p className="mt-1 font-semibold text-slate-900">{format.label}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Clips</p>
+                <p className="mt-1 font-semibold text-slate-900">{clips.length} clips</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Estimated length</p>
+                <p className="mt-1 font-semibold text-slate-900">{formatDuration(estimatedDuration)}</p>
+              </div>
+            </div>
+
+            {isExporting && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="font-medium text-blue-900">Generating video</span>
+                  <span className="font-semibold text-blue-900">{progress}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                  <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
+                </div>
+                {logs.length > 0 && (
+                  <pre className="mt-3 max-h-32 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
+                    {logs.join('\n')}
+                  </pre>
+                )}
+              </div>
+            )}
+
+            {resultUrl && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="font-semibold text-emerald-900">Your video is ready.</p>
+                <video src={resultUrl} className="mt-3 aspect-[9/16] max-h-96 w-full rounded-xl bg-slate-900 object-contain" controls />
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button onClick={downloadVideo}>Download MP4</Button>
+                  <Button variant="outline" onClick={handleSaveToLibrary} loading={isSaving} disabled={!user}>Save to Media Library</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-between gap-3">
+          <Button variant="outline" onClick={handleBack} disabled={step === 'format'}>
+            Back
+          </Button>
+          {step === 'review' ? (
+            <Button onClick={handleExport} loading={isExporting} disabled={!canGenerate}>
+              {resultUrl ? 'Generate Again' : 'Generate Video'}
+            </Button>
+          ) : (
+            <Button onClick={handleNext} disabled={isUploading}>
+              Next
+            </Button>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
