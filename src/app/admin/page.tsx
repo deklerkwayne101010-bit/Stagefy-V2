@@ -321,7 +321,7 @@ export default function AdminPage() {
   }, [dateFilter, customStartDate, customEndDate])
 
   useEffect(() => {
-    if (activeTab === 'users') {
+    if (activeTab === 'overview' || activeTab === 'users') {
       fetchUsageStats()
     }
   }, [activeTab, fetchUsageStats])
@@ -665,25 +665,25 @@ export default function AdminPage() {
               <CardHeader title="AI Service Usage This Month" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-600 font-medium">Photo Edits</p>
+                  <p className="text-sm text-blue-600 font-medium">Credits Spent (This Month)</p>
                   <p className="text-2xl font-bold text-blue-900 mt-1">
-                    {userUsage.reduce((sum, u) => sum + u.creditsSpentThisMonth, 0)}
+                    {userUsage.reduce((sum, u) => sum + u.creditsSpentThisMonth, 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-blue-500 mt-1">jobs (@ 1 credit each)</p>
+                  <p className="text-xs text-blue-500 mt-1">across all users</p>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-purple-600 font-medium">Video Generations</p>
+                  <p className="text-sm text-purple-600 font-medium">Credits Spent (Last Month)</p>
                   <p className="text-2xl font-bold text-purple-900 mt-1">
-                    {userUsage.reduce((sum, u) => sum + Math.floor(u.creditsSpentThisMonth / 8), 0)}
+                    {userUsage.reduce((sum, u) => sum + u.creditsSpentLastMonth, 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-purple-500 mt-1">jobs (@ 8 credits avg)</p>
+                  <p className="text-xs text-purple-500 mt-1">across all users</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-green-600 font-medium">Template Creates</p>
+                  <p className="text-sm text-green-600 font-medium">Credits Purchased</p>
                   <p className="text-2xl font-bold text-green-900 mt-1">
-                    {userUsage.reduce((sum, u) => sum + Math.floor(u.creditsSpentThisMonth / 3), 0)}
+                    {userUsage.reduce((sum, u) => sum + u.creditsPurchased, 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-green-500 mt-1">jobs (@ 3 credits each)</p>
+                  <p className="text-xs text-green-500 mt-1">all time</p>
                 </div>
               </div>
             </Card>
