@@ -57,20 +57,36 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: usersError.message }, { status: 500 })
     }
 
-    // Calculate date ranges
+    // Calculate date ranges (computed in UTC so they align with stored timestamptz values)
     const now = new Date()
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    const firstDayOfLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
+    const lastDayOfLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59, 999))
 
     const thisMonthStart = startDate || firstDayOfMonth.toISOString()
     const thisMonthEnd = endDate || now.toISOString()
     const lastMonthStart = firstDayOfLastMonth.toISOString()
     const lastMonthEnd = lastDayOfLastMonth.toISOString()
 
-    // Get all credit transactions for the date ranges
-    const { data: transactions, error: txError } = await (adminClient.from as any)('credit_transactions')
-      .select('user_id, amount, type, created_at')
+    // Get ALL credit transactions (paginated — Supabase caps un-paginated selects at 1000 rows)
+    let transactions: any[] = []
+    let txError: any = null
+    const PAGE = 1000
+    for (let start = 0; start < 100000; start += PAGE) {
+      const { data: page, error } = await (adminClient.from as any)('credit_transactions')
+        .select('user_id, amount, type, created_at')
+        .range(start, start + PAGE - 1)
+      if (error) {
+        txError = error
+        break
+      }
+      if (page && page.length > 0) {
+        transactions = transactions.concat(page)
+      }
+      if (!page || page.length < PAGE) {
+        break
+      }
+    }
 
     if (txError) {
       return NextResponse.json({ error: txError.message }, { status: 500 })
