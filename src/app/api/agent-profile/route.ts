@@ -249,14 +249,13 @@ export async function POST(request: Request) {
     let result
 
     if (existing) {
-      // Update existing profile
+      // Update the existing profile for THIS user (keep ownership)
       const { data, error } = await (adminClient as any)
         .from('agent_profiles')
         .update({
           ...restBody,
           photo_url,
           logo_url,
-          user_id: userId,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
@@ -272,61 +271,26 @@ export async function POST(request: Request) {
       }
       result = data
     } else {
-      // Check if there's a profile with a different user_id (user may have changed)
-      const { data: otherProfile } = await (adminClient as any)
+      // No profile for this user - create a NEW one (never reassign another user's row)
+      const { data, error } = await (adminClient as any)
         .from('agent_profiles')
-        .select('id')
-        .neq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      
-      if (otherProfile) {
-        // Update the existing profile with the new user_id
-        console.log('POST /api/agent-profile - Updating profile with new user_id:', otherProfile.id)
-        const { data, error } = await (adminClient as any)
-          .from('agent_profiles')
-          .update({
-            ...restBody,
-            photo_url,
-            logo_url,
-            user_id: userId,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', otherProfile.id)
-          .select()
-          .single()
+        .insert({
+          ...restBody,
+          photo_url,
+          logo_url,
+          user_id: userId,
+        })
+        .select()
+        .single()
 
-        if (error) {
-          console.error('Error updating agent profile:', error)
-          return NextResponse.json(
-            { error: 'Failed to update agent profile: ' + error.message },
-            { status: 500 }
-          )
-        }
-        result = data
-      } else {
-        // Create new profile
-        const { data, error } = await (adminClient as any)
-          .from('agent_profiles')
-          .insert({
-            ...restBody,
-            photo_url,
-            logo_url,
-            user_id: userId,
-          })
-          .select()
-          .single()
-
-        if (error) {
-          console.error('Error creating agent profile:', error)
-          return NextResponse.json(
-            { error: 'Failed to create agent profile: ' + error.message },
-            { status: 500 }
-          )
-        }
-        result = data
+      if (error) {
+        console.error('Error creating agent profile:', error)
+        return NextResponse.json(
+          { error: 'Failed to create agent profile: ' + error.message },
+          { status: 500 }
+        )
       }
+      result = data
     }
 
     return NextResponse.json({
