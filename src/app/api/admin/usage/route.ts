@@ -43,15 +43,29 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    // Get all users with their current credit balance
-    let usersQuery = (adminClient.from as any)('users')
-      .select('id, email, full_name, credits, subscription_tier, created_at')
-
-    if (userId) {
-      usersQuery = usersQuery.eq('id', userId)
+    // Get all users with their current credit balance (paginated — Supabase caps selects at 1000 rows)
+    let users: any[] = []
+    let usersError: any = null
+    const PAGE = 1000
+    for (let start = 0; start < 100000; start += PAGE) {
+      let q = (adminClient.from as any)('users')
+        .select('id, email, full_name, credits, subscription_tier, created_at')
+        .range(start, start + PAGE - 1)
+      if (userId) {
+        q = q.eq('id', userId)
+      }
+      const { data: page, error } = await q
+      if (error) {
+        usersError = error
+        break
+      }
+      if (page && page.length > 0) {
+        users = users.concat(page)
+      }
+      if (!page || page.length < PAGE) {
+        break
+      }
     }
-
-    const { data: users, error: usersError } = await usersQuery
 
     if (usersError) {
       return NextResponse.json({ error: usersError.message }, { status: 500 })
