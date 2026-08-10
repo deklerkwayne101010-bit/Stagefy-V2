@@ -44,9 +44,9 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate')
 
     // Get all users with their current credit balance (paginated — Supabase caps selects at 1000 rows)
+    const PAGE = 1000
     let users: any[] = []
     let usersError: any = null
-    const PAGE = 1000
     for (let start = 0; start < 100000; start += PAGE) {
       let q = (adminClient.from as any)('users')
         .select('id, email, full_name, credits, subscription_tier, created_at')
@@ -85,7 +85,6 @@ export async function GET(request: Request) {
     // Get ALL credit transactions (paginated — Supabase caps un-paginated selects at 1000 rows)
     let transactions: any[] = []
     let txError: any = null
-    const PAGE = 1000
     for (let start = 0; start < 100000; start += PAGE) {
       const { data: page, error } = await (adminClient.from as any)('credit_transactions')
         .select('user_id, amount, type, created_at')

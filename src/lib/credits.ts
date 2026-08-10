@@ -95,6 +95,18 @@ export async function reserveCredits(
     }
   }
 
+  // Idempotency: if this reference_id already has a usage transaction, do not double-deduct
+  const { data: existingTx } = await (client.from as any)('credit_transactions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('reference_id', projectId)
+    .eq('type', 'usage')
+    .maybeSingle()
+
+  if (existingTx) {
+    return { success: true, creditsReserved: creditCost }
+  }
+
   // Log the reservation
   const { error: logError } = await (client.from as any)('credit_transactions')
     .insert({
@@ -138,6 +150,18 @@ export async function refundCredits(
   const { client } = getCreditClient()
   const creditCost = customAmount ?? CREDIT_COSTS[operation]
   const currentCredits = await checkUserCredits(userId)
+
+  // Idempotency: if this reference_id already has a refund transaction, do not double-add
+  const { data: existingRefund } = await (client.from as any)('credit_transactions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('reference_id', projectId)
+    .eq('type', 'refund')
+    .maybeSingle()
+
+  if (existingRefund) {
+    return { success: true }
+  }
 
   // Log the refund
   const { error: logError } = await (client.from as any)('credit_transactions')

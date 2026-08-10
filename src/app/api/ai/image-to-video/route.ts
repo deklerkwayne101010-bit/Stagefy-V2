@@ -167,12 +167,12 @@ export async function POST(request: Request) {
         imageUrl = uploadData.urls[0].url
       }
 
-      const signed = await createReplicateSignedUploadUrl(userIdStr)
-
       let prediction
       if (mode === 'frames') {
         const startImage = images[0]
         const endImage = images.length > 1 ? images[1] : images[0]
+
+        const signed = await createReplicateSignedUploadUrl(userIdStr)
 
         const response = await fetch('https://api.replicate.com/v1/models/kwaivgi/kling-v3-omni-video/predictions', {
           method: 'POST',
