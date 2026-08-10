@@ -403,6 +403,16 @@ export default function ImageToVideoPage() {
                 rows={3}
                 className="mt-4"
               />
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrompt('Generate a smooth property walkthrough video from this single listing photo. Begin with a slow push-in toward the main living space, then gently pan across the visible rooms and features exactly as they appear in the image. Maintain the original perspective, lighting, and all existing elements. Do not add, remove, or invent any objects, furniture, people, or structures not already visible in the photo. The camera movement should feel natural, as if the viewer is slowly walking through the property.')}
+                  className="px-3 py-1.5 text-xs font-medium rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  🎬 Auto Video Maker
+                </button>
+              </div>
             </Card>
           </div>
 
