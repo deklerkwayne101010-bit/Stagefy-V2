@@ -245,7 +245,9 @@ export async function POST(request: Request) {
       }
 
       if (!output) {
-        throw new Error('Replicate did not return a video output.')
+        const replicateError = (prediction as any)?.error || (prediction as any)?.status || 'unknown'
+        console.error('Replicate returned no output. Full prediction:', JSON.stringify(prediction, null, 2))
+        throw new Error(`Replicate did not return a video output. Model response: ${typeof replicateError === 'string' ? replicateError : JSON.stringify(replicateError)}`)
       }
 
       const modeLabel = mode === 'frames' ? 'Image Sequence' : 'Single Image'
