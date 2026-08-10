@@ -404,15 +404,24 @@ export default function ImageToVideoPage() {
                 className="mt-4"
               />
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPrompt('Generate a smooth property walkthrough video from this single listing photo. Begin with a slow push-in toward the main living space, then gently pan across the visible rooms and features exactly as they appear in the image. Maintain the original perspective, lighting, and all existing elements. Do not add, remove, or invent any objects, furniture, people, or structures not already visible in the photo. The camera movement should feel natural, as if the viewer is slowly walking through the property.')}
-                  className="px-3 py-1.5 text-xs font-medium rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                >
-                  🎬 Auto Video Maker
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setPrompt('Generate a smooth property walkthrough video from this single listing photo. Begin with a slow push-in toward the main living space, then gently pan across the visible rooms and features exactly as they appear in the image. Maintain the original perspective, lighting, and all existing elements. Do not add, remove, or invent any objects, furniture, people, or structures not already visible in the photo. The camera movement should feel natural, as if the viewer is slowly walking through the property.')}
+                className="mt-3 w-full flex items-center gap-4 p-4 rounded-xl border-2 border-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-2xl">
+                  🎬
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900">Auto Video Maker</p>
+                  <p className="text-xs text-blue-700 mt-0.5">Instantly turn your listing photo into a smooth property walkthrough video.</p>
+                </div>
+                <div className="flex-shrink-0 text-blue-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              </button>
             </Card>
           </div>
 
