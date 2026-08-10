@@ -60,6 +60,36 @@ function buildSupabasePublicUrl(path: string) {
   return `${protocol}//${hostname}/storage/v1/object/public/uploads/${encoded}`
 }
 
+async function pollReplicatePrediction(predictionId: string, maxAttempts = 60, intervalMs = 2000): Promise<any> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const response = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+      headers: {
+        'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to poll Replicate prediction: ${errorText}`)
+    }
+
+    const prediction = await response.json()
+    const status = prediction.status
+
+    if (status === 'succeeded') {
+      return prediction
+    }
+
+    if (status === 'failed' || status === 'canceled') {
+      throw new Error(`Replicate generation ${status}: ${prediction.error || 'Unknown error'}`)
+    }
+
+    await new Promise(resolve => setTimeout(resolve, intervalMs))
+  }
+
+  throw new Error('Replicate generation timed out. Please try again.')
+}
+
 const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export async function POST(request: Request) {
@@ -206,6 +236,9 @@ export async function POST(request: Request) {
         }
 
         prediction = await response.json()
+        if (prediction.status && prediction.status !== 'succeeded' && prediction.status !== 'failed' && prediction.status !== 'canceled') {
+          prediction = await pollReplicatePrediction(prediction.id)
+        }
       } else {
         const response = await fetch('https://api.replicate.com/v1/models/xai/grok-imagine-video/predictions', {
           method: 'POST',
@@ -231,6 +264,9 @@ export async function POST(request: Request) {
         }
 
         prediction = await response.json()
+        if (prediction.status && prediction.status !== 'succeeded' && prediction.status !== 'failed' && prediction.status !== 'canceled') {
+          prediction = await pollReplicatePrediction(prediction.id)
+        }
       }
 
       const output = prediction.output as string | undefined
