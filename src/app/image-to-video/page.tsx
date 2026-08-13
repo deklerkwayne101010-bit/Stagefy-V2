@@ -565,7 +565,9 @@ export default function ImageToVideoPage() {
                       type="button"
                       onClick={() => {
                         setShowStandardWarning(false)
-                        handleSubmit()
+                        setTimeout(() => {
+                          handleSubmit()
+                        }, 0)
                       }}
                       className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
                     >
