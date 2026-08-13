@@ -700,11 +700,6 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
                 <div className="h-2 overflow-hidden rounded-full bg-blue-100">
                   <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
                 </div>
-                {logs.length > 0 && (
-                  <pre className="mt-3 max-h-32 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-                    {logs.join('\n')}
-                  </pre>
-                )}
               </div>
             )}
 
