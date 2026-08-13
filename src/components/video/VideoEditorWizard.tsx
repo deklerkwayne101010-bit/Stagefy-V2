@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { FFmpeg } from '@ffmpeg/ffmpeg'
 import { useAuth } from '@/lib/auth-context'
 import { uploadMedia } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -39,6 +40,7 @@ interface VideoEditorWizardProps {
 
 export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
   const { user } = useAuth()
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const ffmpegRef = useRef<FFmpeg | null>(null)
   const [step, setStep] = useState<VideoEditorStep>('format')
@@ -54,6 +56,7 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
   const [bathrooms, setBathrooms] = useState('')
   const [callingCardColor, setCallingCardColor] = useState('#0f172a')
   const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null)
+  const [agentProfileMissing, setAgentProfileMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -109,12 +112,17 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
       const data = await response.json()
       if (data.profile) {
         setAgentProfile(data.profile)
+        setAgentProfileMissing(false)
         if (data.profile.name_surname) {
           setHeadline(`${data.profile.name_surname} | Real Estate Agent`)
         }
+      } else {
+        setAgentProfile(null)
+        setAgentProfileMissing(true)
       }
     } catch {
       setAgentProfile(null)
+      setAgentProfileMissing(true)
     }
   }
 
@@ -339,7 +347,7 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
           propertyPrice,
           bedrooms,
           bathrooms,
-          agentName: agentProfile?.name_surname || user?.full_name || 'Real Estate Agent',
+          agentName: agentProfile?.name_surname || 'Agent',
           phone: agentProfile?.phone || '',
           email: agentProfile?.email || '',
           agency: agentProfile?.agency_brand || '',
@@ -444,7 +452,7 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
     link.click()
   }
 
-  const agentDisplayName = agentProfile?.name_surname || user?.full_name || 'Agent'
+  const agentDisplayName = agentProfile?.name_surname || 'Agent'
   const agentDetails = [agentProfile?.phone, agentProfile?.email, agentProfile?.agency_brand].filter(Boolean).join(' • ')
 
   return (
@@ -596,6 +604,19 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
 
               {callingCardEnabled && (
                 <>
+                  {agentProfileMissing && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-semibold text-amber-900">Set up your agent profile to personalize this video</p>
+                      <p className="mt-1 text-sm text-amber-700">Add your name, photo, phone, email, and agency logo so your calling card looks professional.</p>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/templates')}
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                      >
+                        Set up agent profile
+                      </button>
+                    </div>
+                  )}
                   <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} />
                   <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} />
                   <div>
