@@ -94,11 +94,12 @@ const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PU
 
 export async function POST(request: Request) {
   try {
-    const { images, mode, duration, prompt } = await request.json() as {
+    const { images, mode, duration, prompt, tier } = await request.json() as {
       images: string[]
       mode: 'single' | 'frames'
       duration: string
       prompt?: string
+      tier?: 'standard' | 'pro'
     }
 
     if (!images || images.length === 0) {
@@ -118,7 +119,8 @@ export async function POST(request: Request) {
 
     const userIdStr = user.id
     const durationNumber = parseInt(duration, 10)
-    const creditCost = Math.ceil(durationNumber * (5 / 3))
+    const selectedTier = tier === 'standard' ? 'standard' : 'pro'
+    const creditCost = selectedTier === 'standard' ? durationNumber : Math.ceil(durationNumber * (5 / 3))
 
     if (isDemoMode) {
       await new Promise(resolve => setTimeout(resolve, 2000))
@@ -240,30 +242,64 @@ export async function POST(request: Request) {
           prediction = await pollReplicatePrediction(prediction.id)
         }
       } else {
-        const response = await fetch('https://api.replicate.com/v1/models/xai/grok-imagine-video/predictions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'wait',
-          },
-          body: JSON.stringify({
-            input: {
-              prompt: prompt || 'smooth camera movement, gentle pan',
-              image: imageUrl,
-              duration: parseInt(duration, 10),
-              resolution: '720p',
-              mode: 'normal',
+        if (selectedTier === 'standard') {
+          const response = await fetch('https://api.replicate.com/v1/models/prunaai/p-video/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'wait',
             },
-          }),
-        })
+            body: JSON.stringify({
+              input: {
+                fps: 24,
+                draft: false,
+                image: imageUrl,
+                no_op: false,
+                prompt: prompt || 'smooth camera movement, gentle pan',
+                duration: parseInt(duration, 10),
+                resolution: '720p',
+                save_audio: true,
+                aspect_ratio: '16:9',
+                prompt_upsampling: false,
+                disable_safety_filter: true,
+              },
+            }),
+          })
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Failed to create video with grok-imagine-video: ${errorText}`)
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`Failed to create video with prunaai/p-video: ${errorText}`)
+          }
+
+          prediction = await response.json()
+        } else {
+          const response = await fetch('https://api.replicate.com/v1/models/xai/grok-imagine-video/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'wait',
+            },
+            body: JSON.stringify({
+              input: {
+                prompt: prompt || 'smooth camera movement, gentle pan',
+                image: imageUrl,
+                duration: parseInt(duration, 10),
+                resolution: '720p',
+                mode: 'normal',
+              },
+            }),
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`Failed to create video with grok-imagine-video: ${errorText}`)
+          }
+
+          prediction = await response.json()
         }
 
-        prediction = await response.json()
         if (prediction.status && prediction.status !== 'succeeded' && prediction.status !== 'failed' && prediction.status !== 'canceled') {
           prediction = await pollReplicatePrediction(prediction.id)
         }

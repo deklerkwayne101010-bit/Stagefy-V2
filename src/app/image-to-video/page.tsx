@@ -19,7 +19,10 @@ const videoDurations = [
   { value: '15', label: '15 seconds', description: 'Extended property showcase' },
 ]
 
-function calculateCredits(seconds: number): number {
+function calculateCredits(seconds: number, tier: 'standard' | 'pro' = 'pro'): number {
+  if (tier === 'standard') {
+    return seconds
+  }
   return Math.ceil(seconds * (5 / 3))
 }
 
@@ -29,12 +32,15 @@ export default function ImageToVideoPage() {
   const [selectedImages, setSelectedImages] = useState<string[]>([])
   const [selectedImageUrls, setSelectedImageUrls] = useState<string[]>([])
   const [mode, setMode] = useState<'single' | 'frames'>('single')
+  const [tier, setTier] = useState<'standard' | 'pro'>('pro')
   const [duration, setDuration] = useState('5')
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ videoUrl: string } | null>(null)
   const [userCredits, setUserCredits] = useState<number>(0)
+  const [showStandardWarning, setShowStandardWarning] = useState(false)
+  const [pendingStandardGeneration, setPendingStandardGeneration] = useState(false)
 
   // Check user credits on mount
   useEffect(() => {
@@ -102,9 +108,13 @@ export default function ImageToVideoPage() {
     setSelectedImageUrls(prev => prev.filter((_, i) => i !== index))
   }
 
-  const creditCost = calculateCredits(parseInt(duration))
+  const creditCost = calculateCredits(parseInt(duration), tier)
 
   const handleSubmit = async () => {
+    if (pendingStandardGeneration) {
+      setPendingStandardGeneration(false)
+    }
+
     if (mode === 'frames' && selectedImages.length < 2) {
       setError('Please upload both start and end images')
       return
@@ -145,12 +155,13 @@ export default function ImageToVideoPage() {
           'Content-Type': 'application/json',
           ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({
-          images: imagesToSend,
-          mode,
-          duration: parseInt(duration),
-          prompt,
-        }),
+      body: JSON.stringify({
+        images: imagesToSend,
+        mode,
+        duration: parseInt(duration),
+        prompt,
+        tier,
+      }),
       })
 
       if (!response.ok) {
@@ -241,6 +252,53 @@ export default function ImageToVideoPage() {
                     <div>
                       <p className="font-medium text-gray-900">Image Sequence</p>
                       <p className="text-sm text-gray-500">Start + End frame → Video</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </Card>
+
+            {/* Quality Tier Selection */}
+            <Card>
+              <CardHeader title="Quality Tier" subtitle="Choose between standard experimental or pro quality" />
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setTier('standard')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    tier === 'standard'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Standard</p>
+                      <p className="text-sm text-gray-500">{calculateCredits(parseInt(duration), 'standard')} credits/sec • Experimental</p>
+                    </div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setTier('pro')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    tier === 'pro'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Pro</p>
+                      <p className="text-sm text-gray-500">{calculateCredits(parseInt(duration), 'pro')} credits/sec • High Quality</p>
                     </div>
                   </div>
                 </button>
@@ -386,7 +444,7 @@ export default function ImageToVideoPage() {
                   label="Video Duration"
                   value={duration}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDuration(e.target.value)}
-                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${calculateCredits(parseInt(d.value))} credits` }))}
+                  options={videoDurations.map(d => ({ value: d.value, label: `${d.label} - ${calculateCredits(parseInt(d.value), tier)} credits` }))}
                 />
                 
                 <div className="p-4 rounded-lg bg-blue-50">
@@ -491,11 +549,46 @@ export default function ImageToVideoPage() {
                     setError('Not enough credits')
                     return
                   }
+                  if (tier === 'standard') {
+                    setShowStandardWarning(true)
+                    return
+                  }
                   handleSubmit()
                 }}
               >
                 {loading ? 'Creating Video...' : 'Create Video'}
               </Button>
+
+              {showStandardWarning && (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-900">Standard model notice</p>
+                  <p className="mt-1 text-sm text-amber-700">
+                    The Standard option uses an experimental model. It may be less accurate than Pro and can still make mistakes. Pro uses the high-quality model instead.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowStandardWarning(false)
+                        setPendingStandardGeneration(true)
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                    >
+                      Continue anyway
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowStandardWarning(false)
+                        setTier('pro')
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                    >
+                      Switch to Pro
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <p className="text-red-400 text-sm mt-3">{error}</p>
