@@ -40,7 +40,6 @@ export default function ImageToVideoPage() {
   const [result, setResult] = useState<{ videoUrl: string } | null>(null)
   const [userCredits, setUserCredits] = useState<number>(0)
   const [showStandardWarning, setShowStandardWarning] = useState(false)
-  const [pendingStandardGeneration, setPendingStandardGeneration] = useState(false)
 
   // Check user credits on mount
   useEffect(() => {
@@ -111,10 +110,6 @@ export default function ImageToVideoPage() {
   const creditCost = calculateCredits(parseInt(duration), tier)
 
   const handleSubmit = async () => {
-    if (pendingStandardGeneration) {
-      setPendingStandardGeneration(false)
-    }
-
     if (mode === 'frames' && selectedImages.length < 2) {
       setError('Please upload both start and end images')
       return
@@ -570,7 +565,7 @@ export default function ImageToVideoPage() {
                       type="button"
                       onClick={() => {
                         setShowStandardWarning(false)
-                        setPendingStandardGeneration(true)
+                        handleSubmit()
                       }}
                       className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
                     >
