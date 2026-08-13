@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
     const paymentStatus = data.payment_status
     let userId = data.custom_str1  // User ID passed from the form
-    const creditsAmount = parseInt(data.custom_str2 || '0')  // Credits to add
+    let creditsAmount = parseInt(data.custom_str2 || '0')  // Credits to add
     const pfPaymentId = data.pf_payment_id
     const payerEmail = data.email_address  // Buyer's email
 
@@ -90,6 +90,21 @@ export async function POST(request: Request) {
     if (!userId) {
       console.error('No user ID in payment data and could not find by email')
       return new NextResponse('Missing user ID', { status: 400 })
+    }
+
+    // Fallback: if creditsAmount is missing from custom_str2, look up the order's product
+    if ((!creditsAmount || creditsAmount <= 0) && pfPaymentId) {
+      console.log(`creditsAmount missing from custom_str2, looking up order for payment ${pfPaymentId}`)
+      const { data: orderByPaymentId } = await (supabase.from as any)('shop_orders')
+        .select('product_id, shop_products(credits_included)')
+        .eq('id', pfPaymentId)
+        .maybeSingle()
+
+      const fallbackCredits = orderByPaymentId?.shop_products?.credits_included || 0
+      if (fallbackCredits > 0) {
+        creditsAmount = fallbackCredits
+        console.log(`Fallback credits from product: ${creditsAmount}`)
+      }
     }
 
     // Idempotency check - prevent duplicate credit additions

@@ -10,7 +10,7 @@ interface ShopOrder {
   id: string
   status: string
   total_amount: number
-  shop_products: { name: string; description: string } | null
+  shop_products: { name: string; description: string; credits_included: number | null } | null
 }
 
 const PAYFAST_MERCHANT_ID = process.env.PAYFAST_MERCHANT_ID || '10028813'
@@ -99,6 +99,7 @@ export async function POST(request: Request) {
       item_name: order.shop_products?.name || 'Shop Item',
       item_description: order.shop_products?.description || '',
       custom_str1: order.id,
+      custom_str2: String(order.shop_products?.credits_included ?? 0),
     }
 
     pfData.signature = generateSignature(pfData, PAYFAST_PASSPHRASE)
