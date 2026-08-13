@@ -66,6 +66,8 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
   const [resultUrl, setResultUrl] = useState<string | null>(null)
   const [resultBlob, setResultBlob] = useState<Blob | null>(null)
   const [userCredits, setUserCredits] = useState(user?.credits || 0)
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
+  const [ffmpegLoadError, setFfmpegLoadError] = useState<string | null>(null)
 
   const steps: { key: VideoEditorStep; label: string }[] = [
     { key: 'format', label: 'Format' },
@@ -94,9 +96,17 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
     return () => {
       clips.forEach(clip => URL.revokeObjectURL(clip.url))
       if (resultUrl) URL.revokeObjectURL(resultUrl)
-      ffmpegRef.current?.terminate()
     }
   }, [clips, resultUrl])
+
+  useEffect(() => {
+    return () => {
+      ffmpegRef.current?.terminate()
+      ffmpegRef.current = null
+      setFfmpegLoaded(false)
+      setFfmpegLoadError(null)
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -297,11 +307,23 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
         ffmpeg.on('log', ({ message }) => {
           setLogs(prev => [...prev.slice(-8), message])
         })
-        await ffmpeg.load({
-          coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
-          wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
-        })
+
+        try {
+          await ffmpeg.load({
+            coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
+            wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
+          })
+        } catch (loadError) {
+          const message = loadError instanceof Error ? loadError.message : 'Failed to load video engine.'
+          console.error('FFmpeg load failed:', loadError)
+          setFfmpegLoadError(message)
+          setFfmpegLoaded(false)
+          throw new Error(`Video engine failed to load: ${message}`)
+        }
+
         ffmpegRef.current = ffmpeg
+        setFfmpegLoaded(true)
+        setFfmpegLoadError(null)
       }
 
       const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
@@ -464,7 +486,24 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
           action={<CreditBadge credits={userCredits} size="sm" />}
         />
 
-        <div className="mb-6">
+        <div className="mb-6 flex flex-col gap-3">
+          {ffmpegLoadError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p className="font-semibold">Video engine failed to load</p>
+              <p className="mt-1">{ffmpegLoadError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setFfmpegLoadError(null)
+                  setFfmpegLoaded(false)
+                  ffmpegRef.current = null
+                }}
+                className="mt-2 inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {steps.map((item, index) => (
               <div key={item.key} className="flex items-center gap-2">
