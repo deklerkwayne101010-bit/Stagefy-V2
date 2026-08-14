@@ -7,11 +7,6 @@ import { createClient } from '@supabase/supabase-js'
 // Only allow cron requests with authorization header
 const CRON_SECRET = process.env.CRON_SECRET || ''
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 // Subscription plans with monthly credit allocations
 const SUBSCRIPTION_PLANS: Record<string, { monthlyCredits: number }> = {
   basic: { monthlyCredits: 50 },
@@ -25,6 +20,16 @@ export async function GET(request: Request) {
   if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
     return new NextResponse('Unauthorized', { status: 401 })
   }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    console.error('Missing Supabase environment variables')
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
   console.log('Starting monthly credit reset via Vercel Cron...')
 
