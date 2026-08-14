@@ -24,7 +24,7 @@ import {
 
 type VideoEditorStep = 'format' | 'clips' | 'transition' | 'calling_card' | 'review'
 
-const MAX_CLIPS = 10
+const MAX_CLIPS = 30
 const MAX_CLIP_SECONDS = 5
 const MIN_CLIP_SECONDS = 1
 const CREDIT_COST = 1
@@ -552,7 +552,7 @@ export function VideoEditorWizard({ isOpen = true }: VideoEditorWizardProps) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium text-slate-900">Upload 3-5 second clips</p>
-                <p className="text-sm text-slate-500">Add 2-10 clips. Clips longer than 5 seconds are trimmed automatically.</p>
+                <p className="text-sm text-slate-500">Add 2-30 clips. Clips longer than 5 seconds are trimmed automatically.</p>
               </div>
               <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading || clips.length >= MAX_CLIPS}>
                 Add Clips
