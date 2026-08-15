@@ -111,6 +111,38 @@ Exit criteria:
 | Image → Video (15s) Pro | 25 |
 | Final stitch | 1 |
 
+## Implementation Status
+
+### Phase 1: Shell, Nav & Shared Helpers ✅
+- Created `src/app/video-make-studio/page.tsx` and `layout.tsx`
+- Added sidebar nav item in `src/components/layout/Sidebar.tsx`
+- Extracted `stitchVideoWithFFmpeg(options)` into `src/components/video/videoEditorHelpers.ts`
+
+### Phase 2: Batch Backend ✅
+- Created `src/app/api/ai/video-make-studio/batch/route.ts` — POST starts batch, reserves credits, creates projects
+- Created `src/app/api/ai/video-make-studio/batch/[batchId]/route.ts` — GET status + sequential processing
+- Created `src/app/api/ai/video-make-studio/webhook/route.ts` — Replicate webhook handler
+- Created `src/app/api/ai/video-make-studio/batch/[batchId]/retry/route.ts` — Retry failed clips
+- Created `src/lib/video-make-studio/replicate.ts` — Shared Replicate helper
+
+### Phase 3: Wizard Steps 1–3 (Setup) ✅
+- Implemented `VideoMakeStudioWizard.tsx` with format, images, and calling_card steps
+- Image upload 3–30 images with preview grid
+- Duration, tier, prompt with Auto Video Maker
+- Live cost estimation
+
+### Phase 4: Wizard Steps 4–5 (Generate & Review) ✅
+- Implemented generate step with progress bar and per-clip status
+- Implemented review step with successful clips grid and failed clip retry
+- Polling via `/batch/[batchId]` every 3 seconds
+- Retry functionality with credit reservation
+
+### Phase 5: Wizard Steps 6–7 (Stitch & Finish) ✅
+- Implemented transition step with fade duration selector and mute toggle
+- Implemented finish step with FFmpeg stitching, credit reservation, preview
+- Download MP4 and Save to Media Library functionality
+- Credit summary display
+
 ## Out of Scope
 - Drag-and-drop reordering
 - Websocket updates

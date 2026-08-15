@@ -25,6 +25,16 @@ Stagefy is a comprehensive real estate media creation platform built with Next.j
 - [x] History API mode in `/api/admin/usage` supporting `mode=history`
 - [x] Agent name mapping from credit transaction descriptions
 
+### Video Make Studio
+- [x] New `/video-make-studio` page with 7-step wizard
+- [x] Batch image-to-video generation (3-30 images)
+- [x] Sequential server-side Replicate processing
+- [x] Credit reservation/refund per clip
+- [x] FFmpeg WASM stitching with transitions
+- [x] Calling card overlay support
+- [x] Download and save to media library
+- [x] Retry failed clips individually
+
 ### Technical Foundation
 - [x] Supabase client configuration
 - [x] Database types and interfaces
@@ -53,6 +63,9 @@ Stagefy is a comprehensive real estate media creation platform built with Next.j
 | `src/app/billing/` | Billing & credits | ✅ Complete |
 | `src/app/admin/` | Admin dashboard | ✅ Complete |
 | `src/app/settings/` | Account settings | ✅ Complete |
+| `src/app/video-make-studio/` | Video Make Studio wizard | ✅ Complete |
+| `src/app/api/ai/video-make-studio/` | Video Make Studio API routes | ✅ Complete |
+| `src/lib/video-make-studio/` | Replicate helper | ✅ Complete |
 | `src/lib/` | Utilities & types | ✅ Complete |
 | `src/components/ui/` | UI components | ✅ Complete |
 | `src/components/layout/` | Layout components | ✅ Complete |
@@ -144,6 +157,8 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 3. [ ] Deploy to production
 4. [ ] Add email notifications
 5. [ ] Implement real-time webhooks for AI services
+6. [x] **Add Video Make Studio** - Batch image-to-video wizard with FFmpeg stitching
+7. [x] **Add admin usage history** - Chronological activity feed with agent name mapping
 
 | Date | Changes |
 |------|---------|
@@ -171,3 +186,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-05 | Fixed PGRST116 error when user row not found |
 | 2026-02-05 | **Synced all commits to GitHub repository** |
 | 2026-08-15 | Added admin user usage history tab with chronological activity feed, agent name mapping, and time range filters (24h/7d/30d/all/custom) |
+| 2026-08-15 | Built Video Make Studio: batch image-to-video wizard with 7 steps (format, images, calling card, generate, review, transition, finish), sequential Replicate processing, FFmpeg WASM stitching, credit reservation/refund, retry logic, and media library save |
