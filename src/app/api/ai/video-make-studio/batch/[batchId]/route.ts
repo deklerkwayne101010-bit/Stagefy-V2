@@ -2,10 +2,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { refundCredits } from '@/lib/credits'
-import { createReplicatePrediction, pollReplicatePrediction, getAdminClient } from '@/lib/video-make-studio/replicate'
+import { createReplicatePrediction, pollReplicatePrediction, getAdminClient, getImageToVideoOperation } from '@/lib/video-make-studio/replicate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+interface BatchClip {
+  id: string
+  imageIndex: number
+  status: string
+  outputUrl: string | null
+  error: string | null
+  creditsUsed: number
+}
 
 async function getUserFromAuthHeader(request: Request) {
   const authHeader = request.headers.get('Authorization')
@@ -54,7 +63,7 @@ export async function GET(
       .neq('name', 'Video Make Studio Batch')
       .order('created_at', { ascending: true })
 
-    const clips = (clipProjects || []).map((project: any) => {
+    const clips: BatchClip[] = (clipProjects || []).map((project: any) => {
       const input = project.input_data || {}
       return {
         id: project.id,
@@ -102,7 +111,10 @@ export async function GET(
               credit_cost: clipProject.credit_cost,
             })
 
-          clips.find(c => c.id === clipProject.id).status = 'processing'
+          const processingClip = clips.find(c => c.id === clipProject.id)
+          if (processingClip) {
+            processingClip.status = 'processing'
+          }
         } catch (err: any) {
           await (adminClient.from as any)('projects')
             .update({
@@ -111,10 +123,13 @@ export async function GET(
             })
             .eq('id', clipProject.id)
 
-          await refundCredits(user.id, `image_to_video_${clipProject.input_data?.duration || 5}sec`, `clip-failed-${clipProject.id}`, clipProject.credit_cost)
+          await refundCredits(user.id, getImageToVideoOperation(clipProject.input_data?.duration || 5), `clip-failed-${clipProject.id}`, clipProject.credit_cost)
 
-          clips.find(c => c.id === clipProject.id).status = 'failed'
-          clips.find(c => c.id === clipProject.id).error = err.message
+          const failedClip = clips.find(c => c.id === clipProject.id)
+          if (failedClip) {
+            failedClip.status = 'failed'
+            failedClip.error = err.message
+          }
         }
       }
     } else if (processingClips.length > 0) {
@@ -145,8 +160,11 @@ export async function GET(
                 credit_cost: clipProject.credit_cost,
               })
 
-            clips.find(c => c.id === clipProject.id).status = 'completed'
-            clips.find(c => c.id === clipProject.id).outputUrl = prediction.output
+            const completedClip = clips.find(c => c.id === clipProject.id)
+            if (completedClip) {
+              completedClip.status = 'completed'
+              completedClip.outputUrl = prediction.output
+            }
           }
         } catch (err: any) {
           await (adminClient.from as any)('projects')
@@ -156,10 +174,13 @@ export async function GET(
             })
             .eq('id', clipProject.id)
 
-          await refundCredits(user.id, `image_to_video_${clipProject.input_data?.duration || 5}sec`, `clip-failed-${clipProject.id}`, clipProject.credit_cost)
+          await refundCredits(user.id, getImageToVideoOperation(clipProject.input_data?.duration || 5), `clip-failed-${clipProject.id}`, clipProject.credit_cost)
 
-          clips.find(c => c.id === clipProject.id).status = 'failed'
-          clips.find(c => c.id === clipProject.id).error = err.message
+          const failedClip = clips.find(c => c.id === clipProject.id)
+          if (failedClip) {
+            failedClip.status = 'failed'
+            failedClip.error = err.message
+          }
         }
       }
     }
