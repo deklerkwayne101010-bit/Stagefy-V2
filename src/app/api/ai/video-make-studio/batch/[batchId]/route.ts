@@ -21,6 +21,15 @@ async function getUserFromAuthHeader(request: Request) {
   }
 }
 
+interface BatchClip {
+  id: string
+  imageIndex: number
+  status: string
+  outputUrl: string | null
+  error: string | null
+  creditsUsed: number
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ batchId: string }> }
@@ -54,7 +63,7 @@ export async function GET(
       .neq('name', 'Video Make Studio Batch')
       .order('created_at', { ascending: true })
 
-    const clips = (clipProjects || []).map((project: any) => {
+    const clips: BatchClip[] = (clipProjects || []).map((project: any) => {
       const input = project.input_data || {}
       return {
         id: project.id,
