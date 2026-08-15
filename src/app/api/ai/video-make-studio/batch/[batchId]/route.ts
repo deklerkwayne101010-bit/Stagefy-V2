@@ -23,7 +23,7 @@ async function getUserFromAuthHeader(request: Request) {
 
 export async function GET(
   request: Request,
-  { params }: { params: { batchId: string } }
+  { params }: { params: Promise<{ batchId: string }> }
 ) {
   try {
     const user = await getUserFromAuthHeader(request)
@@ -32,7 +32,7 @@ export async function GET(
     }
 
     const adminClient = getAdminClient()
-    const batchId = params.batchId
+    const { batchId } = await params
 
     const { data: batchProject } = await (adminClient.from as any)('projects')
       .select('*')

@@ -27,7 +27,7 @@ function calculateClipCredits(duration: number, tier: 'standard' | 'pro'): numbe
 
 export async function POST(
   request: Request,
-  { params }: { params: { batchId: string } }
+  { params }: { params: Promise<{ batchId: string }> }
 ) {
   try {
     const user = await getUserFromAuthHeader(request)
@@ -37,7 +37,7 @@ export async function POST(
 
     const body = await request.json() as { clipId: string }
     const { clipId } = body
-    const batchId = params.batchId
+    const { batchId } = await params
 
     if (!clipId) {
       return NextResponse.json({ error: 'clipId is required' }, { status: 400 })
