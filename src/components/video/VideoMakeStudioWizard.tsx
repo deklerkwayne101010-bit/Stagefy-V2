@@ -47,7 +47,7 @@ export function VideoMakeStudioWizard() {
   const [format, setFormat] = useState<VideoEditorFormat>(videoEditorFormats[0])
   const [images, setImages] = useState<string[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
-  const [prompt, setPrompt] = useState('')
+  const [prompt, setPrompt] = useState(AUTO_PROMPT)
   const [duration, setDuration] = useState('5')
   const [tier, setTier] = useState<'standard' | 'pro'>('pro')
   const [callingCardEnabled, setCallingCardEnabled] = useState(true)
@@ -561,12 +561,16 @@ export function VideoMakeStudioWizard() {
                 </div>
               ))}
               {images.length === 0 && (
-                <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-6 text-center text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex min-h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-6 text-center text-slate-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors"
+                >
                   <svg className="mb-3 h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p>No images added yet.</p>
-                </div>
+                  <p>No images added yet. Click to upload.</p>
+                </button>
               )}
             </div>
 

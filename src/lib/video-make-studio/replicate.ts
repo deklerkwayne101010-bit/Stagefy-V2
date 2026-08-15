@@ -1,8 +1,24 @@
 import { createClient } from '@supabase/supabase-js'
+import { type CreditOperation } from '@/lib/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN!
+
+export function getImageToVideoOperation(duration: number): CreditOperation {
+  switch (duration) {
+    case 3:
+      return 'image_to_video_3sec'
+    case 5:
+      return 'image_to_video_5sec'
+    case 10:
+      return 'image_to_video_10sec'
+    case 15:
+      return 'image_to_video_15sec'
+    default:
+      return 'image_to_video_5sec'
+  }
+}
 
 export async function createReplicatePrediction(imageUrl: string, prompt: string, duration: number, tier: string): Promise<{ predictionId: string }> {
   let prediction
