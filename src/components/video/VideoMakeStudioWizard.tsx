@@ -40,6 +40,7 @@ export function VideoMakeStudioWizard() {
   const { user } = useAuth()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [step, setStep] = useState<VideoMakeStudioStep>('format')
   const [format, setFormat] = useState<VideoEditorFormat>(videoEditorFormats[0])
@@ -58,8 +59,12 @@ export function VideoMakeStudioWizard() {
   const [callingCardColor, setCallingCardColor] = useState('#0f172a')
   const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null)
   const [agentProfileMissing, setAgentProfileMissing] = useState(false)
+  const [batchId, setBatchId] = useState<string | null>(null)
+  const [clips, setClips] = useState<BatchClip[]>([])
+  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
     { key: 'format', label: 'Format' },
@@ -80,10 +85,23 @@ export function VideoMakeStudioWizard() {
 
   const canStartBatch = images.length >= MIN_IMAGES
 
+  const successfulClips = clips.filter(c => c.status === 'completed' && c.outputUrl)
+  const sortedSuccessfulClips = useMemo(() => {
+    return [...successfulClips].sort((a, b) => a.imageIndex - b.imageIndex)
+  }, [successfulClips])
+
   useEffect(() => {
     if (!user?.id) return
     void loadAgentProfile()
   }, [user?.id])
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+    }
+  }, [])
 
   async function loadAgentProfile() {
     try {
@@ -163,6 +181,131 @@ export function VideoMakeStudioWizard() {
     setImageUrls(prev => prev.filter((_, i) => i !== index))
   }
 
+  async function startBatch() {
+    if (!canStartBatch || !user?.id) return
+
+    setIsGenerating(true)
+    setError(null)
+    setProgress(0)
+    setClips([])
+    setBatchId(null)
+
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const response = await fetch('/api/ai/video-make-studio/batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          images: imageUrls,
+          prompt,
+          duration,
+          tier,
+          formatKey: format.key,
+          formatWidth: format.width,
+          formatHeight: format.height,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start batch')
+      }
+
+      setBatchId(data.batchId)
+      setClips(
+        Array.from({ length: data.totalClips }).map((_, i) => ({
+          id: `clip-${i}`,
+          imageIndex: i,
+          imageUrl: imageUrls[i] || images[i],
+          status: 'pending' as const,
+          outputUrl: null,
+          error: null,
+          creditsUsed: 0,
+        }))
+      )
+
+      setStep('generate')
+      void pollBatchStatus()
+    } catch (err: any) {
+      setError(err?.message || 'Failed to start batch generation.')
+      setIsGenerating(false)
+    }
+  }
+
+  async function pollBatchStatus() {
+    if (!batchId || !user?.id) return
+
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const response = await fetch(`/api/ai/video-make-studio/batch/${batchId}`, {
+        headers: session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {},
+      })
+      const data = await response.json()
+
+      if (data.clips) {
+        setClips(data.clips)
+      }
+
+      const completed = data.clips?.filter((c: any) => c.status === 'completed').length || 0
+      const total = data.summary?.total || data.clips?.length || 0
+      setProgress(total > 0 ? Math.round((completed / total) * 100) : 0)
+
+      if (data.status === 'completed' || data.status === 'completed_with_errors') {
+        setIsGenerating(false)
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
+        }
+        setStep('review')
+      }
+    } catch (err: any) {
+      console.error('Poll error:', err)
+    }
+  }
+
+  useEffect(() => {
+    if (step === 'generate' && batchId && isGenerating) {
+      pollBatchStatus()
+      pollIntervalRef.current = setInterval(() => {
+        void pollBatchStatus()
+      }, 3000)
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+        }
+      }
+    }
+  }, [step, batchId, isGenerating])
+
+  async function retryClip(clipId: string) {
+    if (!user?.id || !batchId) return
+
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      await fetch(`/api/ai/video-make-studio/batch/${batchId}/retry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ clipId }),
+      })
+
+      setClips(prev => prev.map(c => c.id === clipId ? { ...c, status: 'pending', error: null } : c))
+    } catch (err: any) {
+      setError(err?.message || 'Failed to retry clip.')
+    }
+  }
+
   function handleNext() {
     if (step === 'format') {
       setStep('images')
@@ -178,13 +321,26 @@ export function VideoMakeStudioWizard() {
     }
     if (step === 'calling_card') {
       setStep('generate')
+      void startBatch()
+      return
+    }
+    if (step === 'review') {
+      setStep('transition')
     }
   }
 
   function handleBack() {
     if (step === 'images') setStep('format')
     else if (step === 'calling_card') setStep('images')
-    else if (step === 'generate') setStep('calling_card')
+    else if (step === 'generate') {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      setIsGenerating(false)
+      setStep('calling_card')
+    } else if (step === 'review') setStep('generate')
+    else if (step === 'transition') setStep('review')
   }
 
   const agentDisplayName = agentProfile?.name_surname || 'Agent'
@@ -444,12 +600,95 @@ export function VideoMakeStudioWizard() {
           </div>
         )}
 
+        {step === 'generate' && (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium text-blue-900">Generating clips</span>
+                <span className="font-semibold text-blue-900">{progress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {clips.map((clip) => (
+                <div key={clip.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="aspect-video bg-slate-900 rounded-lg flex items-center justify-center">
+                    {clip.status === 'completed' && clip.outputUrl ? (
+                      <video src={clip.outputUrl} className="w-full h-full rounded-lg object-cover" muted />
+                    ) : clip.status === 'failed' ? (
+                      <div className="text-center text-red-400 p-2">
+                        <p className="text-xs font-semibold">Failed</p>
+                        {clip.error && <p className="text-[10px] mt-1 line-clamp-2">{clip.error}</p>}
+                      </div>
+                    ) : (
+                      <div className="text-center text-slate-400">
+                        <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-xs">Processing...</p>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs font-medium text-slate-600">Image {clip.imageIndex + 1}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 'review' && (
+          <div className="space-y-5">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Format</p>
+                <p className="mt-1 font-semibold text-slate-900">{format.label}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Clips</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {successfulClips.length} of {clips.length} successful
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Status</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {clips.every(c => c.status === 'completed') ? 'All clips ready' : 'Some clips failed'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {sortedSuccessfulClips.map((clip) => (
+                <div key={clip.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <video src={clip.outputUrl!} className="w-full aspect-video rounded-lg bg-slate-900 object-cover" controls muted />
+                  <p className="mt-2 text-xs font-medium text-slate-600">Image {clip.imageIndex + 1}</p>
+                </div>
+              ))}
+            </div>
+
+            {clips.some(c => c.status === 'failed') && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">Some clips failed</p>
+                <p className="mt-1 text-sm text-amber-700">You can retry failed clips below, or continue with the successful ones.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {clips.filter(c => c.status === 'failed').map(clip => (
+                    <Button key={clip.id} variant="outline" size="sm" onClick={() => retryClip(clip.id)}>
+                      Retry Image {clip.imageIndex + 1}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-6 flex justify-between gap-3">
           <Button variant="outline" onClick={handleBack} disabled={step === 'format'}>
             Back
           </Button>
           <Button onClick={handleNext} disabled={step === 'images' && !canStartBatch}>
-            {step === 'calling_card' ? 'Start Generation' : 'Next'}
+            {step === 'calling_card' ? 'Start Generation' : step === 'generate' ? 'Generating...' : step === 'review' ? 'Continue to Transition' : 'Next'}
           </Button>
         </div>
       </Card>
