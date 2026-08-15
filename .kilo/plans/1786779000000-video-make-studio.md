@@ -1,125 +1,119 @@
 # Plan: Video Make Studio
 
 ## Goal
-Add a new **Video Make Studio** page that automates the workflow: upload 3–30 images → batch-convert each to video via Replicate → review/retry clips → stitch into a final video. Guided wizard. No changes to existing pages.
+New `/video-make-studio` page that turns 3–30 uploaded images into a stitched video. Guided wizard. Existing pages untouched.
 
-## Decisions
-- **Page**: New `/video-make-studio` route with sidebar navigation entry.
-- **Wizard steps**: Format → Images & Prompt → Calling Card → Generate → Review Clips → Transition → Finish.
-- **Batch processing**: Sequential server-side generation (one Replicate prediction at a time) to avoid rate-limit issues.
-- **Prompt/duration**: Single prompt + single duration applies to all images in the batch.
-- **Credits**: Reserve total upfront (images × per-video cost). Refund individual clips that fail. Reserve 1 credit for final stitch (`video_editor_simple`).
-- **Error handling**: Failed clips are marked in Review step; user can retry individually. Stitch proceeds with successful clips only.
-- **Output**: Final video is stitched via FFmpeg WASM (reuse existing video-editor logic), offered as download, and saved to the user’s media library (`media_items` + `uploads` bucket).
-- **Data tracking**: First code to write to the currently-unused `projects` and `ai_jobs` tables. Use a `batch_id` to group clip projects.
+## Fixed Decisions
+- Wizard: Format → Images & Prompt → Calling Card → Generate → Review Clips → Transition → Finish
+- Single prompt + duration applies to all images
+- Sequential batch processing on server
+- Credits: reserve total upfront, refund per failed clip, 1 credit for final stitch
+- Reuse FFmpeg WASM stitching from existing video editor
+- No schema migration; reuse `projects`, `credit_transactions`, `media_items`
 
-## Wizard Step Details
+## Phases
 
-### 1. Format
-- Choose output aspect ratio: vertical (720×1280), square (720×720), landscape (1280×720).
-- Reuse options from existing `VideoEditorWizard`.
+### Phase 1: Shell, Nav & Shared Helpers
+**Goal:** Route exists and navigation works; shared FFmpeg stitch logic extracted.
 
-### 2. Images & Prompt
-- Upload 3–30 images (drag/drop + click). Validate min 3, max 30.
-- Single prompt textarea. Include “Auto Video Maker” quick-fill that inserts the strict “use only what’s in the photo” prompt.
-- Duration dropdown: 3 / 5 / 10 / 15 seconds.
-- Quality tier: Standard or Pro (same cost mapping as existing image-to-video).
+Tasks:
+- Create `src/app/video-make-studio/page.tsx` and `layout.tsx`
+- Add sidebar nav item in `src/components/layout/Sidebar.tsx`
+- Extract FFmpeg stitch/transition logic from `VideoEditorWizard` into `src/components/video/videoEditorHelpers.ts` as `stitchVideoWithFFmpeg(options)`
 
-### 3. Calling Card
-- Optional branding overlay (agent name, headline, price, beds/baths, CTA, color).
-- Reuse the calling-card UI and canvas-generation logic from `VideoEditorWizard`.
+Exit criteria:
+- `/video-make-studio` loads behind auth with sidebar
+- Existing `/video-editor` and `/image-to-video` unchanged
+- `stitchVideoWithFFmpeg` is callable with format, clips, transition, calling-card PNG
 
-### 4. Generate
-- Show progress bar and per-image status (pending → processing → completed / failed).
-- Server processes images sequentially.
-- Credits reserved upfront before generation starts.
-- If a clip fails, its credits are refunded immediately and status is marked failed.
+### Phase 2: Batch Backend
+**Goal:** Server can start a batch, create project records, and process clips sequentially.
 
-### 5. Review Clips
-- Grid/list of generated video clips with thumbnails.
-- Actions per clip: preview, play, retry (failed only), remove.
-- Reorder clips with up/down buttons (drag-and-drop is out of scope for v1).
-- Minimum 1 successful clip required to proceed.
-- “Regenerate All” button to restart batch with same settings.
+Files:
+- `src/app/api/ai/video-make-studio/batch/route.ts` — `POST` validates input, reserves total credits, creates batch project + clip projects, starts first prediction
+- `src/app/api/ai/video-make-studio/batch/[batchId]/route.ts` — `GET` returns batch status + clip list; processes next pending clip or polls current processing clip
+- `src/app/api/ai/video-make-studio/webhook/route.ts` — `POST` Replicate webhook updates clip project status
 
-### 6. Transition
-- Fade duration: 0.3s fast / 0.5s smooth / 0.8s soft.
-- Mute audio toggle.
-- Reuse transition UI from `VideoEditorWizard`.
+Behavior:
+- Sequential: only one Replicate prediction active at a time
+- On failure: refund that clip’s credits, mark project `failed`
+- On success: store output URL in project `output_data`, mark `completed`
 
-### 7. Finish
-- Stitch all successful clips using FFmpeg WASM with selected transition.
-- Reserve 1 credit (`video_editor_simple`) for stitching.
-- Final video preview with download button.
-- Auto-save to `media_items` + `uploads/videos/` bucket.
-- Show credit summary (spent on generation + stitch).
+Exit criteria:
+- Batch API returns `batchId`, clip statuses, and summary counts
+- Failed clips trigger credit refunds
+- Admin can see `projects` rows created per batch
+
+### Phase 3: Wizard Steps 1–3 (Setup)
+**Goal:** User can configure format, upload images, and set calling card.
+
+Tasks:
+- Implement `VideoMakeStudioWizard.tsx` steps: `format`, `images`, `calling_card`
+- Image upload: 3–30 images, store both data URLs and Supabase URLs
+- Show total estimated cost = clips + stitch
+- Auto Video Maker button fills prompt
+
+Exit criteria:
+- Wizard advances through first 3 steps
+- Images preview in grid, removable
+- Calling card preview mirrors existing video editor
+
+### Phase 4: Wizard Steps 4–5 (Generate & Review)
+**Goal:** Batch generation runs and user can review/retry clips.
+
+Tasks:
+- Implement `generate` step: progress bar, per-clip status cards, polling via `/batch/[batchId]`
+- Implement `review` step: show successful clips in order, failed clips with retry button
+- Retry resets clip to pending and re-triggers server processing
+
+Exit criteria:
+- Batch progresses from pending → processing → completed/failed
+- Retry on failed clip works and reserves/refunds correctly
+- User can proceed with any successful clips
+
+### Phase 5: Wizard Steps 6–7 (Stitch & Finish)
+**Goal:** User picks transition and gets final downloadable video.
+
+Tasks:
+- Implement `transition` step: fade duration + mute toggle
+- Implement `finish` step: call `stitchVideoWithFFmpeg`, reserve 1 stitch credit, show preview
+- Download + save to media library via `uploadImage`
+- Credit summary display
+
+Exit criteria:
+- Final video plays in browser
+- Download and save-to-library both work
+- 1 credit deducted for stitch, refunded on failure
 
 ## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/app/video-make-studio/page.tsx` | New page entry point |
-| `src/app/video-make-studio/layout.tsx` | Auth + sidebar wrapper |
-| `src/components/video/VideoMakeStudioWizard.tsx` | Main wizard component |
-| `src/app/api/ai/video-make-studio/batch/route.ts` | `POST` to start batch, reserves credits, creates projects, fires sequential Replicate predictions |
-| `src/app/api/ai/video-make-studio/batch/[batchId]/route.ts` | `GET` status endpoint for client polling |
-| `src/app/api/ai/video-make-studio/webhook/route.ts` | `POST` Replicate webhook handler to update clip status asynchronously |
+| File | Phase |
+|------|-------|
+| `src/app/video-make-studio/page.tsx` | 1 |
+| `src/app/video-make-studio/layout.tsx` | 1 |
+| `src/components/video/VideoMakeStudioWizard.tsx` | 3–5 |
+| `src/app/api/ai/video-make-studio/batch/route.ts` | 2 |
+| `src/app/api/ai/video-make-studio/batch/[batchId]/route.ts` | 2 |
+| `src/app/api/ai/video-make-studio/webhook/route.ts` | 2 |
 
 ## Files to Modify
+| File | Phase | Change |
+|------|-------|--------|
+| `src/components/layout/Sidebar.tsx` | 1 | Add nav item |
+| `src/components/video/videoEditorHelpers.ts` | 1 | Add `stitchVideoWithFFmpeg` |
 
-| File | Change |
-|------|--------|
-| `src/components/layout/Sidebar.tsx` | Add “Video Make Studio” nav item |
-| `src/components/video/videoEditorHelpers.ts` | Extract reusable FFmpeg stitch/transition logic from `VideoEditorWizard` so the studio can reuse it without copy-pasting |
-| `src/app/api/ai/image-to-video/route.ts` | Optionally extract the core Replicate prediction logic into a shared helper so both the existing page and the studio can call it (not strictly required, but reduces duplication) |
-
-## Data Model Additions
-
-No schema migration required — reuse existing tables:
-
-- **`projects`**: Create one record per clip (`type: 'video'`, `status` tracks progress) and one for the final stitched video. Add `batch_id` text field to group clips.
-- **`ai_jobs`**: Create one record per Replicate prediction (service: `replicate`, model per tier/mode).
-- **`credit_transactions`**: Reserve/refund as usual.
-- **`media_items`**: Save final video URL after stitching.
-
-## Credit Cost Summary
-
-| Action | Cost | Notes |
-|--------|------|-------|
-| Image → Video (3s) | 5 | Standard tier |
-| Image → Video (5s) | 9 | |
-| Image → Video (10s) | 17 | |
-| Image → Video (15s) | 25 | |
-| Pro tier multiplier | ×1.7 | Same as existing image-to-video |
-| Stitch + transitions | 1 | `video_editor_simple` |
-| Calling card overlay | 0 | Client-side canvas, no extra credit |
-
-## Risks & Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| Replicate rate limits on sequential batch | Add 1–2s delay between predictions; expose retry with backoff |
-| FFmpeg WASM memory crash with many/long clips | Enforce max 5s per clip (already done in video editor); limit batch to 30 images |
-| Long generation time frustrates users | Show per-clip progress, allow retry of failed clips, let user leave and return (store batch state in DB) |
-| Webhook reliability | If webhook fails, client polling serves as fallback |
-| Credit refund edge cases | Use existing idempotent `refundCredits` logic keyed on `reference_id` |
-
-## Validation Plan
-
-1. Navigate to Video Make Studio from sidebar.
-2. Upload 3 images, enter prompt, select 5s Pro, vertical format.
-3. Confirm credit reservation matches `3 × 9 = 27`.
-4. Watch sequential generation progress; confirm one clip fails → refund appears.
-5. Retry failed clip; confirm new credit reservation and successful generation.
-6. Proceed to Review, reorder clips, select 0.5s fade.
-7. Finish → confirm 1 credit deducted for stitch.
-8. Download final video and verify it appears in media library.
-9. Confirm admin usage history shows individual clip generations + final stitch.
-10. Verify existing `/image-to-video` and `/video-editor` pages are unchanged.
+## Credit Costs
+| Action | Cost |
+|--------|------|
+| Image → Video (3s) Standard | 5 |
+| Image → Video (5s) Standard | 5 |
+| Image → Video (5s) Pro | 9 |
+| Image → Video (10s) Pro | 17 |
+| Image → Video (15s) Pro | 25 |
+| Final stitch | 1 |
 
 ## Out of Scope
-- Drag-and-drop reordering (use up/down buttons).
-- Real-time websocket updates (use HTTP polling).
-- Saving/loading studio presets.
-- Changing existing pages or APIs.
-- Support for >30 images per batch.
+- Drag-and-drop reordering
+- Websocket updates
+- Presets
+- Changing existing pages/APIs
+- >30 images per batch
