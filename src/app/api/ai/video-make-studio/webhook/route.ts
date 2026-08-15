@@ -1,6 +1,7 @@
 // Video Make Studio - Replicate Webhook
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { refundCredits } from '@/lib/credits'
+import { getAdminClient } from '@/lib/video-make-studio/replicate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing prediction ID' }, { status: 400 })
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey)
+    const adminClient = getAdminClient()
 
     const { data: clipProject } = await (adminClient.from as any)('projects')
       .select('*')
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
     if (!clipProject) {
       return NextResponse.json({ received: true })
     }
+
+    const input = clipProject.input_data || {}
 
     if (prediction.status === 'succeeded' && prediction.output) {
       await (adminClient.from as any)('projects')
@@ -42,6 +45,12 @@ export async function POST(request: Request) {
           error_message: prediction.error || 'Replicate generation failed',
         })
         .eq('id', clipProject.id)
+
+      try {
+        await refundCredits(clipProject.user_id, `image_to_video_${input.duration || 5}sec`, `webhook-failed-${clipProject.id}`, clipProject.credit_cost)
+      } catch (refundError) {
+        console.error('Failed to refund credits for failed webhook clip:', refundError)
+      }
     }
 
     return NextResponse.json({ received: true })

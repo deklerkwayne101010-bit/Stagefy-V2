@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkUserCredits, reserveCredits, refundCredits, canPerformAction } from '@/lib/credits'
 import { createNotification } from '@/lib/notifications'
+import { createReplicatePrediction, getAdminClient } from '@/lib/video-make-studio/replicate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
 
     const durationNumber = parseInt(duration, 10)
     const totalClipCost = images.reduce(
-      (sum, _, index) => sum + calculateClipCredits(durationNumber, tier),
+      (sum, _) => sum + calculateClipCredits(durationNumber, tier),
       0
     )
 
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey)
+    const adminClient = getAdminClient()
 
     const { data: batchProject, error: batchError } = await (adminClient.from as any)('projects')
       .insert({
@@ -132,6 +133,18 @@ export async function POST(request: Request) {
         console.error('Failed to create clip project:', clipError)
         continue
       }
+
+      await (adminClient.from as any)('ai_jobs')
+        .insert({
+          user_id: user.id,
+          project_id: clip.id,
+          service: 'replicate',
+          model: tier === 'standard' ? 'prunaai/p-video' : 'xai/grok-imagine-video',
+          input: { image_url: images[i], prompt, duration: durationNumber, tier },
+          status: 'queued',
+          credit_cost: calculateClipCredits(durationNumber, tier),
+        })
+
       clipProjects.push(clip)
     }
 

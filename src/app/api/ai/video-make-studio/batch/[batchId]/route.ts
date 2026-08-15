@@ -2,11 +2,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { refundCredits } from '@/lib/credits'
+import { createReplicatePrediction, pollReplicatePrediction, getAdminClient } from '@/lib/video-make-studio/replicate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN!
 
 async function getUserFromAuthHeader(request: Request) {
   const authHeader = request.headers.get('Authorization')
@@ -22,97 +21,6 @@ async function getUserFromAuthHeader(request: Request) {
   }
 }
 
-async function pollReplicatePrediction(predictionId: string, maxAttempts = 10, intervalMs = 2000): Promise<any> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const response = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
-      headers: {
-        'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
-      },
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to poll Replicate prediction: ${errorText}`)
-    }
-
-    const prediction = await response.json()
-    const status = prediction.status
-
-    if (status === 'succeeded') {
-      return prediction
-    }
-
-    if (status === 'failed' || status === 'canceled') {
-      throw new Error(`Replicate generation ${status}: ${prediction.error || 'Unknown error'}`)
-    }
-
-    await new Promise(resolve => setTimeout(resolve, intervalMs))
-  }
-
-  throw new Error('Replicate generation timed out')
-}
-
-async function createReplicatePrediction(imageUrl: string, prompt: string, duration: number, tier: string): Promise<{ predictionId: string; output?: string }> {
-  let prediction
-  if (tier === 'standard') {
-    const response = await fetch('https://api.replicate.com/v1/models/prunaai/p-video/predictions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: {
-          fps: 24,
-          draft: false,
-          image: imageUrl,
-          no_op: false,
-          prompt: prompt || 'smooth camera movement, gentle pan',
-          duration: duration,
-          resolution: '720p',
-          save_audio: true,
-          aspect_ratio: '16:9',
-          prompt_upsampling: false,
-          disable_safety_filter: true,
-        },
-      }),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to create prediction: ${errorText}`)
-    }
-
-    prediction = await response.json()
-  } else {
-    const response = await fetch('https://api.replicate.com/v1/models/xai/grok-imagine-video/predictions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: {
-          prompt: prompt || 'smooth camera movement, gentle pan',
-          image: imageUrl,
-          duration: duration,
-          resolution: '720p',
-          mode: 'normal',
-        },
-      }),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to create prediction: ${errorText}`)
-    }
-
-    prediction = await response.json()
-  }
-
-  return { predictionId: prediction.id }
-}
-
 export async function GET(
   request: Request,
   { params }: { params: { batchId: string } }
@@ -123,7 +31,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey)
+    const adminClient = getAdminClient()
     const batchId = params.batchId
 
     const { data: batchProject } = await (adminClient.from as any)('projects')
@@ -183,6 +91,17 @@ export async function GET(
             })
             .eq('id', clipProject.id)
 
+          await (adminClient.from as any)('ai_jobs')
+            .insert({
+              user_id: user.id,
+              project_id: clipProject.id,
+              service: 'replicate',
+              model: input.tier === 'standard' ? 'prunaai/p-video' : 'xai/grok-imagine-video',
+              input: { image_url: input.image_url, prompt: input.prompt, duration: input.duration, tier: input.tier },
+              status: 'processing',
+              credit_cost: clipProject.credit_cost,
+            })
+
           clips.find(c => c.id === clipProject.id).status = 'processing'
         } catch (err: any) {
           await (adminClient.from as any)('projects')
@@ -203,7 +122,7 @@ export async function GET(
       const clipProject = (clipProjects || []).find((p: any) => p.id === nextClip.id)
       if (clipProject && clipProject.input_data?.prediction_id) {
         try {
-          const prediction = await pollReplicatePrediction(clipProject.input_data.prediction_id, 10, 2000)
+          const prediction = await pollReplicatePrediction(clipProject.input_data.prediction_id, 20, 2000)
 
           if (prediction.output) {
             await (adminClient.from as any)('projects')
@@ -213,6 +132,18 @@ export async function GET(
                 completed_at: new Date().toISOString(),
               })
               .eq('id', clipProject.id)
+
+            await (adminClient.from as any)('ai_jobs')
+              .insert({
+                user_id: user.id,
+                project_id: clipProject.id,
+                service: 'replicate',
+                model: clipProject.input_data?.tier === 'standard' ? 'prunaai/p-video' : 'xai/grok-imagine-video',
+                input: clipProject.input_data,
+                status: 'completed',
+                output_url: prediction.output,
+                credit_cost: clipProject.credit_cost,
+              })
 
             clips.find(c => c.id === clipProject.id).status = 'completed'
             clips.find(c => c.id === clipProject.id).outputUrl = prediction.output
