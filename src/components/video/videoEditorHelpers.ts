@@ -327,3 +327,124 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
     image.src = src
   })
 }
+
+export type StitchClipInput = {
+  file: File
+  trimmedDuration: number
+}
+
+export type StitchOptions = {
+  format: VideoEditorFormat
+  clips: StitchClipInput[]
+  transitionDuration: number
+  muteAudio: boolean
+  callingCardBytes: Uint8Array | null
+  onProgress?: (progress: number) => void
+  onLog?: (message: string) => void
+}
+
+export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blob> {
+  const { format, clips, transitionDuration, muteAudio, callingCardBytes, onProgress, onLog } = options
+  const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+  const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
+
+  const ffmpeg = new FFmpeg()
+  ffmpeg.on('progress', ({ progress: value }) => {
+    onProgress?.(Math.round(value * 100))
+  })
+  ffmpeg.on('log', ({ message }) => {
+    onLog?.(message)
+  })
+
+  await ffmpeg.load({
+    coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
+    wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
+  })
+
+  const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
+
+  for (let index = 0; index < clips.length; index += 1) {
+    const clip = clips[index]
+    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
+    await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
+
+    const videoFilter = [
+      `trim=start=0:duration=${clip.trimmedDuration}`,
+      'setpts=PTS-STARTPTS',
+      `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase`,
+      `crop=${format.width}:${format.height}`,
+      'setsar=1',
+      'fps=30',
+      'format=yuv420p',
+    ].join(',')
+
+    const normalizeArgs = [
+      '-i', inputName,
+      '-vf', videoFilter,
+      ...(muteAudio ? ['-an'] : ['-af', 'aresample=async=1:first_pts=0', '-c:a', 'aac', '-b:a', '128k']),
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-shortest',
+      normalizedClips[index],
+    ]
+
+    const normalizeCode = await ffmpeg.exec(normalizeArgs)
+    if (normalizeCode !== 0) {
+      throw new Error(`Could not prepare clip ${index + 1}.`)
+    }
+  }
+
+  if (callingCardBytes) {
+    await ffmpeg.writeFile('calling-card.png', callingCardBytes)
+  }
+
+  const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
+  const videoFilters: string[] = []
+  const audioFilters: string[] = []
+  let currentVideo = '0:v'
+  let currentAudio = '0:a'
+  let currentDuration = clips[0].trimmedDuration
+
+  for (let index = 1; index < clips.length; index += 1) {
+    const offset = Math.max(0, currentDuration - transitionDuration)
+    videoFilters.push(`[${currentVideo}][${index}:v]xfade=transition=fade:duration=${transitionDuration}:offset=${offset}[v${index}]`)
+    if (!muteAudio) {
+      audioFilters.push(`[${currentAudio}][${index}:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a${index}]`)
+    }
+    currentVideo = `v${index}`
+    currentAudio = `a${index}`
+    currentDuration += clips[index].trimmedDuration - transitionDuration
+  }
+
+  const overlayFilter = callingCardBytes
+    ? `[${currentVideo}]overlay=x=0:y=H-h-24,format=yuv420p[vout]`
+    : `[${currentVideo}]format=yuv420p[vout]`
+  const filterParts = [...videoFilters, overlayFilter]
+
+  if (!muteAudio && audioFilters.length > 0) {
+    filterParts.push(...audioFilters)
+  }
+
+  const args = [
+    ...inputs,
+    ...(callingCardBytes ? ['-i', 'calling-card.png'] : []),
+    '-filter_complex', filterParts.join(';'),
+    '-map', '[vout]',
+    ...(!muteAudio && audioFilters.length > 0 ? ['-map', `[a${clips.length - 1}]`] : ['-an']),
+    '-c:v', 'libx264',
+    '-preset', 'veryfast',
+    '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
+    'output.mp4',
+  ]
+
+  const exportCode = await ffmpeg.exec(args)
+  if (exportCode !== 0) {
+    throw new Error('Could not generate the final video.')
+  }
+
+  const output = await ffmpeg.readFile('output.mp4')
+  const bytes = output instanceof Uint8Array ? output : new TextEncoder().encode(String(output))
+  return new Blob([bytes as unknown as BlobPart], { type: 'video/mp4' })
+}
+
