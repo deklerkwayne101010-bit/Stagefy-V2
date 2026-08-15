@@ -19,15 +19,34 @@ async function getUserFromAuthHeader(request: Request) {
   } catch { return null }
 }
 
+function mapAgentName(description: string | null): string {
+  if (!description) return 'Other'
+  const d = description.toLowerCase()
+  if (d.includes('photo_edit') || d.includes('photo edit')) return 'Photo Edit'
+  if (d.includes('image_to_video') || d.includes('image to video') || d.includes('i2v')) return 'Image to Video'
+  if (d.includes('video_editor_simple') || d.includes('video_full_edit') || d.includes('video_trim') || d.includes('video_concat') || d.includes('video_transition') || d.includes('video_text_overlay') || d.includes('video editor')) return 'Video Editor'
+  if (d.includes('template_generation') || d.includes('layout_generation') || d.includes('template_render') || d.includes('professional_template') || d.includes('template')) return 'Template Generation'
+  if (d.includes('description_generation') || d.includes('description')) return 'Description Generator'
+  if (d.includes('content_plan_generation') || d.includes('content plan')) return 'Content Plan'
+  if (d.includes('prompt_generation') || d.includes('prompt')) return 'Prompt Generation'
+  if (d.includes('reserved for')) {
+    const match = description.match(/Reserved for (.+)/)
+    if (match) return mapAgentName(match[1])
+  }
+  if (d.includes('refund for failed')) {
+    const match = description.match(/Refund for failed (.+)/)
+    if (match) return mapAgentName(match[1])
+  }
+  return description
+}
+
 export async function GET(request: Request) {
   try {
-    // Require authentication
     const authUser = await getUserFromAuthHeader(request)
     if (!authUser?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user is admin
     const adminClient = getAdminClient() || createClient(supabaseUrl, supabaseAnonKey)
     const { data: userProfile } = await (adminClient.from as any)('users')
       .select('role')
@@ -39,11 +58,79 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
+    const mode = searchParams.get('mode')
     const userId = searchParams.get('userId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    // Get all users with their current credit balance (paginated — Supabase caps selects at 1000 rows)
+    if (mode === 'history') {
+      const PAGE = 1000
+      const now = new Date()
+      const defaultStart = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      const historyStart = startDate ? new Date(startDate) : defaultStart
+      const historyEnd = endDate ? new Date(endDate) : now
+
+      let transactions: any[] = []
+      let txError: any = null
+      for (let start = 0; start < 100000; start += PAGE) {
+        const { data: page, error } = await (adminClient.from as any)('credit_transactions')
+          .select('id, user_id, amount, type, description, reference_id, created_at')
+          .eq('type', 'usage')
+          .gte('created_at', historyStart.toISOString())
+          .lte('created_at', historyEnd.toISOString())
+          .order('created_at', { ascending: false })
+          .range(start, start + PAGE - 1)
+        if (error) {
+          txError = error
+          break
+        }
+        if (page && page.length > 0) {
+          transactions = transactions.concat(page)
+        }
+        if (!page || page.length < PAGE) {
+          break
+        }
+      }
+
+      if (txError) {
+        return NextResponse.json({ error: txError.message }, { status: 500 })
+      }
+
+      const userIds = Array.from(new Set(transactions.map((t) => t.user_id).filter(Boolean)))
+      const usersMap = new Map<string, { email: string; full_name: string }>()
+      if (userIds.length > 0) {
+        for (let start = 0; start < userIds.length; start += PAGE) {
+          const batch = userIds.slice(start, start + PAGE)
+          const { data, error } = await (adminClient.from as any)('users')
+            .select('id, email, full_name')
+            .in('id', batch)
+          if (error) {
+            return NextResponse.json({ error: error.message }, { status: 500 })
+          }
+          if (data) {
+            for (const u of data) {
+              usersMap.set(u.id, { email: u.email, full_name: u.full_name })
+            }
+          }
+        }
+      }
+
+      const history = transactions.map((tx) => {
+        const user = usersMap.get(tx.user_id)
+        return {
+          userId: tx.user_id,
+          email: user?.email || 'Unknown',
+          fullName: user?.full_name || 'Unknown User',
+          agentName: mapAgentName(tx.description),
+          creditsSpent: Math.abs(tx.amount || 0),
+          timestamp: tx.created_at,
+        }
+      })
+
+      return NextResponse.json({ history, count: history.length })
+    }
+
+    // Default mode: per-user stats
     const PAGE = 1000
     let users: any[] = []
     let usersError: any = null
@@ -71,7 +158,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: usersError.message }, { status: 500 })
     }
 
-    // Calculate date ranges (computed in UTC so they align with stored timestamptz values)
     const now = new Date()
     const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
     const firstDayOfLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
@@ -82,7 +168,6 @@ export async function GET(request: Request) {
     const lastMonthStart = firstDayOfLastMonth.toISOString()
     const lastMonthEnd = lastDayOfLastMonth.toISOString()
 
-    // Get ALL credit transactions (paginated — Supabase caps un-paginated selects at 1000 rows)
     let transactions: any[] = []
     let txError: any = null
     for (let start = 0; start < 100000; start += PAGE) {
@@ -105,39 +190,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: txError.message }, { status: 500 })
     }
 
-    // Calculate per-user usage stats
     const userStats = (users || []).map((user: any) => {
       const userTx = transactions?.filter((tx: any) => tx.user_id === user.id) || []
 
-      // Credits purchased (all time, filtered by date if specified)
       const purchased = userTx
-        .filter((tx: any) => 
-          (tx.type === 'purchase' || tx.type === 'subscription') && 
-          (!startDate || !endDate || 
-            (new Date(tx.created_at) >= new Date(startDate) && 
+        .filter((tx: any) =>
+          (tx.type === 'purchase' || tx.type === 'subscription') &&
+          (!startDate || !endDate ||
+            (new Date(tx.created_at) >= new Date(startDate) &&
               new Date(tx.created_at) <= new Date(endDate)))
         )
         .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount || 0), 0)
 
-      // Credits spent this month
       const spentThisMonth = userTx
-        .filter((tx: any) => 
-          tx.type === 'usage' && 
+        .filter((tx: any) =>
+          tx.type === 'usage' &&
           new Date(tx.created_at) >= new Date(thisMonthStart) &&
           new Date(tx.created_at) <= new Date(thisMonthEnd)
         )
         .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount || 0), 0)
 
-      // Credits spent last month
       const spentLastMonth = userTx
-        .filter((tx: any) => 
-          tx.type === 'usage' && 
+        .filter((tx: any) =>
+          tx.type === 'usage' &&
           new Date(tx.created_at) >= new Date(lastMonthStart) &&
           new Date(tx.created_at) <= new Date(lastMonthEnd)
         )
         .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount || 0), 0)
 
-      // Total spent (all time)
       const totalSpent = userTx
         .filter((tx: any) => tx.type === 'usage')
         .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount || 0), 0)
@@ -156,7 +236,6 @@ export async function GET(request: Request) {
       }
     })
 
-    // Calculate totals
     const totals = {
       totalUsers: userStats.length,
       totalCreditsRemaining: userStats.reduce((sum: number, u: any) => sum + u.creditsRemaining, 0),
@@ -181,3 +260,4 @@ export async function GET(request: Request) {
     )
   }
 }
+

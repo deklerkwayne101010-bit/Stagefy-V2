@@ -20,6 +20,11 @@ Stagefy is a comprehensive real estate media creation platform built with Next.j
 - [x] Admin Dashboard for user and usage monitoring
 - [x] Settings page with profile, notifications, security
 
+### Admin Dashboard Enhancements
+- [x] Admin user usage history tab with chronological activity feed
+- [x] History API mode in `/api/admin/usage` supporting `mode=history`
+- [x] Agent name mapping from credit transaction descriptions
+
 ### Technical Foundation
 - [x] Supabase client configuration
 - [x] Database types and interfaces
@@ -165,3 +170,4 @@ PAYFAST_ENVIRONMENT=sandbox # or 'live'
 | 2026-02-05 | Added GitHub Actions and Vercel Cron for monthly credit reset |
 | 2026-02-05 | Fixed PGRST116 error when user row not found |
 | 2026-02-05 | **Synced all commits to GitHub repository** |
+| 2026-08-15 | Added admin user usage history tab with chronological activity feed, agent name mapping, and time range filters (24h/7d/30d/all/custom) |

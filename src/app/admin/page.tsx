@@ -64,6 +64,15 @@ interface Totals {
   totalCreditsSpentLastMonth: number
 }
 
+interface HistoryEntry {
+  userId: string
+  email: string
+  fullName: string
+  agentName: string
+  creditsSpent: number
+  timestamp: string
+}
+
 function OrdersTab() {
   const [orders, setOrders] = useState<ShopOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -256,7 +265,7 @@ function OrdersTab() {
 
 export default function AdminPage() {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'usage' | 'orders' | 'products'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'usage' | 'orders' | 'products' | 'history'>('overview')
   const [products, setProducts] = useState<ShopProduct[]>([])
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null)
@@ -287,6 +296,11 @@ export default function AdminPage() {
   const [dateFilter, setDateFilter] = useState<'all' | 'thisMonth' | 'lastMonth' | 'custom'>('all')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyTimeFilter, setHistoryTimeFilter] = useState<'24h' | '7d' | '30d' | 'all' | 'custom'>('24h')
+  const [historyCustomStart, setHistoryCustomStart] = useState('')
+  const [historyCustomEnd, setHistoryCustomEnd] = useState('')
 
   const fetchUsageStats = useCallback(async () => {
     setLoading(true)
@@ -320,11 +334,59 @@ export default function AdminPage() {
     }
   }, [dateFilter, customStartDate, customEndDate])
 
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('mode', 'history')
+      const now = new Date()
+      if (historyTimeFilter === '24h') {
+        const start = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+        params.set('startDate', start)
+        params.set('endDate', now.toISOString())
+      } else if (historyTimeFilter === '7d') {
+        const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        params.set('startDate', start)
+        params.set('endDate', now.toISOString())
+      } else if (historyTimeFilter === '30d') {
+        const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        params.set('startDate', start)
+        params.set('endDate', now.toISOString())
+      } else if (historyTimeFilter === 'custom') {
+        if (historyCustomStart) params.set('startDate', new Date(historyCustomStart).toISOString())
+        if (historyCustomEnd) params.set('endDate', new Date(historyCustomEnd).toISOString())
+      }
+
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const response = await fetch(`/api/admin/usage?${params.toString()}`, {
+        headers: session?.access_token
+          ? { 'Authorization': `Bearer ${session.access_token}` }
+          : {},
+      })
+      const data = await response.json()
+      if (data.history) {
+        setHistoryEntries(data.history)
+      }
+    } catch (error) {
+      console.error('Failed to fetch history:', error)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [historyTimeFilter, historyCustomStart, historyCustomEnd])
+
   useEffect(() => {
     if (activeTab === 'overview' || activeTab === 'users') {
       fetchUsageStats()
     }
   }, [activeTab, fetchUsageStats])
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory()
+    }
+  }, [activeTab, fetchHistory])
 
   useEffect(() => {
     if (activeTab === 'products') {
@@ -378,7 +440,7 @@ export default function AdminPage() {
       <div className="p-6">
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
-          {['overview', 'users', 'usage', 'orders', 'products'].map((tab) => (
+          {['overview', 'users', 'usage', 'orders', 'products', 'history'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
@@ -469,9 +531,125 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-              </Card>
-            </div>
+            </Card>
+          </div>
           </>
+        )}
+
+        {activeTab === 'history' && (
+          <Card padding="none">
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time Range</label>
+                  <select
+                    value={historyTimeFilter}
+                    onChange={(e) => setHistoryTimeFilter(e.target.value as typeof historyTimeFilter)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="24h">Last 24 Hours</option>
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="all">All Time</option>
+                    <option value="custom">Custom Range</option>
+                  </select>
+                </div>
+                {historyTimeFilter === 'custom' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={historyCustomStart}
+                        onChange={(e) => setHistoryCustomStart(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={historyCustomEnd}
+                        onChange={(e) => setHistoryCustomEnd(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                )}
+                <Button onClick={fetchHistory} loading={historyLoading}>
+                  Refresh
+                </Button>
+                <Button variant="outline" onClick={() => {
+                  setHistoryTimeFilter('24h')
+                  setHistoryCustomStart('')
+                  setHistoryCustomEnd('')
+                }}>
+                  Reset
+                </Button>
+              </div>
+            </div>
+
+            <div className="p-4 bg-blue-50 border-b border-blue-100">
+              <p className="text-sm text-blue-700">
+                Showing <span className="font-semibold">{historyEntries.length}</span> activity entries
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">User</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Agent</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Credits</th>
+                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {historyLoading ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                        Loading history...
+                      </td>
+                    </tr>
+                  ) : historyEntries.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                        No activity found for the selected time range
+                      </td>
+                    </tr>
+                  ) : (
+                    historyEntries.map((entry) => (
+                      <tr key={`${entry.userId}-${entry.timestamp}-${entry.agentName}`} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-xs font-medium text-blue-600">
+                                {entry.fullName.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{entry.fullName}</p>
+                              <p className="text-xs text-gray-500">{entry.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-medium text-gray-900">{entry.agentName}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-medium text-red-600">-{entry.creditsSpent}</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {new Date(entry.timestamp).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         )}
 
         {activeTab === 'users' && (
