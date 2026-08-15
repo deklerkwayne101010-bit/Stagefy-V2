@@ -15,6 +15,7 @@ import {
   type VideoEditorFormat,
   formatBytes,
   generateCallingCardPng,
+  stitchVideoWithFFmpeg,
   videoEditorFormats,
 } from './videoEditorHelpers'
 
@@ -61,10 +62,16 @@ export function VideoMakeStudioWizard() {
   const [agentProfileMissing, setAgentProfileMissing] = useState(false)
   const [batchId, setBatchId] = useState<string | null>(null)
   const [clips, setClips] = useState<BatchClip[]>([])
+  const [transitionDuration, setTransitionDuration] = useState(0.5)
   const [progress, setProgress] = useState(0)
+  const [logs, setLogs] = useState<string[]>([])
+  const [resultUrl, setResultUrl] = useState<string | null>(null)
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
     { key: 'format', label: 'Format' },
@@ -306,6 +313,128 @@ export function VideoMakeStudioWizard() {
     }
   }
 
+  async function handleExport() {
+    const successfulClips = clips.filter(c => c.status === 'completed' && c.outputUrl)
+    if (successfulClips.length === 0) {
+      setError('No successful clips to stitch.')
+      return
+    }
+
+    setIsExporting(true)
+    setError(null)
+    setResultUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+    setResultBlob(null)
+    setLogs([])
+    setProgress(0)
+
+    let creditsReserved = false
+    let creditReference = ''
+
+    try {
+      if (user?.id) {
+        const { canPerformAction, reserveCredits } = await import('@/lib/credits')
+        const canPerform = await canPerformAction(user.id, CREDIT_COST_STITCH)
+        if (!canPerform.canPerform) {
+          setError(canPerform.error || 'Not enough credits.')
+          setIsExporting(false)
+          return
+        }
+        creditReference = `video-studio-stitch-${Date.now()}`
+        const reservation = await reserveCredits(user.id, 'video_editor_simple', creditReference, CREDIT_COST_STITCH)
+        if (!reservation.success) {
+          setError(reservation.error || 'Failed to reserve credits.')
+          setIsExporting(false)
+          return
+        }
+        creditsReserved = true
+      }
+
+      const sortedClips = clips.filter(c => c.status === 'completed' && c.outputUrl).sort((a, b) => a.imageIndex - b.imageIndex)
+      const clipFiles: File[] = []
+      for (const clip of sortedClips) {
+        const response = await fetch(clip.outputUrl!)
+        const blob = await response.blob()
+        clipFiles.push(new File([blob], `clip-${clip.imageIndex}.mp4`, { type: 'video/mp4' }))
+      }
+
+      const callingCardBytes = callingCardEnabled
+        ? await generateCallingCardPng({
+            enabled: true,
+            headline,
+            cta,
+            backgroundColor: normalizedCallingCardColor,
+            propertyPrice,
+            bedrooms,
+            bathrooms,
+            agentName: agentProfile?.name_surname || 'Agent',
+            phone: agentProfile?.phone || '',
+            email: agentProfile?.email || '',
+            agency: agentProfile?.agency_brand || '',
+            photoUrl: agentProfile?.photo_url || null,
+            logoUrl: agentProfile?.logo_url || null,
+            width: format.width,
+            height: format.height,
+          })
+        : null
+
+      const blob = await stitchVideoWithFFmpeg({
+        format,
+        clips: clipFiles.map((file, index) => ({
+          file,
+          trimmedDuration: 5,
+        })),
+        transitionDuration,
+        muteAudio,
+        callingCardBytes,
+        onProgress: (value: number) => setProgress(value),
+        onLog: (message: string) => setLogs(prev => [...prev.slice(-8), message]),
+      })
+
+      const url = URL.createObjectURL(blob)
+      setResultBlob(blob)
+      setResultUrl(url)
+      setProgress(100)
+    } catch (err: any) {
+      if (creditsReserved && user?.id && creditReference) {
+        const { refundCredits } = await import('@/lib/credits')
+        await refundCredits(user.id, 'video_editor_simple', creditReference, CREDIT_COST_STITCH)
+      }
+      setError(err?.message || 'Failed to stitch video.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  async function handleSaveToLibrary() {
+    if (!resultBlob || !user?.id) return
+    setIsSaving(true)
+    setError(null)
+
+    try {
+      const file = new File([resultBlob], `stagefy-video-${Date.now()}.mp4`, { type: 'video/mp4' })
+      const result = await uploadImage(file, user.id)
+      if (result.error) {
+        throw result.error
+      }
+      setError('Video saved to your media library.')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save video.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function downloadVideo() {
+    if (!resultUrl) return
+    const link = document.createElement('a')
+    link.href = resultUrl
+    link.download = `stagefy-video-${Date.now()}.mp4`
+    link.click()
+  }
+
   function handleNext() {
     if (step === 'format') {
       setStep('images')
@@ -326,6 +455,10 @@ export function VideoMakeStudioWizard() {
     }
     if (step === 'review') {
       setStep('transition')
+    }
+    if (step === 'transition') {
+      setStep('finish')
+      void handleExport()
     }
   }
 
@@ -683,12 +816,92 @@ export function VideoMakeStudioWizard() {
           </div>
         )}
 
+        {step === 'transition' && (
+          <div className="space-y-5">
+            <div>
+              <p className="font-medium text-slate-900">Choose a transition</p>
+              <p className="text-sm text-slate-500">A simple fade is applied between every clip.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { value: 0.3, label: 'Fast - 0.3s' },
+                { value: 0.5, label: 'Smooth - 0.5s' },
+                { value: 0.8, label: 'Soft - 0.8s' },
+              ].map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => setTransitionDuration(option.value)}
+                  className={`rounded-2xl border-2 p-4 text-left transition-all ${
+                    transitionDuration === option.value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-semibold text-slate-900">{option.label}</p>
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+              <input type="checkbox" checked={muteAudio} onChange={event => setMuteAudio(event.target.checked)} className="h-4 w-4" />
+              <span>
+                <span className="block font-medium text-slate-900">Mute original audio</span>
+                <span className="text-sm text-slate-500">Recommended for reliable browser export. Add music later in Facebook or TikTok.</span>
+              </span>
+            </label>
+          </div>
+        )}
+
+        {step === 'finish' && (
+          <div className="space-y-5">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Format</p>
+                <p className="mt-1 font-semibold text-slate-900">{format.label}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Clips</p>
+                <p className="mt-1 font-semibold text-slate-900">{successfulClips.length} clips</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-500">Transition</p>
+                <p className="mt-1 font-semibold text-slate-900">{transitionDuration}s fade</p>
+              </div>
+            </div>
+
+            {isExporting && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="font-medium text-blue-900">Stitching video</span>
+                  <span className="font-semibold text-blue-900">{progress}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                  <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            )}
+
+            {resultUrl && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="font-semibold text-emerald-900">Your video is ready.</p>
+                <video src={resultUrl} className="mt-3 aspect-video w-full max-h-96 rounded-xl bg-slate-900 object-contain" controls />
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button onClick={downloadVideo}>Download MP4</Button>
+                  <Button variant="outline" onClick={handleSaveToLibrary} loading={isSaving} disabled={!user}>Save to Media Library</Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between pt-4 border-t border-slate-200">
+              <span className="text-sm text-slate-600">Credits spent: {totalClipCost + CREDIT_COST_STITCH}</span>
+              <span className="text-sm text-slate-500">You can download or save the final video above.</span>
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 flex justify-between gap-3">
           <Button variant="outline" onClick={handleBack} disabled={step === 'format'}>
             Back
           </Button>
           <Button onClick={handleNext} disabled={step === 'images' && !canStartBatch}>
-            {step === 'calling_card' ? 'Start Generation' : step === 'generate' ? 'Generating...' : step === 'review' ? 'Continue to Transition' : 'Next'}
+            {step === 'calling_card' ? 'Start Generation' : step === 'generate' ? 'Generating...' : step === 'review' ? 'Continue to Transition' : step === 'transition' ? 'Stitch Video' : 'Next'}
           </Button>
         </div>
       </Card>
