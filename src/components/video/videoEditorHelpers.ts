@@ -14,6 +14,46 @@ export interface VideoEditorFormat {
   height: number
 }
 
+export interface MusicTrack {
+  id: string
+  name: string
+  url: string
+  durationSeconds?: number
+}
+
+export const DEFAULT_MUSIC_TRACKS: MusicTrack[] = [
+  {
+    id: 'upbeat-home',
+    name: 'Upbeat Home',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    durationSeconds: 370,
+  },
+  {
+    id: 'chill-listing',
+    name: 'Chill Listing',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    durationSeconds: 360,
+  },
+  {
+    id: 'modern-walkthrough',
+    name: 'Modern Walkthrough',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    durationSeconds: 400,
+  },
+  {
+    id: 'sunset-open-house',
+    name: 'Sunset Open House',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    durationSeconds: 390,
+  },
+  {
+    id: 'bright-and-clean',
+    name: 'Bright & Clean',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
+    durationSeconds: 420,
+  },
+]
+
 export interface VideoClipItem {
   id: string
   file: File
@@ -339,12 +379,13 @@ export type StitchOptions = {
   transitionDuration: number
   muteAudio: boolean
   callingCardBytes: Uint8Array | null
+  musicTrackUrl?: string | null
   onProgress?: (progress: number) => void
   onLog?: (message: string) => void
 }
 
 export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blob> {
-  const { format, clips, transitionDuration, muteAudio, callingCardBytes, onProgress, onLog } = options
+  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, onProgress, onLog } = options
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
 
@@ -398,6 +439,19 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     await ffmpeg.writeFile('calling-card.png', callingCardBytes)
   }
 
+  let musicFileIndex = normalizedClips.length
+  if (musicTrackUrl) {
+    try {
+      const musicResponse = await fetch(musicTrackUrl)
+      const musicBlob = await musicResponse.blob()
+      const musicArrayBuffer = await musicBlob.arrayBuffer()
+      const musicBytes = new Uint8Array(musicArrayBuffer)
+      await ffmpeg.writeFile('music.mp3', musicBytes)
+    } catch (musicError) {
+      console.error('Failed to load music track:', musicError)
+    }
+  }
+
   const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
   const videoFilters: string[] = []
   const audioFilters: string[] = []
@@ -421,16 +475,33 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     : `[${currentVideo}]format=yuv420p[vout]`
   const filterParts = [...videoFilters, overlayFilter]
 
-  if (!muteAudio && audioFilters.length > 0) {
+  let musicLoopFilter = ''
+  let finalAudioLabel = `[a${clips.length - 1}]`
+
+  if (musicTrackUrl) {
+    const musicInputIndex = musicFileIndex
+    musicLoopFilter = `[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`
+    if (!muteAudio && audioFilters.length > 0) {
+      const clipAudioLabel = `[a${clips.length - 1}]`
+      filterParts.push(`${clipAudioLabel}[bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
+      finalAudioLabel = '[outa]'
+    } else {
+      filterParts.push(`[bg]volume=0.8[bgv]`)
+      finalAudioLabel = '[bgv]'
+    }
+  } else if (!muteAudio && audioFilters.length > 0) {
     filterParts.push(...audioFilters)
   }
+
+  const musicInput = musicTrackUrl ? ['-i', 'music.mp3'] : []
 
   const args = [
     ...inputs,
     ...(callingCardBytes ? ['-i', 'calling-card.png'] : []),
+    ...musicInput,
     '-filter_complex', filterParts.join(';'),
     '-map', '[vout]',
-    ...(!muteAudio && audioFilters.length > 0 ? ['-map', `[a${clips.length - 1}]`] : ['-an']),
+    ...(finalAudioLabel !== '-an' ? ['-map', finalAudioLabel] : ['-an']),
     '-c:v', 'libx264',
     '-preset', 'veryfast',
     '-pix_fmt', 'yuv420p',

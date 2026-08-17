@@ -12,11 +12,13 @@ import { Input, Select, Textarea } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
 import {
   type AgentProfile,
+  type MusicTrack,
   type VideoEditorFormat,
   formatBytes,
   generateCallingCardPng,
   stitchVideoWithFFmpeg,
   videoEditorFormats,
+  DEFAULT_MUSIC_TRACKS,
 } from './videoEditorHelpers'
 
 type VideoMakeStudioStep = 'format' | 'images' | 'calling_card' | 'generate' | 'review' | 'transition' | 'finish'
@@ -63,6 +65,8 @@ export function VideoMakeStudioWizard() {
   const [batchId, setBatchId] = useState<string | null>(null)
   const [clips, setClips] = useState<BatchClip[]>([])
   const [transitionDuration, setTransitionDuration] = useState(0.5)
+  const [selectedMusicTrack, setSelectedMusicTrack] = useState<string | null>(null)
+  const [musicPreviewError, setMusicPreviewError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
   const [resultUrl, setResultUrl] = useState<string | null>(null)
@@ -380,6 +384,8 @@ export function VideoMakeStudioWizard() {
           })
         : null
 
+      const selectedTrack = DEFAULT_MUSIC_TRACKS.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
+
       const blob = await stitchVideoWithFFmpeg({
         format,
         clips: clipFiles.map((file, index) => ({
@@ -389,6 +395,7 @@ export function VideoMakeStudioWizard() {
         transitionDuration,
         muteAudio,
         callingCardBytes,
+        musicTrackUrl: selectedTrack?.url || null,
         onProgress: (value: number) => setProgress(value),
         onLog: (message: string) => setLogs(prev => [...prev.slice(-8), message]),
       })
@@ -843,13 +850,63 @@ export function VideoMakeStudioWizard() {
                 </button>
               ))}
             </div>
-            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
-              <input type="checkbox" checked={muteAudio} onChange={event => setMuteAudio(event.target.checked)} className="h-4 w-4" />
-              <span>
-                <span className="block font-medium text-slate-900">Mute original audio</span>
-                <span className="text-sm text-slate-500">Recommended for reliable browser export. Add music later in Facebook or TikTok.</span>
-              </span>
-            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="font-medium text-slate-900 mb-2">Background music</p>
+                <p className="text-sm text-slate-500 mb-3">Pick a track to play under your clips.</p>
+                <select
+                  value={selectedMusicTrack ?? ''}
+                  onChange={(e) => {
+                    setSelectedMusicTrack(e.target.value || null)
+                    setMusicPreviewError(null)
+                  }}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No music</option>
+                  {DEFAULT_MUSIC_TRACKS.map((track) => (
+                    <option key={track.id} value={track.id}>
+                      {track.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {DEFAULT_MUSIC_TRACKS.map((track) => (
+                    <button
+                      key={track.id}
+                      type="button"
+                      onClick={() => {
+                        const audio = new Audio(track.url)
+                        audio.play().catch(() => {
+                          setMusicPreviewError(`Could not preview ${track.name}`)
+                        })
+                        setMusicPreviewError(null)
+                      }}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                    >
+                      Preview {track.name}
+                    </button>
+                  ))}
+                </div>
+                {musicPreviewError && (
+                  <p className="mt-2 text-xs text-red-600">{musicPreviewError}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-medium text-slate-900 mb-2">Audio settings</p>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+                  <input type="checkbox" checked={muteAudio} onChange={event => setMuteAudio(event.target.checked)} className="h-4 w-4" />
+                  <span>
+                    <span className="block font-medium text-slate-900">Mute original audio</span>
+                    <span className="text-sm text-slate-500">Recommended for reliable browser export. Add music later in Facebook or TikTok.</span>
+                  </span>
+                </label>
+                <p className="mt-3 text-xs text-slate-500">
+                  Music plays under the clips. If original audio is muted, only music will remain.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
