@@ -385,25 +385,46 @@ export function VideoMakeStudioWizard() {
           })
         : null
 
-      const endFrameBytes = addEndFrame && callingCardBytes
-        ? await generateCallingCardPng({
-            enabled: true,
-            headline,
-            cta,
-            backgroundColor: normalizedCallingCardColor,
-            propertyPrice,
-            bedrooms,
-            bathrooms,
-            agentName: agentProfile?.name_surname || 'Agent',
-            phone: agentProfile?.phone || '',
-            email: agentProfile?.email || '',
-            agency: agentProfile?.agency_brand || '',
-            photoUrl: agentProfile?.photo_url || null,
-            logoUrl: agentProfile?.logo_url || null,
-            width: format.width,
-            height: format.height,
+      let endFrameUrl: string | null = null
+      if (addEndFrame) {
+        try {
+          const { supabase } = await import('@/lib/supabase')
+          const { data: { session } } = await supabase.auth.getSession()
+
+          const endFrameResponse = await fetch('/api/ai/video-make-studio/end-frame', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+            },
+            body: JSON.stringify({
+              headline,
+              cta,
+              backgroundColor: normalizedCallingCardColor,
+              propertyPrice,
+              bedrooms,
+              bathrooms,
+              agentName: agentProfile?.name_surname || 'Agent',
+              phone: agentProfile?.phone || '',
+              email: agentProfile?.email || '',
+              agency: agentProfile?.agency_brand || '',
+              photoUrl: agentProfile?.photo_url || null,
+              logoUrl: agentProfile?.logo_url || null,
+              width: format.width,
+              height: format.height,
+            }),
           })
-        : null
+
+          const endFrameData = await endFrameResponse.json()
+          if (endFrameResponse.ok && endFrameData.outputUrl) {
+            endFrameUrl = endFrameData.outputUrl
+          } else {
+            console.error('Failed to generate AI end frame:', endFrameData.error)
+          }
+        } catch (endFrameError) {
+          console.error('Error generating AI end frame:', endFrameError)
+        }
+      }
 
       const selectedTrack = DEFAULT_MUSIC_TRACKS.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
 
@@ -417,7 +438,7 @@ export function VideoMakeStudioWizard() {
         muteAudio,
         callingCardBytes,
         musicTrackUrl: selectedTrack?.url || null,
-        endFrameBytes,
+        endFrameUrl,
         onProgress: (value: number) => setProgress(value),
         onLog: (message: string) => setLogs(prev => [...prev.slice(-8), message]),
       })

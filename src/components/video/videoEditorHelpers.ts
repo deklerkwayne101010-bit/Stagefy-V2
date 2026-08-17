@@ -380,13 +380,13 @@ export type StitchOptions = {
   muteAudio: boolean
   callingCardBytes: Uint8Array | null
   musicTrackUrl?: string | null
-  endFrameBytes?: Uint8Array | null
+  endFrameUrl?: string | null
   onProgress?: (progress: number) => void
   onLog?: (message: string) => void
 }
 
 export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blob> {
-  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, endFrameBytes, onProgress, onLog } = options
+  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, endFrameUrl, onProgress, onLog } = options
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
 
@@ -441,8 +441,16 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   let endFrameFileIndex = normalizedClips.length + (musicTrackUrl ? 1 : 0)
-  if (endFrameBytes) {
-    await ffmpeg.writeFile('endframe.png', endFrameBytes)
+  if (endFrameUrl) {
+    try {
+      const endFrameResponse = await fetch(endFrameUrl)
+      const endFrameBlob = await endFrameResponse.blob()
+      const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
+      const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
+      await ffmpeg.writeFile('endframe.png', endFrameBytes)
+    } catch (endFrameError) {
+      console.error('Failed to load end frame image:', endFrameError)
+    }
   }
 
   let musicFileIndex = normalizedClips.length
@@ -501,9 +509,9 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   const musicInput = musicTrackUrl ? ['-i', 'music.mp3'] : []
-  const endFrameInput = endFrameBytes ? ['-i', 'endframe.png'] : []
+  const endFrameInput = endFrameUrl ? ['-i', 'endframe.png'] : []
 
-  if (endFrameBytes) {
+  if (endFrameUrl) {
     const offset = Math.max(0, currentDuration - 1)
     filterParts.push(`[vout][${endFrameFileIndex}:v]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
     finalVideoLabel = '[vfinal]'
