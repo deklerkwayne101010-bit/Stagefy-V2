@@ -67,6 +67,7 @@ export function VideoMakeStudioWizard() {
   const [transitionDuration, setTransitionDuration] = useState(0.5)
   const [selectedMusicTrack, setSelectedMusicTrack] = useState<string | null>(null)
   const [musicPreviewError, setMusicPreviewError] = useState<string | null>(null)
+  const [addEndFrame, setAddEndFrame] = useState(false)
   const [progress, setProgress] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
   const [resultUrl, setResultUrl] = useState<string | null>(null)
@@ -384,6 +385,26 @@ export function VideoMakeStudioWizard() {
           })
         : null
 
+      const endFrameBytes = addEndFrame && callingCardBytes
+        ? await generateCallingCardPng({
+            enabled: true,
+            headline,
+            cta,
+            backgroundColor: normalizedCallingCardColor,
+            propertyPrice,
+            bedrooms,
+            bathrooms,
+            agentName: agentProfile?.name_surname || 'Agent',
+            phone: agentProfile?.phone || '',
+            email: agentProfile?.email || '',
+            agency: agentProfile?.agency_brand || '',
+            photoUrl: agentProfile?.photo_url || null,
+            logoUrl: agentProfile?.logo_url || null,
+            width: format.width,
+            height: format.height,
+          })
+        : null
+
       const selectedTrack = DEFAULT_MUSIC_TRACKS.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
 
       const blob = await stitchVideoWithFFmpeg({
@@ -396,6 +417,7 @@ export function VideoMakeStudioWizard() {
         muteAudio,
         callingCardBytes,
         musicTrackUrl: selectedTrack?.url || null,
+        endFrameBytes,
         onProgress: (value: number) => setProgress(value),
         onLog: (message: string) => setLogs(prev => [...prev.slice(-8), message]),
       })
@@ -905,6 +927,16 @@ export function VideoMakeStudioWizard() {
                 <p className="mt-3 text-xs text-slate-500">
                   Music plays under the clips. If original audio is muted, only music will remain.
                 </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-900 mb-2">End frame</p>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+                  <input type="checkbox" checked={addEndFrame} onChange={event => setAddEndFrame(event.target.checked)} className="h-4 w-4" />
+                  <span>
+                    <span className="block font-medium text-slate-900">Add branded end frame</span>
+                    <span className="text-sm text-slate-500">Appends a 3-second calling card at the end of the video.</span>
+                  </span>
+                </label>
               </div>
             </div>
           </div>

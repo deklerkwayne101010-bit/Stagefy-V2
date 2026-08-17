@@ -380,12 +380,13 @@ export type StitchOptions = {
   muteAudio: boolean
   callingCardBytes: Uint8Array | null
   musicTrackUrl?: string | null
+  endFrameBytes?: Uint8Array | null
   onProgress?: (progress: number) => void
   onLog?: (message: string) => void
 }
 
 export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blob> {
-  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, onProgress, onLog } = options
+  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, endFrameBytes, onProgress, onLog } = options
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
 
@@ -439,6 +440,11 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     await ffmpeg.writeFile('calling-card.png', callingCardBytes)
   }
 
+  let endFrameFileIndex = normalizedClips.length + (musicTrackUrl ? 1 : 0)
+  if (endFrameBytes) {
+    await ffmpeg.writeFile('endframe.png', endFrameBytes)
+  }
+
   let musicFileIndex = normalizedClips.length
   if (musicTrackUrl) {
     try {
@@ -477,6 +483,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
 
   let musicLoopFilter = ''
   let finalAudioLabel = `[a${clips.length - 1}]`
+  let finalVideoLabel = '[vout]'
 
   if (musicTrackUrl) {
     const musicInputIndex = musicFileIndex
@@ -494,13 +501,31 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   const musicInput = musicTrackUrl ? ['-i', 'music.mp3'] : []
+  const endFrameInput = endFrameBytes ? ['-i', 'endframe.png'] : []
+
+  if (endFrameBytes) {
+    const offset = Math.max(0, currentDuration - 1)
+    filterParts.push(`[vout][${endFrameFileIndex}:v]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
+    finalVideoLabel = '[vfinal]'
+
+    if (!muteAudio) {
+      if (musicTrackUrl) {
+        filterParts.push(`[${finalAudioLabel}][${endFrameFileIndex}:a]amix=inputs=2:duration=shortest:dropout_transition=1[outa]`)
+        finalAudioLabel = '[outa]'
+      } else {
+        filterParts.push(`[${finalAudioLabel}][${endFrameFileIndex}:a]acrossfade=d=1:c1=tri:c2=tri[outa]`)
+        finalAudioLabel = '[outa]'
+      }
+    }
+  }
 
   const args = [
     ...inputs,
     ...(callingCardBytes ? ['-i', 'calling-card.png'] : []),
     ...musicInput,
+    ...endFrameInput,
     '-filter_complex', filterParts.join(';'),
-    '-map', '[vout]',
+    '-map', finalVideoLabel,
     ...(finalAudioLabel !== '-an' ? ['-map', finalAudioLabel] : ['-an']),
     '-c:v', 'libx264',
     '-preset', 'veryfast',
