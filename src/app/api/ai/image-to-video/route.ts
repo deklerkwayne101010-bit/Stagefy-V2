@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const reservation = await reserveCredits(userIdStr, `image_to_video_${duration}sec` as any, `video-${Date.now()}`)
+    const reservation = await reserveCredits(userIdStr, `image_to_video_${duration}sec` as any, `video-${Date.now()}`, creditCost)
     if (!reservation.success) {
       return NextResponse.json(
         { error: reservation.error || 'Failed to reserve credits' },
