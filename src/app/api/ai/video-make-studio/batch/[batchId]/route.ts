@@ -1,4 +1,4 @@
-// Video Make Studio - Batch Status & Processing
+// Video Maker Studio - Batch Status & Processing
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { refundCredits } from '@/lib/credits'
@@ -48,7 +48,7 @@ export async function GET(
       .eq('user_id', user.id)
       .eq('type', 'video')
       .eq('input_data->>batch_id', batchId)
-      .eq('name', 'Video Make Studio Batch')
+      .eq('name', 'Video Maker Studio Batch')
       .single()
 
     if (!batchProject) {
@@ -60,7 +60,7 @@ export async function GET(
       .eq('user_id', user.id)
       .eq('type', 'video')
       .eq('input_data->>batch_id', batchId)
-      .neq('name', 'Video Make Studio Batch')
+      .neq('name', 'Video Maker Studio Batch')
       .order('created_at', { ascending: true })
 
     const clips: BatchClip[] = (clipProjects || []).map((project: any) => {
@@ -202,7 +202,7 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error('Video Make Studio batch status error:', error)
+    console.error('Video Maker Studio batch status error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

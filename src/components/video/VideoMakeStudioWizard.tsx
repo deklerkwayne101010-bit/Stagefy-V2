@@ -534,7 +534,7 @@ export function VideoMakeStudioWizard() {
     <div className="space-y-6">
       <Card>
         <CardHeader
-          title="Video Make Studio"
+          title="Video Maker Studio"
           subtitle="Turn your images into a stitched video with an optional calling card"
           action={<CreditBadge credits={user?.credits || 0} size="sm" />}
         />

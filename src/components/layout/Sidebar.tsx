@@ -47,15 +47,6 @@ const navigation = [
     ),
   },
   {
-    name: 'Video Make Studio',
-    href: '/video-make-studio',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H7m10-4h7m-7 4v7m-7-4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  {
     name: 'AI Templates',
     href: '/templates',
     icon: (

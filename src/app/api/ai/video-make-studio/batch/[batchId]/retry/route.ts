@@ -1,4 +1,4 @@
-// Video Make Studio - Retry Failed Clip
+// Video Maker Studio - Retry Failed Clip
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { canPerformAction, reserveCredits } from '@/lib/credits'
@@ -95,7 +95,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, clipId, creditsReserved: clipCost })
   } catch (error) {
-    console.error('Video Make Studio retry error:', error)
+    console.error('Video Maker Studio retry error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

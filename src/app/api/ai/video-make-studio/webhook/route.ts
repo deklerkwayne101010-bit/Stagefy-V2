@@ -1,4 +1,4 @@
-// Video Make Studio - Replicate Webhook
+// Video Maker Studio - Replicate Webhook
 import { NextResponse } from 'next/server'
 import { refundCredits } from '@/lib/credits'
 import { getAdminClient, getImageToVideoOperation } from '@/lib/video-make-studio/replicate'
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       .select('*')
       .eq('input_data->>prediction_id', prediction.id)
       .eq('type', 'video')
-      .neq('name', 'Video Make Studio Batch')
+      .neq('name', 'Video Maker Studio Batch')
       .maybeSingle()
 
     if (!clipProject) {
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Video Make Studio webhook error:', error)
+    console.error('Video Maker Studio webhook error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

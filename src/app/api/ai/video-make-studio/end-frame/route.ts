@@ -1,4 +1,4 @@
-// Video Make Studio - AI End Frame Generation
+// Video Maker Studio - AI End Frame Generation
 import { NextResponse } from 'next/server'
 import { checkUserCredits, reserveCredits, refundCredits } from '@/lib/credits'
 import { createClient } from '@supabase/supabase-js'

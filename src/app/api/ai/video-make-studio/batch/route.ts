@@ -1,4 +1,4 @@
-// Video Make Studio - Start Batch
+// Video Maker Studio - Start Batch
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkUserCredits, reserveCredits, refundCredits, canPerformAction } from '@/lib/credits'
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     const { data: batchProject, error: batchError } = await (adminClient.from as any)('projects')
       .insert({
         user_id: user.id,
-        name: 'Video Make Studio Batch',
+        name: 'Video Maker Studio Batch',
         type: 'video',
         status: 'processing',
         credit_cost: totalClipCost,
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
     await createNotification({
       userId: user.id,
       type: 'job_completed',
-      title: 'Video Make Studio Batch Started',
+      title: 'Video Maker Studio Batch Started',
       message: `Processing ${images.length} clips for your batch video.`,
       data: { batchId },
     })
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
       totalCreditsReserved: totalClipCost,
     })
   } catch (error) {
-    console.error('Video Make Studio batch start error:', error)
+    console.error('Video Maker Studio batch start error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
