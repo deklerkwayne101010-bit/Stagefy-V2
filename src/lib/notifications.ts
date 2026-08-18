@@ -1,5 +1,5 @@
 // Notification utility functions
-import { supabase } from './supabase'
+import { getAdminClient } from './supabase'
 
 export interface CreateNotificationParams {
   userId: string
@@ -17,7 +17,13 @@ export async function createNotification({
   data = {}
 }: CreateNotificationParams) {
   try {
-    const { error } = await supabase
+    const adminClient = getAdminClient()
+    if (!adminClient) {
+      console.error('Admin client not available for notification')
+      return { success: false, error: new Error('Admin client not available') }
+    }
+
+    const { error } = await adminClient
       .from('user_notifications')
       .insert({
         user_id: userId,
@@ -42,7 +48,12 @@ export async function createNotification({
 
 export async function getUnreadCount(userId: string): Promise<number> {
   try {
-    const { count, error } = await supabase
+    const adminClient = getAdminClient()
+    if (!adminClient) {
+      return 0
+    }
+
+    const { count, error } = await adminClient
       .from('user_notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
