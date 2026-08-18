@@ -23,8 +23,7 @@ export async function createNotification({
       return { success: false, error: new Error('Admin client not available') }
     }
 
-    const { error } = await adminClient
-      .from('user_notifications')
+    const { error } = await (adminClient.from as any)('user_notifications')
       .insert({
         user_id: userId,
         type,
@@ -53,8 +52,7 @@ export async function getUnreadCount(userId: string): Promise<number> {
       return 0
     }
 
-    const { count, error } = await adminClient
-      .from('user_notifications')
+    const { count, error } = await (adminClient.from as any)('user_notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('is_read', false)
