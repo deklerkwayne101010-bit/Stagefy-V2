@@ -65,6 +65,8 @@ interface Totals {
 }
 
 interface HistoryEntry {
+  id: string
+  type: 'usage' | 'signup' | 'login'
   userId: string
   email: string
   fullName: string
@@ -620,11 +622,15 @@ export default function AdminPage() {
                     </tr>
                   ) : (
                     historyEntries.map((entry) => (
-                      <tr key={`${entry.userId}-${entry.timestamp}-${entry.agentName}`} className="hover:bg-gray-50">
+                      <tr key={`${entry.id}-${entry.timestamp}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-xs font-medium text-blue-600">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              entry.type === 'signup' ? 'bg-green-100' : entry.type === 'login' ? 'bg-blue-100' : 'bg-gray-100'
+                            }`}>
+                              <span className={`text-xs font-medium ${
+                                entry.type === 'signup' ? 'text-green-600' : entry.type === 'login' ? 'text-blue-600' : 'text-gray-600'
+                              }`}>
                                 {entry.fullName.charAt(0)}
                               </span>
                             </div>
@@ -635,10 +641,18 @@ export default function AdminPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm font-medium text-gray-900">{entry.agentName}</span>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            entry.type === 'signup' ? 'bg-green-100 text-green-800' : entry.type === 'login' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {entry.agentName}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm font-medium text-red-600">-{entry.creditsSpent}</span>
+                          {entry.type === 'signup' || entry.type === 'login' ? (
+                            <span className="text-sm text-gray-500">-</span>
+                          ) : (
+                            <span className="text-sm font-medium text-red-600">-{entry.creditsSpent}</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {new Date(entry.timestamp).toLocaleString()}

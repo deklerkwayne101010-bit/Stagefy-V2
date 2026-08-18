@@ -96,7 +96,35 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: txError.message }, { status: 500 })
       }
 
-      const userIds = Array.from(new Set(transactions.map((t) => t.user_id).filter(Boolean)))
+      let authEvents: any[] = []
+      let authError: any = null
+      for (let start = 0; start < 100000; start += PAGE) {
+        const { data: page, error } = await (adminClient.from as any)('auth_events')
+          .select('id, user_id, email, event_type, created_at')
+          .gte('created_at', historyStart.toISOString())
+          .lte('created_at', historyEnd.toISOString())
+          .order('created_at', { ascending: false })
+          .range(start, start + PAGE - 1)
+        if (error) {
+          authError = error
+          break
+        }
+        if (page && page.length > 0) {
+          authEvents = authEvents.concat(page)
+        }
+        if (!page || page.length < PAGE) {
+          break
+        }
+      }
+
+      if (authError) {
+        console.error('Failed to fetch auth events:', authError)
+      }
+
+      const userIds = Array.from(new Set([
+        ...transactions.map((t) => t.user_id).filter(Boolean),
+        ...authEvents.map((t) => t.user_id).filter(Boolean),
+      ]))
       const usersMap = new Map<string, { email: string; full_name: string }>()
       if (userIds.length > 0) {
         for (let start = 0; start < userIds.length; start += PAGE) {
@@ -115,9 +143,11 @@ export async function GET(request: Request) {
         }
       }
 
-      const history = transactions.map((tx) => {
+      const usageHistory = transactions.map((tx) => {
         const user = usersMap.get(tx.user_id)
         return {
+          id: tx.id,
+          type: 'usage' as const,
           userId: tx.user_id,
           email: user?.email || 'Unknown',
           fullName: user?.full_name || 'Unknown User',
@@ -125,6 +155,26 @@ export async function GET(request: Request) {
           creditsSpent: Math.abs(tx.amount || 0),
           timestamp: tx.created_at,
         }
+      })
+
+      const authHistory = authEvents.map((ev) => {
+        const user = usersMap.get(ev.user_id || '') || { email: ev.email || 'Unknown', full_name: 'Unknown User' }
+        return {
+          id: ev.id,
+          type: ev.event_type as 'signup' | 'login',
+          userId: ev.user_id,
+          email: user.email,
+          fullName: user.full_name,
+          agentName: ev.event_type === 'signup' ? 'Signup' : 'Login',
+          creditsSpent: 0,
+          timestamp: ev.created_at,
+        }
+      })
+
+      const history = [...usageHistory, ...authHistory].sort((a, b) => {
+        const aTime = new Date(a.timestamp).getTime()
+        const bTime = new Date(b.timestamp).getTime()
+        return bTime - aTime
       })
 
       return NextResponse.json({ history, count: history.length })

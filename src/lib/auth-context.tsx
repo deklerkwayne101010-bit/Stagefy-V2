@@ -6,6 +6,18 @@ import { User } from './types'
 import { supabase, getCurrentUser } from './supabase'
 import { isDemoMode, findDemoUser, demoUsers } from './demo-users'
 
+async function logAuthEvent(eventType: 'signup' | 'login', userId?: string, email?: string) {
+  try {
+    await fetch('/api/auth/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType, userId, email }),
+    })
+  } catch {
+    // Silently fail - auth events are non-critical
+  }
+}
+
 interface AuthContextType {
   user: User | null
   loading: boolean
@@ -135,6 +147,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
     })
+
+    if (!error) {
+      void logAuthEvent('login', undefined, email)
+    }
+
     return { error: error ? new Error(error.message) : null }
   }
 
@@ -167,6 +184,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     })
+
+    if (!error) {
+      void logAuthEvent('signup', undefined, email)
+    }
+
     return { error: error ? new Error(error.message) : null }
   }
 
