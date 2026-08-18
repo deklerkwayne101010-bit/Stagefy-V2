@@ -74,10 +74,15 @@ export async function POST(request: Request) {
       body.bathrooms ? `${body.bathrooms} bath${body.bathrooms === '1' ? '' : 's'}` : '',
     ].filter(Boolean).join(', ')
 
-    const prompt = `Create a professional real estate video end frame template (${body.width}x${body.height}px). Design: clean, modern, premium look. Background color: ${body.backgroundColor}. Include large bold headline text: "${body.headline}". Agent name: "${body.agentName}". ${propertyDetails ? `Property details: ${propertyDetails}.` : ''} ${body.phone ? `Phone: ${body.phone}.` : ''} ${body.email ? `Email: ${body.email}.` : ''} ${body.agency ? `Agency: ${body.agency}.` : ''} Call to action: "${body.cta}". ${body.photoUrl ? 'Include a small agent photo on the left side.' : ''} ${body.logoUrl ? 'Include agency logo on the right side.' : ''} No extra objects, no clutter, professional layout optimized for video ending.`
+    const inputImages: string[] = []
+    if (body.photoUrl) inputImages.push(body.photoUrl)
+    if (body.logoUrl) inputImages.push(body.logoUrl)
+
+    const prompt = `Create a professional real estate video end frame template (${body.width}x${body.height}px). Design: clean, modern, premium look. Background color: ${body.backgroundColor}. Include large bold headline text: "${body.headline}". Agent name: "${body.agentName}". ${propertyDetails ? `Property details: ${propertyDetails}.` : ''} ${body.phone ? `Phone: ${body.phone}.` : ''} ${body.email ? `Email: ${body.email}.` : ''} ${body.agency ? `Agency: ${body.agency}.` : ''} Call to action: "${body.cta}". ${inputImages.length > 0 ? 'Use the provided reference images for the agent photo and agency logo, integrate them naturally into the layout.' : ''} No extra objects, no clutter, professional layout optimized for video ending.`
 
     const gptImageInput: any = {
       prompt,
+      input_images: inputImages,
       quality,
       aspect_ratio: '16:9',
       output_format: 'png',
