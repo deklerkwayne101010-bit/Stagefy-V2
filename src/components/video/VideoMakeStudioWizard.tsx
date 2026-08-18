@@ -67,6 +67,8 @@ export function VideoMakeStudioWizard() {
   const [transitionDuration, setTransitionDuration] = useState(0.5)
   const [selectedMusicTrack, setSelectedMusicTrack] = useState<string | null>(null)
   const [musicPreviewError, setMusicPreviewError] = useState<string | null>(null)
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([])
+  const [musicTracksLoading, setMusicTracksLoading] = useState(true)
   const [addEndFrame, setAddEndFrame] = useState(false)
   const [progress, setProgress] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
@@ -105,6 +107,33 @@ export function VideoMakeStudioWizard() {
   useEffect(() => {
     if (!user?.id) return
     void loadAgentProfile()
+  }, [user?.id])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadMusicTracks() {
+      try {
+        const response = await fetch('/api/ai/video-make-studio/music')
+        const data = await response.json()
+        if (!cancelled && data.tracks && data.tracks.length > 0) {
+          setMusicTracks(data.tracks)
+        } else if (!cancelled) {
+          setMusicTracks(DEFAULT_MUSIC_TRACKS)
+        }
+      } catch {
+        if (!cancelled) {
+          setMusicTracks(DEFAULT_MUSIC_TRACKS)
+        }
+      } finally {
+        if (!cancelled) {
+          setMusicTracksLoading(false)
+        }
+      }
+    }
+    void loadMusicTracks()
+    return () => {
+      cancelled = true
+    }
   }, [user?.id])
 
   useEffect(() => {
@@ -426,7 +455,7 @@ export function VideoMakeStudioWizard() {
         }
       }
 
-      const selectedTrack = DEFAULT_MUSIC_TRACKS.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
+      const selectedTrack = musicTracks.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
 
       const blob = await stitchVideoWithFFmpeg({
         format,
@@ -907,30 +936,34 @@ export function VideoMakeStudioWizard() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">No music</option>
-                  {DEFAULT_MUSIC_TRACKS.map((track) => (
+                  {musicTracks.map((track) => (
                     <option key={track.id} value={track.id}>
                       {track.name}
                     </option>
                   ))}
                 </select>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {DEFAULT_MUSIC_TRACKS.map((track) => (
-                    <button
-                      key={track.id}
-                      type="button"
-                      onClick={() => {
-                        const audio = new Audio(track.url)
-                        audio.play().catch(() => {
-                          setMusicPreviewError(`Could not preview ${track.name}`)
-                        })
-                        setMusicPreviewError(null)
-                      }}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700"
-                    >
-                      Preview {track.name}
-                    </button>
-                  ))}
-                </div>
+                {musicTracksLoading ? (
+                  <p className="mt-3 text-xs text-slate-500">Loading tracks...</p>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {musicTracks.map((track) => (
+                      <button
+                        key={track.id}
+                        type="button"
+                        onClick={() => {
+                          const audio = new Audio(track.url)
+                          audio.play().catch(() => {
+                            setMusicPreviewError(`Could not preview ${track.name}`)
+                          })
+                          setMusicPreviewError(null)
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                      >
+                        Preview {track.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {musicPreviewError && (
                   <p className="mt-2 text-xs text-red-600">{musicPreviewError}</p>
                 )}
