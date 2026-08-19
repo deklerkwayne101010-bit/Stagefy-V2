@@ -20,7 +20,7 @@ import {
 } from './videoEditorHelpers'
 import { AgentProfileSetupModal } from './AgentProfileSetupModal'
 
-type VideoMakeStudioStep = 'format' | 'images' | 'calling_card' | 'generate' | 'review' | 'transition' | 'finish'
+type VideoMakeStudioStep = 'landing' | 'format' | 'images' | 'calling_card' | 'generate' | 'review' | 'transition' | 'finish'
 
 const MAX_IMAGES = 30
 const MIN_IMAGES = 3
@@ -43,7 +43,7 @@ export function VideoMakeStudioWizard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const [step, setStep] = useState<VideoMakeStudioStep>('format')
+  const [step, setStep] = useState<VideoMakeStudioStep>('landing')
   const [format, setFormat] = useState<VideoEditorFormat>(videoEditorFormats[0])
   const [images, setImages] = useState<string[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
@@ -74,8 +74,11 @@ export function VideoMakeStudioWizard() {
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [generations, setGenerations] = useState<Array<{ id: string; createdAt: string; status: string; settings: any; clips: any[] }>>([])
+  const [isLoadingGenerations, setIsLoadingGenerations] = useState(false)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
+    { key: 'landing', label: 'Home' },
     { key: 'format', label: 'Format' },
     { key: 'images', label: 'Images' },
     { key: 'calling_card', label: 'Calling Card' },
@@ -137,6 +140,67 @@ export function VideoMakeStudioWizard() {
       setAgentProfileMissing(true)
     }
   }
+
+  async function viewBatch(batchId: string) {
+    setBatchId(batchId)
+    setClips([])
+    setProgress(0)
+    setError(null)
+    setIsGenerating(true)
+    setStep('generate')
+
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch(`/api/ai/video-make-studio/batch/${batchId}`, {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
+      const data = await response.json()
+      if (data.clips) {
+        setClips(data.clips)
+      }
+      const completed = data.clips?.filter((c: any) => c.status === 'completed').length || 0
+      const total = data.summary?.total || data.clips?.length || 0
+      setProgress(total > 0 ? Math.round((completed / total) * 100) : 0)
+
+      if (data.status === 'completed' || data.status === 'completed_with_errors') {
+        setIsGenerating(false)
+        setStep('review')
+      } else {
+        pollBatchStatus()
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load batch.')
+      setIsGenerating(false)
+    }
+  }
+
+  async function fetchGenerations() {
+    if (!user?.id) return
+    setIsLoadingGenerations(true)
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || null
+      const response = await fetch('/api/ai/video-make-studio/batch', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setGenerations(data.batches || [])
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingGenerations(false)
+    }
+  }
+
+  useEffect(() => {
+    if (step === 'landing') {
+      void fetchGenerations()
+    }
+  }, [step])
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
@@ -440,6 +504,10 @@ export function VideoMakeStudioWizard() {
   }
 
   function handleNext() {
+    if (step === 'landing') {
+      setStep('format')
+      return
+    }
     if (step === 'format') {
       setStep('images')
       return
@@ -467,6 +535,7 @@ export function VideoMakeStudioWizard() {
   }
 
   function handleBack() {
+    if (step === 'landing') return
     if (step === 'images') setStep('format')
     else if (step === 'calling_card') setStep('images')
     else if (step === 'generate') {
@@ -496,7 +565,7 @@ export function VideoMakeStudioWizard() {
     <div className="space-y-6">
       <Card>
         <CardHeader
-          title="Video Make Studio"
+          title="Video Maker Studio"
           subtitle="Turn your images into a stitched video with an optional calling card"
           action={<CreditBadge credits={user?.credits || 0} size="sm" />}
         />
@@ -524,6 +593,45 @@ export function VideoMakeStudioWizard() {
         {error && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {step === 'landing' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-slate-900">Your video generations</p>
+                <p className="text-sm text-slate-500">Review past clips or start a new video.</p>
+              </div>
+              <Button onClick={() => setStep('format')}>Start New Video</Button>
+            </div>
+
+            {isLoadingGenerations ? (
+              <div className="text-sm text-slate-500">Loading generations...</div>
+            ) : generations.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+                <p className="font-medium">No generations yet</p>
+                <p className="mt-1 text-sm">Start your first video to see it here.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {generations.map((gen) => (
+                  <div key={gen.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-500">{new Date(gen.createdAt).toLocaleDateString()}</span>
+                      <span className={`text-xs font-medium ${gen.status === 'completed' ? 'text-emerald-600' : gen.status === 'failed' ? 'text-red-600' : 'text-amber-600'}`}>{gen.status}</span>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-slate-900">{gen.settings?.formatLabel || 'Video'}</p>
+                      <p className="text-xs text-slate-500">{gen.clips?.length || 0} clips</p>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => viewBatch(gen.id)}>View</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -678,15 +786,6 @@ export function VideoMakeStudioWizard() {
                 <span className="font-medium text-slate-900">Add bottom calling card</span>
                 <InfoTip text="A branded calling card appears at the bottom of the final video. Your agent profile personalizes it with your name, photo, and logo." />
               </label>
-
-              <div>
-                <p className="text-sm font-medium text-slate-900 mb-3">Property details</p>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" />
-                  <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" />
-                  <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" />
-                </div>
-              </div>
 
               {callingCardEnabled && (
                 <>

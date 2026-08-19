@@ -28,6 +28,54 @@ function calculateClipCredits(duration: number, tier: 'standard' | 'pro'): numbe
   return tier === 'standard' ? duration : Math.ceil(duration * (5 / 3))
 }
 
+export async function GET(request: Request) {
+  try {
+    const user = await getUserFromAuthHeader(request)
+    if (!user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const adminClient = getAdminClient()
+
+    const { data: batchProjects, error: batchError } = await (adminClient.from as any)('projects')
+      .select('id, created_at, status, input_data, output_data')
+      .eq('user_id', user.id)
+      .eq('type', 'video')
+      .eq('name', 'Video Make Studio Batch')
+      .order('created_at', { ascending: false })
+
+    if (batchError) {
+      console.error('Error fetching batches:', batchError)
+      return NextResponse.json(
+        { error: 'Failed to fetch batches' },
+        { status: 500 }
+      )
+    }
+
+    const batches = (batchProjects || []).map((project: any) => {
+      const batchId = project.input_data?.batch_id || project.id
+      return {
+        id: batchId,
+        projectId: project.id,
+        createdAt: project.created_at,
+        status: project.status,
+        settings: project.input_data?.settings || {},
+      }
+    })
+
+    return NextResponse.json({ batches })
+  } catch (error) {
+    console.error('Video Make Studio list batches error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json() as {
