@@ -381,14 +381,19 @@ export type StitchOptions = {
   callingCardBytes: Uint8Array | null
   musicTrackUrl?: string | null
   endFrameUrl?: string | null
+  signal?: AbortSignal
   onProgress?: (progress: number) => void
   onLog?: (message: string) => void
 }
 
 export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blob> {
-  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, endFrameUrl, onProgress, onLog } = options
+  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, endFrameUrl, signal, onProgress, onLog } = options
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
+
+  if (signal?.aborted) {
+    throw new Error('Export cancelled')
+  }
 
   const ffmpeg = new FFmpeg()
   ffmpeg.on('progress', ({ progress: value }) => {
@@ -406,6 +411,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
 
   for (let index = 0; index < clips.length; index += 1) {
+    if (signal?.aborted) {
+      throw new Error('Export cancelled')
+    }
+
     const clip = clips[index]
     const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
     await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
@@ -434,6 +443,8 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     if (normalizeCode !== 0) {
       throw new Error(`Could not prepare clip ${index + 1}.`)
     }
+
+    onProgress?.(Math.round(((index + 1) / clips.length) * 50))
   }
 
   if (callingCardBytes) {
@@ -464,6 +475,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     } catch (musicError) {
       console.error('Failed to load music track:', musicError)
     }
+  }
+
+  if (signal?.aborted) {
+    throw new Error('Export cancelled')
   }
 
   const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])

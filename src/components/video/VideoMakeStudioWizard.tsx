@@ -91,6 +91,7 @@ export function VideoMakeStudioWizard() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [exportInterrupted, setExportInterrupted] = useState(false)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
     { key: 'landing', label: 'Home' },
@@ -176,8 +177,49 @@ export function VideoMakeStudioWizard() {
     }
   }, [user?.id])
 
-  useEffect(() => {
-    return () => {
+   useEffect(() => {
+     let cancelled = false
+     async function restoreBatch() {
+       try {
+         const storedBatchId = localStorage.getItem('vms-batch-id')
+         const storedIsGenerating = localStorage.getItem('vms-is-generating') === 'true'
+         if (!storedBatchId || !storedIsGenerating || !user?.id) return
+
+         const { supabase } = await import('@/lib/supabase')
+         const { data: { session } } = await supabase.auth.getSession()
+         const response = await fetch(`/api/ai/video-make-studio/batch/${storedBatchId}`, {
+           headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+         })
+         const data = await response.json()
+
+         if (data.status === 'processing') {
+           setBatchId(storedBatchId)
+           setIsGenerating(true)
+           setStep('generate')
+           void pollBatchStatus()
+         } else {
+           localStorage.removeItem('vms-batch-id')
+           localStorage.removeItem('vms-is-generating')
+         }
+       } catch {
+         // silent
+       }
+     }
+     void restoreBatch()
+     return () => {
+       cancelled = true
+     }
+    }, [user?.id])
+
+    useEffect(() => {
+      const wasInterrupted = sessionStorage.getItem('vms-export-active') === 'true'
+      if (wasInterrupted) {
+        setExportInterrupted(true)
+      }
+    }, [user?.id])
+
+    useEffect(() => {
+     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
       }
@@ -269,7 +311,6 @@ export function VideoMakeStudioWizard() {
     setError(null)
     setProgress(0)
     setClips([])
-    setBatchId(null)
 
     try {
       const { supabase } = await import('@/lib/supabase')
@@ -298,6 +339,8 @@ export function VideoMakeStudioWizard() {
       }
 
       setBatchId(data.batchId)
+      localStorage.setItem('vms-batch-id', data.batchId)
+      localStorage.setItem('vms-is-generating', 'true')
       setClips(
         Array.from({ length: data.totalClips }).map((_, i) => ({
           id: `clip-${i}`,
@@ -339,6 +382,8 @@ export function VideoMakeStudioWizard() {
       setProgress(total > 0 ? Math.round((completed / total) * 100) : 0)
 
       if (data.status === 'completed' || data.status === 'completed_with_errors') {
+        localStorage.removeItem('vms-batch-id')
+        localStorage.removeItem('vms-is-generating')
         setIsGenerating(false)
         if (pollIntervalRef.current) {
           clearInterval(pollIntervalRef.current)
@@ -403,6 +448,10 @@ export function VideoMakeStudioWizard() {
     setResultBlob(null)
     setLogs([])
     setProgress(0)
+
+    sessionStorage.setItem('vms-export-active', 'true')
+
+    const controller = new AbortController()
 
     let creditsReserved = false
     let creditReference = ''
@@ -508,7 +557,13 @@ export function VideoMakeStudioWizard() {
         callingCardBytes,
         musicTrackUrl: selectedTrack?.url || null,
         endFrameUrl,
-        onProgress: (value: number) => setProgress(value),
+        signal: controller.signal,
+        onProgress: (value: number) => {
+          setProgress(value)
+          if (value % 5 === 0) {
+            sessionStorage.setItem('vms-export-progress', String(value))
+          }
+        },
         onLog: (message: string) => setLogs(prev => [...prev.slice(-8), message]),
       })
 
@@ -523,6 +578,8 @@ export function VideoMakeStudioWizard() {
       }
       setError(err?.message || 'Failed to stitch video.')
     } finally {
+      sessionStorage.removeItem('vms-export-active')
+      sessionStorage.removeItem('vms-export-progress')
       setIsExporting(false)
     }
   }
@@ -638,6 +695,18 @@ export function VideoMakeStudioWizard() {
           </div>
         )}
 
+        {exportInterrupted && (
+          <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+            Your previous export was interrupted. Please try exporting again.
+            <button
+              onClick={() => setExportInterrupted(false)}
+              className="ml-3 text-yellow-900 underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {step === 'landing' && (
           <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-3">
@@ -690,6 +759,9 @@ export function VideoMakeStudioWizard() {
                             onClick={() => {
                               setBatchId(batch.id)
                               setResumingBatchId(batch.id)
+                              setIsGenerating(true)
+                              localStorage.setItem('vms-batch-id', batch.id)
+                              localStorage.setItem('vms-is-generating', 'true')
                               setStep('generate')
                               void pollBatchStatus()
                             }}
@@ -938,6 +1010,11 @@ export function VideoMakeStudioWizard() {
               <div className="h-2 overflow-hidden rounded-full bg-blue-100">
                 <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
               </div>
+              {isGenerating && (
+                <p className="mt-2 text-xs text-blue-700">
+                  Estimated time remaining: ~{Math.max(1, Math.round(clips.filter(c => c.status === 'pending' || c.status === 'processing').length * 0.5))} min
+                </p>
+              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1128,12 +1205,17 @@ export function VideoMakeStudioWizard() {
             {isExporting && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
                 <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="font-medium text-blue-900">Stitching video</span>
+                  <span className="font-medium text-blue-900">
+                    {progress < 50 ? 'Normalizing clips' : 'Stitching video'}
+                  </span>
                   <span className="font-semibold text-blue-900">{progress}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-blue-100">
                   <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
                 </div>
+                {logs.length > 0 && (
+                  <p className="mt-2 text-xs text-blue-700">{logs[logs.length - 1]}</p>
+                )}
               </div>
             )}
 
