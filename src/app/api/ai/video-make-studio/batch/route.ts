@@ -41,11 +41,12 @@ export async function GET(request: Request) {
     const adminClient = getAdminClient()
 
     const { data: batchProjects, error: batchError } = await (adminClient.from as any)('projects')
-      .select('id, created_at, status, input_data, output_data')
+      .select('id, name, status, credit_cost, input_data, created_at, completed_at')
       .eq('user_id', user.id)
       .eq('type', 'video')
-      .eq('name', 'Video Make Studio Batch')
+      .eq('name', 'Video Maker Studio Batch')
       .order('created_at', { ascending: false })
+      .limit(20)
 
     if (batchError) {
       console.error('Error fetching batches:', batchError)
@@ -56,19 +57,22 @@ export async function GET(request: Request) {
     }
 
     const batches = (batchProjects || []).map((project: any) => {
-      const batchId = project.input_data?.batch_id || project.id
+      const input = project.input_data || {}
       return {
-        id: batchId,
+        id: input.batch_id,
         projectId: project.id,
-        createdAt: project.created_at,
+        totalClips: input.total_clips || 0,
         status: project.status,
-        settings: project.input_data?.settings || {},
+        creditCost: project.credit_cost || 0,
+        createdAt: project.created_at,
+        completedAt: project.completed_at,
+        settings: input.settings || {},
       }
     })
 
     return NextResponse.json({ batches })
   } catch (error) {
-    console.error('Video Make Studio list batches error:', error)
+    console.error('Error listing batches:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

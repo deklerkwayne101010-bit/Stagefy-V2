@@ -12,11 +12,13 @@ import { Input, Select, Textarea } from '@/components/ui/Input'
 import { CreditBadge } from '@/components/ui/Badge'
 import {
   type AgentProfile,
+  type MusicTrack,
   type VideoEditorFormat,
   formatBytes,
   generateCallingCardPng,
   stitchVideoWithFFmpeg,
   videoEditorFormats,
+  DEFAULT_MUSIC_TRACKS,
 } from './videoEditorHelpers'
 import { AgentProfileSetupModal } from './AgentProfileSetupModal'
 
@@ -47,7 +49,7 @@ export function VideoMakeStudioWizard() {
   const [format, setFormat] = useState<VideoEditorFormat>(videoEditorFormats[0])
   const [images, setImages] = useState<string[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
-  const [prompt, setPrompt] = useState('')
+  const [prompt, setPrompt] = useState(AUTO_PROMPT)
   const [duration, setDuration] = useState('5')
   const [tier, setTier] = useState<'standard' | 'pro'>('pro')
   const [callingCardEnabled, setCallingCardEnabled] = useState(true)
@@ -64,6 +66,23 @@ export function VideoMakeStudioWizard() {
   const [batchId, setBatchId] = useState<string | null>(null)
   const [clips, setClips] = useState<BatchClip[]>([])
   const [transitionDuration, setTransitionDuration] = useState(0.5)
+  const [selectedMusicTrack, setSelectedMusicTrack] = useState<string | null>(null)
+  const [musicPreviewError, setMusicPreviewError] = useState<string | null>(null)
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([])
+  const [musicTracksLoading, setMusicTracksLoading] = useState(true)
+  const [addEndFrame, setAddEndFrame] = useState(false)
+  const [batches, setBatches] = useState<Array<{
+    id: string
+    projectId: string
+    totalClips: number
+    status: string
+    creditCost: number
+    createdAt: string
+    completedAt: string | null
+    settings: Record<string, any>
+  }>>([])
+  const [batchesLoading, setBatchesLoading] = useState(true)
+  const [resumingBatchId, setResumingBatchId] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
   const [resultUrl, setResultUrl] = useState<string | null>(null)
@@ -73,9 +92,10 @@ export function VideoMakeStudioWizard() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [exportInterrupted, setExportInterrupted] = useState(false)
+  const [clipOrder, setClipOrder] = useState<string[] | null>(null)
+  const [draggingClipId, setDraggingClipId] = useState<string | null>(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
-  const [generations, setGenerations] = useState<Array<{ id: string; createdAt: string; status: string; settings: any; clips: any[] }>>([])
-  const [isLoadingGenerations, setIsLoadingGenerations] = useState(false)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
     { key: 'landing', label: 'Home' },
@@ -102,13 +122,113 @@ export function VideoMakeStudioWizard() {
     return [...successfulClips].sort((a, b) => a.imageIndex - b.imageIndex)
   }, [successfulClips])
 
+  const orderedSuccessfulClips = useMemo(() => {
+    if (!clipOrder) return sortedSuccessfulClips
+    const byId = new Map(sortedSuccessfulClips.map(c => [c.id, c]))
+    return clipOrder.map(id => byId.get(id)).filter((c): c is BatchClip => Boolean(c))
+  }, [sortedSuccessfulClips, clipOrder])
+
   useEffect(() => {
     if (!user?.id) return
     void loadAgentProfile()
   }, [user?.id])
 
   useEffect(() => {
+    let cancelled = false
+    async function loadMusicTracks() {
+      try {
+        const response = await fetch('/api/ai/video-make-studio/music')
+        const data = await response.json()
+        if (!cancelled) {
+          const tracks = Array.isArray(data.tracks) ? data.tracks : []
+          setMusicTracks(tracks)
+        }
+      } catch {
+        if (!cancelled) {
+          setMusicTracks(DEFAULT_MUSIC_TRACKS)
+        }
+      } finally {
+        if (!cancelled) {
+          setMusicTracksLoading(false)
+        }
+      }
+    }
+    void loadMusicTracks()
     return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadBatches() {
+      try {
+        const { supabase } = await import('@/lib/supabase')
+        const { data: { session } } = await supabase.auth.getSession()
+        const response = await fetch('/api/ai/video-make-studio/batch', {
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        })
+        const data = await response.json()
+        if (!cancelled && data.batches) {
+          setBatches(data.batches)
+        }
+      } catch {
+        // Silently fail - batches are non-critical
+      } finally {
+        if (!cancelled) {
+          setBatchesLoading(false)
+        }
+      }
+    }
+    void loadBatches()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
+   useEffect(() => {
+     let cancelled = false
+     async function restoreBatch() {
+       try {
+         const storedBatchId = localStorage.getItem('vms-batch-id')
+         const storedIsGenerating = localStorage.getItem('vms-is-generating') === 'true'
+         if (!storedBatchId || !storedIsGenerating || !user?.id) return
+
+         const { supabase } = await import('@/lib/supabase')
+         const { data: { session } } = await supabase.auth.getSession()
+         const response = await fetch(`/api/ai/video-make-studio/batch/${storedBatchId}`, {
+           headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+         })
+         const data = await response.json()
+
+         if (data.status === 'processing') {
+           setBatchId(storedBatchId)
+           setIsGenerating(true)
+           setStep('generate')
+           void pollBatchStatus()
+         } else {
+           localStorage.removeItem('vms-batch-id')
+           localStorage.removeItem('vms-is-generating')
+         }
+       } catch {
+         // silent
+       }
+     }
+     void restoreBatch()
+     return () => {
+       cancelled = true
+     }
+    }, [user?.id])
+
+    useEffect(() => {
+      const wasInterrupted = sessionStorage.getItem('vms-export-active') === 'true'
+      if (wasInterrupted) {
+        setExportInterrupted(true)
+      }
+    }, [user?.id])
+
+    useEffect(() => {
+     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
       }
@@ -141,66 +261,13 @@ export function VideoMakeStudioWizard() {
     }
   }
 
-  async function viewBatch(batchId: string) {
-    setBatchId(batchId)
-    setClips([])
-    setProgress(0)
-    setError(null)
-    setIsGenerating(true)
-    setStep('generate')
-
-    try {
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-      const response = await fetch(`/api/ai/video-make-studio/batch/${batchId}`, {
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-      })
-      const data = await response.json()
-      if (data.clips) {
-        setClips(data.clips)
-      }
-      const completed = data.clips?.filter((c: any) => c.status === 'completed').length || 0
-      const total = data.summary?.total || data.clips?.length || 0
-      setProgress(total > 0 ? Math.round((completed / total) * 100) : 0)
-
-      if (data.status === 'completed' || data.status === 'completed_with_errors') {
-        setIsGenerating(false)
-        setStep('review')
-      } else {
-        pollBatchStatus()
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load batch.')
-      setIsGenerating(false)
+  function handleProfileSaved(profile: AgentProfile) {
+    setAgentProfile(profile)
+    setAgentProfileMissing(false)
+    if (profile.name_surname) {
+      setHeadline(`${profile.name_surname} | Real Estate Agent`)
     }
   }
-
-  async function fetchGenerations() {
-    if (!user?.id) return
-    setIsLoadingGenerations(true)
-    try {
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token || null
-      const response = await fetch('/api/ai/video-make-studio/batch', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setGenerations(data.batches || [])
-      }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoadingGenerations(false)
-    }
-  }
-
-  useEffect(() => {
-    if (step === 'landing') {
-      void fetchGenerations()
-    }
-  }, [step])
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
@@ -263,7 +330,6 @@ export function VideoMakeStudioWizard() {
     setError(null)
     setProgress(0)
     setClips([])
-    setBatchId(null)
 
     try {
       const { supabase } = await import('@/lib/supabase')
@@ -292,6 +358,8 @@ export function VideoMakeStudioWizard() {
       }
 
       setBatchId(data.batchId)
+      localStorage.setItem('vms-batch-id', data.batchId)
+      localStorage.setItem('vms-is-generating', 'true')
       setClips(
         Array.from({ length: data.totalClips }).map((_, i) => ({
           id: `clip-${i}`,
@@ -333,6 +401,8 @@ export function VideoMakeStudioWizard() {
       setProgress(total > 0 ? Math.round((completed / total) * 100) : 0)
 
       if (data.status === 'completed' || data.status === 'completed_with_errors') {
+        localStorage.removeItem('vms-batch-id')
+        localStorage.removeItem('vms-is-generating')
         setIsGenerating(false)
         if (pollIntervalRef.current) {
           clearInterval(pollIntervalRef.current)
@@ -398,6 +468,10 @@ export function VideoMakeStudioWizard() {
     setLogs([])
     setProgress(0)
 
+    sessionStorage.setItem('vms-export-active', 'true')
+
+    const controller = new AbortController()
+
     let creditsReserved = false
     let creditReference = ''
 
@@ -420,7 +494,7 @@ export function VideoMakeStudioWizard() {
         creditsReserved = true
       }
 
-      const sortedClips = clips.filter(c => c.status === 'completed' && c.outputUrl).sort((a, b) => a.imageIndex - b.imageIndex)
+      const sortedClips = orderedSuccessfulClips
       const clipFiles: File[] = []
       for (const clip of sortedClips) {
         const response = await fetch(clip.outputUrl!)
@@ -448,6 +522,49 @@ export function VideoMakeStudioWizard() {
           })
         : null
 
+      let endFrameUrl: string | null = null
+      if (addEndFrame) {
+        try {
+          const { supabase } = await import('@/lib/supabase')
+          const { data: { session } } = await supabase.auth.getSession()
+
+          const endFrameResponse = await fetch('/api/ai/video-make-studio/end-frame', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+            },
+            body: JSON.stringify({
+              headline,
+              cta,
+              backgroundColor: normalizedCallingCardColor,
+              propertyPrice,
+              bedrooms,
+              bathrooms,
+              agentName: agentProfile?.name_surname || 'Agent',
+              phone: agentProfile?.phone || '',
+              email: agentProfile?.email || '',
+              agency: agentProfile?.agency_brand || '',
+              photoUrl: agentProfile?.photo_url || null,
+              logoUrl: agentProfile?.logo_url || null,
+              width: format.width,
+              height: format.height,
+            }),
+          })
+
+          const endFrameData = await endFrameResponse.json()
+          if (endFrameResponse.ok && endFrameData.outputUrl) {
+            endFrameUrl = endFrameData.outputUrl
+          } else {
+            console.error('Failed to generate AI end frame:', endFrameData.error)
+          }
+        } catch (endFrameError) {
+          console.error('Error generating AI end frame:', endFrameError)
+        }
+      }
+
+      const selectedTrack = musicTracks.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
+
       const blob = await stitchVideoWithFFmpeg({
         format,
         clips: clipFiles.map((file, index) => ({
@@ -457,7 +574,15 @@ export function VideoMakeStudioWizard() {
         transitionDuration,
         muteAudio,
         callingCardBytes,
-        onProgress: (value: number) => setProgress(value),
+        musicTrackUrl: selectedTrack?.url || null,
+        endFrameUrl,
+        signal: controller.signal,
+        onProgress: (value: number) => {
+          setProgress(value)
+          if (value % 5 === 0) {
+            sessionStorage.setItem('vms-export-progress', String(value))
+          }
+        },
         onLog: (message: string) => setLogs(prev => [...prev.slice(-8), message]),
       })
 
@@ -472,6 +597,8 @@ export function VideoMakeStudioWizard() {
       }
       setError(err?.message || 'Failed to stitch video.')
     } finally {
+      sessionStorage.removeItem('vms-export-active')
+      sessionStorage.removeItem('vms-export-progress')
       setIsExporting(false)
     }
   }
@@ -535,7 +662,6 @@ export function VideoMakeStudioWizard() {
   }
 
   function handleBack() {
-    if (step === 'landing') return
     if (step === 'images') setStep('format')
     else if (step === 'calling_card') setStep('images')
     else if (step === 'generate') {
@@ -545,16 +671,30 @@ export function VideoMakeStudioWizard() {
       }
       setIsGenerating(false)
       setStep('calling_card')
-    } else if (step === 'review') setStep('generate')
+    }     else if (step === 'review') setStep('generate')
     else if (step === 'transition') setStep('review')
   }
 
-  function handleProfileSaved(profile: AgentProfile) {
-    setAgentProfile(profile)
-    setAgentProfileMissing(false)
-    if (profile.name_surname) {
-      setHeadline(`${profile.name_surname} | Real Estate Agent`)
-    }
+  function moveClip(id: string, direction: -1 | 1) {
+    const current = orderedSuccessfulClips.map(c => c.id)
+    const index = current.indexOf(id)
+    const swapIndex = index + direction
+    if (index === -1 || swapIndex < 0 || swapIndex >= current.length) return
+    const next = [...current]
+    ;[next[index], next[swapIndex]] = [next[swapIndex], next[index]]
+    setClipOrder(next)
+  }
+
+  function handleClipDrop(targetId: string) {
+    if (!draggingClipId || draggingClipId === targetId) return
+    const current = orderedSuccessfulClips.map(c => c.id)
+    const from = current.indexOf(draggingClipId)
+    const to = current.indexOf(targetId)
+    if (from === -1 || to === -1) return
+    const next = [...current]
+    next.splice(to, 0, next.splice(from, 1)[0])
+    setClipOrder(next)
+    setDraggingClipId(null)
   }
 
   const agentDisplayName = agentProfile?.name_surname || 'Agent'
@@ -596,40 +736,84 @@ export function VideoMakeStudioWizard() {
           </div>
         )}
 
+        {exportInterrupted && (
+          <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+            Your previous export was interrupted. Please try exporting again.
+            <button
+              onClick={() => setExportInterrupted(false)}
+              className="ml-3 text-yellow-900 underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {step === 'landing' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-slate-900">Your video generations</p>
-                <p className="text-sm text-slate-500">Review past clips or start a new video.</p>
-              </div>
-              <Button onClick={() => setStep('format')}>Start New Video</Button>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <button
+                onClick={() => setStep('format')}
+                className="rounded-2xl border-2 border-blue-500 bg-blue-50 p-6 text-left transition-all hover:border-blue-600"
+              >
+                <p className="font-semibold text-blue-900">Start New Batch</p>
+                <p className="mt-1 text-sm text-blue-700">Upload 3-30 images and create a new video</p>
+              </button>
+              <button
+                onClick={() => setStep('format')}
+                className="rounded-2xl border-2 border-slate-200 p-6 text-left transition-all hover:border-slate-300"
+              >
+                <p className="font-semibold text-slate-900">How it works</p>
+                <p className="mt-1 text-sm text-slate-500">Upload images, generate clips, stitch into video</p>
+              </button>
             </div>
 
-            {isLoadingGenerations ? (
-              <div className="text-sm text-slate-500">Loading generations...</div>
-            ) : generations.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
-                <p className="font-medium">No generations yet</p>
-                <p className="mt-1 text-sm">Start your first video to see it here.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {generations.map((gen) => (
-                  <div key={gen.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-slate-500">{new Date(gen.createdAt).toLocaleDateString()}</span>
-                      <span className={`text-xs font-medium ${gen.status === 'completed' ? 'text-emerald-600' : gen.status === 'failed' ? 'text-red-600' : 'text-amber-600'}`}>{gen.status}</span>
+            {batches.length > 0 && (
+              <div>
+                <p className="font-medium text-slate-900 mb-3">Your recent batches</p>
+                <div className="space-y-2">
+                  {batches.map((batch) => (
+                    <div
+                      key={batch.id}
+                      className={`rounded-xl border p-4 flex items-center justify-between ${
+                        batch.status === 'processing' ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">
+                          {batch.settings.prompt ? batch.settings.prompt.slice(0, 60) + '...' : 'Untitled Batch'}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {batch.totalClips} clips • {batch.creditCost} credits • {new Date(batch.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          batch.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                          batch.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {batch.status}
+                        </span>
+                        {batch.status === 'processing' && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setBatchId(batch.id)
+                              setResumingBatchId(batch.id)
+                              setIsGenerating(true)
+                              localStorage.setItem('vms-batch-id', batch.id)
+                              localStorage.setItem('vms-is-generating', 'true')
+                              setStep('generate')
+                              void pollBatchStatus()
+                            }}
+                          >
+                            Resume
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-3">
-                      <p className="text-sm font-medium text-slate-900">{gen.settings?.formatLabel || 'Video'}</p>
-                      <p className="text-xs text-slate-500">{gen.clips?.length || 0} clips</p>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => viewBatch(gen.id)}>View</Button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -637,11 +821,6 @@ export function VideoMakeStudioWizard() {
 
         {step === 'format' && (
           <div className="space-y-4">
-            {agentProfileMissing && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                Tip: set up your agent profile for branded videos.
-              </div>
-            )}
             <div className="flex items-center gap-2">
               <p className="font-medium text-slate-900">Choose format</p>
               <InfoTip text="Clips are generated and cropped to this size. Choose TikTok/Reels (9:16), Square, or Landscape — no black bars." />
@@ -661,8 +840,8 @@ export function VideoMakeStudioWizard() {
               </button>
             ))}
           </div>
-          </div>
-        )}
+        </div>
+      )}
 
         {step === 'images' && (
           <div className="space-y-5">
@@ -695,12 +874,16 @@ export function VideoMakeStudioWizard() {
                 </div>
               ))}
               {images.length === 0 && (
-                <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-6 text-center text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex min-h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-6 text-center text-slate-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors"
+                >
                   <svg className="mb-3 h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p>No images added yet.</p>
-                </div>
+                  <p>No images added yet. Click to upload.</p>
+                </button>
               )}
             </div>
 
@@ -787,6 +970,15 @@ export function VideoMakeStudioWizard() {
                 <InfoTip text="A branded calling card appears at the bottom of the final video. Your agent profile personalizes it with your name, photo, and logo." />
               </label>
 
+              <div>
+                <p className="text-sm font-medium text-slate-900 mb-3">Property details</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" helper="Shown on the calling card." />
+                  <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" helper="e.g. 3" />
+                  <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" helper="e.g. 2" />
+                </div>
+              </div>
+
               {callingCardEnabled && (
                 <>
                   {agentProfileMissing && (
@@ -801,11 +993,6 @@ export function VideoMakeStudioWizard() {
                       </button>
                     </div>
                   )}
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" helper="Shown on the calling card." />
-                    <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" helper="e.g. 3" />
-                    <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" helper="e.g. 2" />
-                  </div>
                   <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} helper="Main text on the calling card." />
                   <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} helper="Encourages viewers to contact you." />
                   <div>
@@ -884,6 +1071,11 @@ export function VideoMakeStudioWizard() {
               <div className="h-2 overflow-hidden rounded-full bg-blue-100">
                 <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
               </div>
+              {isGenerating && (
+                <p className="mt-2 text-xs text-blue-700">
+                  Estimated time remaining: ~{Math.max(1, Math.round(clips.filter(c => c.status === 'pending' || c.status === 'processing').length * 0.5))} min
+                </p>
+              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -936,13 +1128,49 @@ export function VideoMakeStudioWizard() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {sortedSuccessfulClips.map((clip) => (
-                <div key={clip.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <video src={clip.outputUrl!} className="w-full aspect-video rounded-lg bg-slate-900 object-cover" controls muted />
-                  <p className="mt-2 text-xs font-medium text-slate-600">Image {clip.imageIndex + 1}</p>
-                </div>
-              ))}
+            <div>
+              <p className="font-medium text-slate-900 mb-2">Your clips</p>
+              <p className="text-sm text-slate-500 mb-3">Drag clips to reorder, or use the arrow buttons. This order is used when stitching the final video.</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {orderedSuccessfulClips.map((clip, index) => (
+                  <div
+                    key={clip.id}
+                    draggable
+                    onDragStart={() => setDraggingClipId(clip.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleClipDrop(clip.id)}
+                    onDragEnd={() => setDraggingClipId(null)}
+                    className={`rounded-2xl border bg-slate-50 p-3 transition-colors ${
+                      draggingClipId === clip.id ? 'border-blue-400 opacity-50' : 'border-slate-200'
+                    }`}
+                  >
+                    <video src={clip.outputUrl!} className="w-full aspect-video rounded-lg bg-slate-900 object-cover" controls muted />
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-xs font-medium text-slate-600">Position {index + 1}</p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          aria-label="Move up"
+                          onClick={() => moveClip(clip.id, -1)}
+                          disabled={index === 0}
+                          className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:border-blue-300 hover:text-blue-700 disabled:opacity-40"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Move down"
+                          onClick={() => moveClip(clip.id, 1)}
+                          disabled={index === orderedSuccessfulClips.length - 1}
+                          className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:border-blue-300 hover:text-blue-700 disabled:opacity-40"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {clips.some(c => c.status === 'failed') && (
@@ -984,13 +1212,77 @@ export function VideoMakeStudioWizard() {
                 </button>
               ))}
             </div>
-            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
-              <input type="checkbox" checked={muteAudio} onChange={event => setMuteAudio(event.target.checked)} className="h-4 w-4" />
-              <span>
-                <span className="block font-medium text-slate-900">Mute original audio</span>
-                <span className="text-sm text-slate-500">Recommended for reliable browser export. Add music later in Facebook or TikTok.</span>
-              </span>
-            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="font-medium text-slate-900 mb-2">Background music</p>
+                <p className="text-sm text-slate-500 mb-3">Pick a track to play under your clips.</p>
+                <select
+                  value={selectedMusicTrack ?? ''}
+                  onChange={(e) => {
+                    setSelectedMusicTrack(e.target.value || null)
+                    setMusicPreviewError(null)
+                  }}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">No music</option>
+                  {musicTracks.map((track) => (
+                    <option key={track.id} value={track.id}>
+                      {track.name}
+                    </option>
+                  ))}
+                </select>
+                {musicTracksLoading ? (
+                  <p className="mt-3 text-xs text-slate-500">Loading tracks...</p>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {musicTracks.map((track) => (
+                      <button
+                        key={track.id}
+                        type="button"
+                        onClick={() => {
+                          const audio = new Audio(track.url)
+                          audio.play().catch(() => {
+                            setMusicPreviewError(`Could not preview ${track.name}`)
+                          })
+                          setMusicPreviewError(null)
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                      >
+                        Preview {track.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {musicPreviewError && (
+                  <p className="mt-2 text-xs text-red-600">{musicPreviewError}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-medium text-slate-900 mb-2">Audio settings</p>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+                  <input type="checkbox" checked={muteAudio} onChange={event => setMuteAudio(event.target.checked)} className="h-4 w-4" />
+                  <span>
+                    <span className="block font-medium text-slate-900">Mute original audio</span>
+                    <span className="text-sm text-slate-500">Recommended for reliable browser export. Add music later in Facebook or TikTok.</span>
+                  </span>
+                </label>
+                <p className="mt-3 text-xs text-slate-500">
+                  Music plays under the clips. If original audio is muted, only music will remain.
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-900 mb-2">End frame</p>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
+                  <input type="checkbox" checked={addEndFrame} onChange={event => setAddEndFrame(event.target.checked)} className="h-4 w-4" />
+                  <span>
+                    <span className="block font-medium text-slate-900">Add branded end frame</span>
+                    <span className="text-sm text-slate-500">Appends a 3-second calling card at the end of the video.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1018,12 +1310,17 @@ export function VideoMakeStudioWizard() {
             {isExporting && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
                 <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="font-medium text-blue-900">Stitching video</span>
+                  <span className="font-medium text-blue-900">
+                    {progress < 50 ? 'Normalizing clips' : 'Stitching video'}
+                  </span>
                   <span className="font-semibold text-blue-900">{progress}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-blue-100">
                   <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
                 </div>
+                {logs.length > 0 && (
+                  <p className="mt-2 text-xs text-blue-700">{logs[logs.length - 1]}</p>
+                )}
               </div>
             )}
 
@@ -1046,21 +1343,21 @@ export function VideoMakeStudioWizard() {
         )}
 
         <div className="mt-6 flex justify-between gap-3">
-          <Button variant="outline" onClick={handleBack} disabled={step === 'format'}>
+          <Button variant="outline" onClick={handleBack} disabled={step === 'landing' || step === 'format'}>
             Back
           </Button>
           <Button onClick={handleNext} disabled={step === 'images' && !canStartBatch}>
-            {step === 'calling_card' ? 'Start Generation' : step === 'generate' ? 'Generating...' : step === 'review' ? 'Continue to Transition' : step === 'transition' ? 'Stitch Video' : 'Next'}
+            {step === 'landing' ? 'Start New Batch' : step === 'calling_card' ? 'Start Generation' : step === 'generate' ? 'Generating...' : step === 'review' ? 'Continue to Transition' : step === 'transition' ? 'Stitch Video' : 'Next'}
           </Button>
-        </div>
-      </Card>
-      <AgentProfileSetupModal
-        isOpen={showProfileModal}
-        agentProfile={agentProfile}
-        onClose={() => setShowProfileModal(false)}
-        onSaved={handleProfileSaved}
-        accessToken={accessToken}
-      />
-    </div>
-  )
+         </div>
+       </Card>
+       <AgentProfileSetupModal
+         isOpen={showProfileModal}
+         agentProfile={agentProfile}
+         onClose={() => setShowProfileModal(false)}
+         onSaved={handleProfileSaved}
+         accessToken={accessToken}
+       />
+     </div>
+   )
 }

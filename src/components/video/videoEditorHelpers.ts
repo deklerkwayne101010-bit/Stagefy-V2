@@ -14,6 +14,27 @@ export interface VideoEditorFormat {
   height: number
 }
 
+export interface MusicTrack {
+  id: string
+  name: string
+  url: string
+  durationSeconds?: number
+}
+
+export const DEFAULT_MUSIC_TRACKS: MusicTrack[] = (() => {
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
+  if (!supabaseUrl) return []
+  return Array.from({ length: 5 }, (_, i) => {
+    const name = `track-${i + 1}`
+    return {
+      id: name,
+      name: `Track ${i + 1}`,
+      url: `${supabaseUrl}/storage/v1/object/public/music/${name}.mp3`,
+      durationSeconds: 0,
+    }
+  })
+})()
+
 export interface VideoClipItem {
   id: string
   file: File
@@ -339,14 +360,21 @@ export type StitchOptions = {
   transitionDuration: number
   muteAudio: boolean
   callingCardBytes: Uint8Array | null
+  musicTrackUrl?: string | null
+  endFrameUrl?: string | null
+  signal?: AbortSignal
   onProgress?: (progress: number) => void
   onLog?: (message: string) => void
 }
 
 export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blob> {
-  const { format, clips, transitionDuration, muteAudio, callingCardBytes, onProgress, onLog } = options
+  const { format, clips, transitionDuration, muteAudio, callingCardBytes, musicTrackUrl, endFrameUrl, signal, onProgress, onLog } = options
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
+
+  if (signal?.aborted) {
+    throw new Error('Export cancelled')
+  }
 
   const ffmpeg = new FFmpeg()
   ffmpeg.on('progress', ({ progress: value }) => {
@@ -364,6 +392,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
 
   for (let index = 0; index < clips.length; index += 1) {
+    if (signal?.aborted) {
+      throw new Error('Export cancelled')
+    }
+
     const clip = clips[index]
     const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
     await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
@@ -392,10 +424,42 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     if (normalizeCode !== 0) {
       throw new Error(`Could not prepare clip ${index + 1}.`)
     }
+
+    onProgress?.(Math.round(((index + 1) / clips.length) * 50))
   }
 
   if (callingCardBytes) {
     await ffmpeg.writeFile('calling-card.png', callingCardBytes)
+  }
+
+  let endFrameFileIndex = normalizedClips.length + (musicTrackUrl ? 1 : 0)
+  if (endFrameUrl) {
+    try {
+      const endFrameResponse = await fetch(endFrameUrl)
+      const endFrameBlob = await endFrameResponse.blob()
+      const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
+      const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
+      await ffmpeg.writeFile('endframe.png', endFrameBytes)
+    } catch (endFrameError) {
+      console.error('Failed to load end frame image:', endFrameError)
+    }
+  }
+
+  let musicFileIndex = normalizedClips.length
+  if (musicTrackUrl && musicTrackUrl.startsWith('http')) {
+    try {
+      const musicResponse = await fetch(musicTrackUrl)
+      const musicBlob = await musicResponse.blob()
+      const musicArrayBuffer = await musicBlob.arrayBuffer()
+      const musicBytes = new Uint8Array(musicArrayBuffer)
+      await ffmpeg.writeFile('music.mp3', musicBytes)
+    } catch (musicError) {
+      console.error('Failed to load music track:', musicError)
+    }
+  }
+
+  if (signal?.aborted) {
+    throw new Error('Export cancelled')
   }
 
   const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
@@ -421,16 +485,53 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     : `[${currentVideo}]format=yuv420p[vout]`
   const filterParts = [...videoFilters, overlayFilter]
 
-  if (!muteAudio && audioFilters.length > 0) {
+  let musicLoopFilter = ''
+  let finalAudioLabel = `[a${clips.length - 1}]`
+  let finalVideoLabel = '[vout]'
+
+  if (musicTrackUrl) {
+    const musicInputIndex = musicFileIndex
+    musicLoopFilter = `[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`
+    if (!muteAudio && audioFilters.length > 0) {
+      const clipAudioLabel = `[a${clips.length - 1}]`
+      filterParts.push(`${clipAudioLabel}[bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
+      finalAudioLabel = '[outa]'
+    } else {
+      filterParts.push(`[bg]volume=0.8[bgv]`)
+      finalAudioLabel = '[bgv]'
+    }
+  } else if (!muteAudio && audioFilters.length > 0) {
     filterParts.push(...audioFilters)
+  }
+
+  const musicInput = musicTrackUrl ? ['-i', 'music.mp3'] : []
+  const endFrameInput = endFrameUrl ? ['-i', 'endframe.png'] : []
+
+  if (endFrameUrl) {
+    filterParts.push(`[${endFrameFileIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
+    const offset = Math.max(0, currentDuration - 1)
+    filterParts.push(`[vout][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
+    finalVideoLabel = '[vfinal]'
+
+    if (!muteAudio) {
+      if (musicTrackUrl) {
+        filterParts.push(`[${finalAudioLabel}][${endFrameFileIndex}:a]amix=inputs=2:duration=shortest:dropout_transition=1[outa]`)
+        finalAudioLabel = '[outa]'
+      } else {
+        filterParts.push(`[${finalAudioLabel}][${endFrameFileIndex}:a]acrossfade=d=1:c1=tri:c2=tri[outa]`)
+        finalAudioLabel = '[outa]'
+      }
+    }
   }
 
   const args = [
     ...inputs,
     ...(callingCardBytes ? ['-i', 'calling-card.png'] : []),
+    ...musicInput,
+    ...endFrameInput,
     '-filter_complex', filterParts.join(';'),
-    '-map', '[vout]',
-    ...(!muteAudio && audioFilters.length > 0 ? ['-map', `[a${clips.length - 1}]`] : ['-an']),
+    '-map', finalVideoLabel,
+    ...(finalAudioLabel !== '-an' ? ['-map', finalAudioLabel] : ['-an']),
     '-c:v', 'libx264',
     '-preset', 'veryfast',
     '-pix_fmt', 'yuv420p',
