@@ -68,6 +68,12 @@ export async function POST(request: Request) {
 
     const quality = body.quality === 'pro' ? 'high' : 'medium'
 
+    const aspectRatio = body.width >= body.height * 1.4
+      ? '16:9'
+      : body.height >= body.width * 1.4
+        ? '9:16'
+        : '1:1'
+
     const propertyDetails = [
       body.propertyPrice ? `Price: ${body.propertyPrice}` : '',
       body.bedrooms ? `${body.bedrooms} bed${body.bedrooms === '1' ? '' : 's'}` : '',
@@ -84,7 +90,7 @@ export async function POST(request: Request) {
       prompt,
       input_images: inputImages,
       quality,
-      aspect_ratio: '16:9',
+      aspect_ratio: aspectRatio,
       output_format: 'png',
       background: 'auto',
       moderation: 'auto',

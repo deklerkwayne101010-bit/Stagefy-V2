@@ -42,6 +42,13 @@ export async function POST(request: Request) {
 
     const { images, prompt, duration, tier, formatKey, formatWidth, formatHeight } = body
 
+    const clipAspectRatio =
+      formatWidth >= formatHeight * 1.4
+        ? '16:9'
+        : formatHeight >= formatWidth * 1.4
+          ? '9:16'
+          : '1:1'
+
     if (!images || images.length < 3 || images.length > 30) {
       return NextResponse.json(
         { error: 'You must upload between 3 and 30 images.' },
@@ -124,6 +131,7 @@ export async function POST(request: Request) {
             prompt,
             duration: durationNumber,
             tier,
+            aspect_ratio: clipAspectRatio,
           },
         })
         .select('id')

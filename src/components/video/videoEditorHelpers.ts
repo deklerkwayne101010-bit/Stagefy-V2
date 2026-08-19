@@ -508,8 +508,9 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   const endFrameInput = endFrameUrl ? ['-i', 'endframe.png'] : []
 
   if (endFrameUrl) {
+    filterParts.push(`[${endFrameFileIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
     const offset = Math.max(0, currentDuration - 1)
-    filterParts.push(`[vout][${endFrameFileIndex}:v]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
+    filterParts.push(`[vout][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
     finalVideoLabel = '[vfinal]'
 
     if (!muteAudio) {

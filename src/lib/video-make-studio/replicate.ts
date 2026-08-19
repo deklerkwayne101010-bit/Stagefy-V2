@@ -20,7 +20,7 @@ export function getImageToVideoOperation(duration: number): CreditOperation {
   }
 }
 
-export async function createReplicatePrediction(imageUrl: string, prompt: string, duration: number, tier: string): Promise<{ predictionId: string }> {
+export async function createReplicatePrediction(imageUrl: string, prompt: string, duration: number, tier: string, aspectRatio = '16:9'): Promise<{ predictionId: string }> {
   let prediction
   if (tier === 'standard') {
     const response = await fetch('https://api.replicate.com/v1/models/prunaai/p-video/predictions', {
@@ -39,7 +39,7 @@ export async function createReplicatePrediction(imageUrl: string, prompt: string
           duration: duration,
           resolution: '720p',
           save_audio: true,
-          aspect_ratio: '16:9',
+          aspect_ratio: aspectRatio,
           prompt_upsampling: false,
           disable_safety_filter: true,
         },

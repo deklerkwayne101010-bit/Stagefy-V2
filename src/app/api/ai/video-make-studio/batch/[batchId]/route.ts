@@ -117,7 +117,8 @@ export async function GET(
             input.image_url,
             input.prompt,
             input.duration,
-            input.tier
+            input.tier,
+            input.aspect_ratio || '16:9'
           )
 
           await (adminClient.from as any)('projects')
