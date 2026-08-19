@@ -92,6 +92,8 @@ export function VideoMakeStudioWizard() {
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [exportInterrupted, setExportInterrupted] = useState(false)
+  const [clipOrder, setClipOrder] = useState<string[] | null>(null)
+  const [draggingClipId, setDraggingClipId] = useState<string | null>(null)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
     { key: 'landing', label: 'Home' },
@@ -117,6 +119,12 @@ export function VideoMakeStudioWizard() {
   const sortedSuccessfulClips = useMemo(() => {
     return [...successfulClips].sort((a, b) => a.imageIndex - b.imageIndex)
   }, [successfulClips])
+
+  const orderedSuccessfulClips = useMemo(() => {
+    if (!clipOrder) return sortedSuccessfulClips
+    const byId = new Map(sortedSuccessfulClips.map(c => [c.id, c]))
+    return clipOrder.map(id => byId.get(id)).filter((c): c is BatchClip => Boolean(c))
+  }, [sortedSuccessfulClips, clipOrder])
 
   useEffect(() => {
     if (!user?.id) return
@@ -475,7 +483,7 @@ export function VideoMakeStudioWizard() {
         creditsReserved = true
       }
 
-      const sortedClips = clips.filter(c => c.status === 'completed' && c.outputUrl).sort((a, b) => a.imageIndex - b.imageIndex)
+      const sortedClips = orderedSuccessfulClips
       const clipFiles: File[] = []
       for (const clip of sortedClips) {
         const response = await fetch(clip.outputUrl!)
@@ -652,8 +660,30 @@ export function VideoMakeStudioWizard() {
       }
       setIsGenerating(false)
       setStep('calling_card')
-    } else if (step === 'review') setStep('generate')
+    }     else if (step === 'review') setStep('generate')
     else if (step === 'transition') setStep('review')
+  }
+
+  function moveClip(id: string, direction: -1 | 1) {
+    const current = orderedSuccessfulClips.map(c => c.id)
+    const index = current.indexOf(id)
+    const swapIndex = index + direction
+    if (index === -1 || swapIndex < 0 || swapIndex >= current.length) return
+    const next = [...current]
+    ;[next[index], next[swapIndex]] = [next[swapIndex], next[index]]
+    setClipOrder(next)
+  }
+
+  function handleClipDrop(targetId: string) {
+    if (!draggingClipId || draggingClipId === targetId) return
+    const current = orderedSuccessfulClips.map(c => c.id)
+    const from = current.indexOf(draggingClipId)
+    const to = current.indexOf(targetId)
+    if (from === -1 || to === -1) return
+    const next = [...current]
+    next.splice(to, 0, next.splice(from, 1)[0])
+    setClipOrder(next)
+    setDraggingClipId(null)
   }
 
   const agentDisplayName = agentProfile?.name_surname || 'Agent'
@@ -1063,13 +1093,49 @@ export function VideoMakeStudioWizard() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {sortedSuccessfulClips.map((clip) => (
-                <div key={clip.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <video src={clip.outputUrl!} className="w-full aspect-video rounded-lg bg-slate-900 object-cover" controls muted />
-                  <p className="mt-2 text-xs font-medium text-slate-600">Image {clip.imageIndex + 1}</p>
-                </div>
-              ))}
+            <div>
+              <p className="font-medium text-slate-900 mb-2">Your clips</p>
+              <p className="text-sm text-slate-500 mb-3">Drag clips to reorder, or use the arrow buttons. This order is used when stitching the final video.</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {orderedSuccessfulClips.map((clip, index) => (
+                  <div
+                    key={clip.id}
+                    draggable
+                    onDragStart={() => setDraggingClipId(clip.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleClipDrop(clip.id)}
+                    onDragEnd={() => setDraggingClipId(null)}
+                    className={`rounded-2xl border bg-slate-50 p-3 transition-colors ${
+                      draggingClipId === clip.id ? 'border-blue-400 opacity-50' : 'border-slate-200'
+                    }`}
+                  >
+                    <video src={clip.outputUrl!} className="w-full aspect-video rounded-lg bg-slate-900 object-cover" controls muted />
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-xs font-medium text-slate-600">Position {index + 1}</p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          aria-label="Move up"
+                          onClick={() => moveClip(clip.id, -1)}
+                          disabled={index === 0}
+                          className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:border-blue-300 hover:text-blue-700 disabled:opacity-40"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Move down"
+                          onClick={() => moveClip(clip.id, 1)}
+                          disabled={index === orderedSuccessfulClips.length - 1}
+                          className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:border-blue-300 hover:text-blue-700 disabled:opacity-40"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {clips.some(c => c.status === 'failed') && (
