@@ -21,7 +21,7 @@ import {
   DEFAULT_MUSIC_TRACKS,
 } from './videoEditorHelpers'
 
-type VideoMakeStudioStep = 'format' | 'images' | 'calling_card' | 'generate' | 'review' | 'transition' | 'finish'
+type VideoMakeStudioStep = 'landing' | 'format' | 'images' | 'calling_card' | 'generate' | 'review' | 'transition' | 'finish'
 
 const MAX_IMAGES = 30
 const MIN_IMAGES = 3
