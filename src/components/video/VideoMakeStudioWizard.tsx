@@ -45,7 +45,7 @@ export function VideoMakeStudioWizard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const [step, setStep] = useState<VideoMakeStudioStep>('format')
+  const [step, setStep] = useState<VideoMakeStudioStep>('landing')
   const [format, setFormat] = useState<VideoEditorFormat>(videoEditorFormats[0])
   const [images, setImages] = useState<string[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
@@ -70,6 +70,18 @@ export function VideoMakeStudioWizard() {
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([])
   const [musicTracksLoading, setMusicTracksLoading] = useState(true)
   const [addEndFrame, setAddEndFrame] = useState(false)
+  const [batches, setBatches] = useState<Array<{
+    id: string
+    projectId: string
+    totalClips: number
+    status: string
+    creditCost: number
+    createdAt: string
+    completedAt: string | null
+    settings: Record<string, any>
+  }>>([])
+  const [batchesLoading, setBatchesLoading] = useState(true)
+  const [resumingBatchId, setResumingBatchId] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
   const [resultUrl, setResultUrl] = useState<string | null>(null)
@@ -81,6 +93,7 @@ export function VideoMakeStudioWizard() {
   const [isSaving, setIsSaving] = useState(false)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
+    { key: 'landing', label: 'Home' },
     { key: 'format', label: 'Format' },
     { key: 'images', label: 'Images' },
     { key: 'calling_card', label: 'Calling Card' },
@@ -131,6 +144,33 @@ export function VideoMakeStudioWizard() {
       }
     }
     void loadMusicTracks()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadBatches() {
+      try {
+        const { supabase } = await import('@/lib/supabase')
+        const { data: { session } } = await supabase.auth.getSession()
+        const response = await fetch('/api/ai/video-make-studio/batch', {
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        })
+        const data = await response.json()
+        if (!cancelled && data.batches) {
+          setBatches(data.batches)
+        }
+      } catch {
+        // Silently fail - batches are non-critical
+      } finally {
+        if (!cancelled) {
+          setBatchesLoading(false)
+        }
+      }
+    }
+    void loadBatches()
     return () => {
       cancelled = true
     }
@@ -515,6 +555,10 @@ export function VideoMakeStudioWizard() {
   }
 
   function handleNext() {
+    if (step === 'landing') {
+      setStep('format')
+      return
+    }
     if (step === 'format') {
       setStep('images')
       return
@@ -591,6 +635,74 @@ export function VideoMakeStudioWizard() {
         {error && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {step === 'landing' && (
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <button
+                onClick={() => setStep('format')}
+                className="rounded-2xl border-2 border-blue-500 bg-blue-50 p-6 text-left transition-all hover:border-blue-600"
+              >
+                <p className="font-semibold text-blue-900">Start New Batch</p>
+                <p className="mt-1 text-sm text-blue-700">Upload 3-30 images and create a new video</p>
+              </button>
+              <button
+                onClick={() => setStep('format')}
+                className="rounded-2xl border-2 border-slate-200 p-6 text-left transition-all hover:border-slate-300"
+              >
+                <p className="font-semibold text-slate-900">How it works</p>
+                <p className="mt-1 text-sm text-slate-500">Upload images, generate clips, stitch into video</p>
+              </button>
+            </div>
+
+            {batches.length > 0 && (
+              <div>
+                <p className="font-medium text-slate-900 mb-3">Your recent batches</p>
+                <div className="space-y-2">
+                  {batches.map((batch) => (
+                    <div
+                      key={batch.id}
+                      className={`rounded-xl border p-4 flex items-center justify-between ${
+                        batch.status === 'processing' ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">
+                          {batch.settings.prompt ? batch.settings.prompt.slice(0, 60) + '...' : 'Untitled Batch'}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {batch.totalClips} clips • {batch.creditCost} credits • {new Date(batch.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          batch.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                          batch.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {batch.status}
+                        </span>
+                        {batch.status === 'processing' && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setBatchId(batch.id)
+                              setResumingBatchId(batch.id)
+                              setStep('generate')
+                              void pollBatchStatus()
+                            }}
+                          >
+                            Resume
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1044,11 +1156,11 @@ export function VideoMakeStudioWizard() {
         )}
 
         <div className="mt-6 flex justify-between gap-3">
-          <Button variant="outline" onClick={handleBack} disabled={step === 'format'}>
+          <Button variant="outline" onClick={handleBack} disabled={step === 'landing' || step === 'format'}>
             Back
           </Button>
           <Button onClick={handleNext} disabled={step === 'images' && !canStartBatch}>
-            {step === 'calling_card' ? 'Start Generation' : step === 'generate' ? 'Generating...' : step === 'review' ? 'Continue to Transition' : step === 'transition' ? 'Stitch Video' : 'Next'}
+            {step === 'landing' ? 'Start New Batch' : step === 'calling_card' ? 'Start Generation' : step === 'generate' ? 'Generating...' : step === 'review' ? 'Continue to Transition' : step === 'transition' ? 'Stitch Video' : 'Next'}
           </Button>
         </div>
       </Card>

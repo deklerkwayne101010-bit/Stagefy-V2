@@ -1,4 +1,4 @@
-// Video Maker Studio - Start Batch
+// Video Maker Studio - Start Batch and List Batches
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkUserCredits, reserveCredits, refundCredits, canPerformAction } from '@/lib/credits'
@@ -164,6 +164,47 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('Video Maker Studio batch start error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const user = await getUserFromAuthHeader(request)
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const adminClient = getAdminClient()
+
+    const { data: batchProjects } = await (adminClient.from as any)('projects')
+      .select('id, name, status, credit_cost, input_data, created_at, completed_at')
+      .eq('user_id', user.id)
+      .eq('type', 'video')
+      .eq('name', 'Video Maker Studio Batch')
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    const batches = (batchProjects || []).map((project: any) => {
+      const input = project.input_data || {}
+      return {
+        id: input.batch_id,
+        projectId: project.id,
+        totalClips: input.total_clips || 0,
+        status: project.status,
+        creditCost: project.credit_cost || 0,
+        createdAt: project.created_at,
+        completedAt: project.completed_at,
+        settings: input.settings || {},
+      }
+    })
+
+    return NextResponse.json({ batches })
+  } catch (error) {
+    console.error('Error listing batches:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

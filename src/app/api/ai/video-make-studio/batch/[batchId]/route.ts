@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { refundCredits } from '@/lib/credits'
-import { createReplicatePrediction, pollReplicatePrediction, getAdminClient, getImageToVideoOperation } from '@/lib/video-make-studio/replicate'
+import { checkReplicatePrediction, createReplicatePrediction, getAdminClient, getImageToVideoOperation } from '@/lib/video-make-studio/replicate'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -137,9 +137,9 @@ export async function GET(
       const clipProject = (clipProjects || []).find((p: any) => p.id === nextClip.id)
       if (clipProject && clipProject.input_data?.prediction_id) {
         try {
-          const prediction = await pollReplicatePrediction(clipProject.input_data.prediction_id, 20, 2000)
+          const prediction = await checkReplicatePrediction(clipProject.input_data.prediction_id)
 
-          if (prediction.output) {
+          if (prediction.status === 'succeeded' && prediction.output) {
             await (adminClient.from as any)('projects')
               .update({
                 status: 'completed',
@@ -165,6 +165,8 @@ export async function GET(
               completedClip.status = 'completed'
               completedClip.outputUrl = prediction.output
             }
+          } else if (prediction.status === 'failed' || prediction.status === 'canceled') {
+            throw new Error(prediction.error || `Replicate generation ${prediction.status}`)
           }
         } catch (err: any) {
           await (adminClient.from as any)('projects')

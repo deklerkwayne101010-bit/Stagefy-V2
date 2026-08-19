@@ -111,6 +111,21 @@ export async function pollReplicatePrediction(predictionId: string, maxAttempts 
   throw new Error('Replicate generation timed out')
 }
 
+export async function checkReplicatePrediction(predictionId: string): Promise<any> {
+  const response = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+    headers: {
+      'Authorization': `Bearer ${REPLICATE_API_TOKEN}`,
+    },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to check Replicate prediction: ${errorText}`)
+  }
+
+  return await response.json()
+}
+
 export function getAdminClient() {
   return createClient(supabaseUrl, supabaseServiceRoleKey)
 }
