@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { FFmpeg } from '@ffmpeg/ffmpeg'
 import { useAuth } from '@/lib/auth-context'
 import { uploadImage } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { InfoTip } from '@/components/ui/InfoTip'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -18,6 +18,7 @@ import {
   stitchVideoWithFFmpeg,
   videoEditorFormats,
 } from './videoEditorHelpers'
+import { AgentProfileSetupModal } from './AgentProfileSetupModal'
 
 type VideoMakeStudioStep = 'format' | 'images' | 'calling_card' | 'generate' | 'review' | 'transition' | 'finish'
 
@@ -39,7 +40,6 @@ interface BatchClip {
 
 export function VideoMakeStudioWizard() {
   const { user } = useAuth()
-  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -60,6 +60,7 @@ export function VideoMakeStudioWizard() {
   const [callingCardColor, setCallingCardColor] = useState('#0f172a')
   const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null)
   const [agentProfileMissing, setAgentProfileMissing] = useState(false)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [batchId, setBatchId] = useState<string | null>(null)
   const [clips, setClips] = useState<BatchClip[]>([])
   const [transitionDuration, setTransitionDuration] = useState(0.5)
@@ -72,6 +73,7 @@ export function VideoMakeStudioWizard() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
 
   const steps: { key: VideoMakeStudioStep; label: string }[] = [
     { key: 'format', label: 'Format' },
@@ -114,8 +116,10 @@ export function VideoMakeStudioWizard() {
     try {
       const { supabase } = await import('@/lib/supabase')
       const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || null
+      setAccessToken(token)
       const response = await fetch('/api/agent-profile', {
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       const data = await response.json()
       if (data.profile) {
@@ -476,6 +480,14 @@ export function VideoMakeStudioWizard() {
     else if (step === 'transition') setStep('review')
   }
 
+  function handleProfileSaved(profile: AgentProfile) {
+    setAgentProfile(profile)
+    setAgentProfileMissing(false)
+    if (profile.name_surname) {
+      setHeadline(`${profile.name_surname} | Real Estate Agent`)
+    }
+  }
+
   const agentDisplayName = agentProfile?.name_surname || 'Agent'
   const agentDetails = [agentProfile?.phone, agentProfile?.email, agentProfile?.agency_brand].filter(Boolean).join(' • ')
   const currentStepIndex = steps.findIndex(item => item.key === step)
@@ -516,7 +528,17 @@ export function VideoMakeStudioWizard() {
         )}
 
         {step === 'format' && (
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-4">
+            {agentProfileMissing && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Tip: set up your agent profile for branded videos.
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-slate-900">Choose format</p>
+              <InfoTip text="Clips are generated and cropped to this size. Choose TikTok/Reels (9:16), Square, or Landscape — no black bars." />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
             {videoEditorFormats.map(option => (
               <button
                 key={option.key}
@@ -531,13 +553,17 @@ export function VideoMakeStudioWizard() {
               </button>
             ))}
           </div>
+          </div>
         )}
 
         {step === 'images' && (
           <div className="space-y-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-medium text-slate-900">Upload images</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-slate-900">Upload images</p>
+                  <InfoTip text="Upload 3–30 images. Order matters — the sequence you upload them becomes the clip order. Use clear, well-lit, consistent-style photos." />
+                </div>
                 <p className="text-sm text-slate-500">Add {MIN_IMAGES}-{MAX_IMAGES} images. Each image will become a video clip.</p>
               </div>
               <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading || images.length >= MAX_IMAGES}>
@@ -650,6 +676,7 @@ export function VideoMakeStudioWizard() {
               <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
                 <input type="checkbox" checked={callingCardEnabled} onChange={event => setCallingCardEnabled(event.target.checked)} className="h-4 w-4" />
                 <span className="font-medium text-slate-900">Add bottom calling card</span>
+                <InfoTip text="A branded calling card appears at the bottom of the final video. Your agent profile personalizes it with your name, photo, and logo." />
               </label>
 
               <div>
@@ -665,19 +692,23 @@ export function VideoMakeStudioWizard() {
                 <>
                   {agentProfileMissing && (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-sm font-semibold text-amber-900">Set up your agent profile to personalize this video</p>
-                      <p className="mt-1 text-sm text-amber-700">Add your name, photo, phone, email, and agency logo so your calling card looks professional.</p>
+                      <p className="text-sm font-semibold text-amber-900">Add your agent profile so your name, photo and logo appear on the video.</p>
                       <button
                         type="button"
-                        onClick={() => router.push('/templates')}
+                        onClick={() => setShowProfileModal(true)}
                         className="mt-3 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
                       >
                         Set up agent profile
                       </button>
                     </div>
                   )}
-                  <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} />
-                  <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} />
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Input label="Price" value={propertyPrice} onChange={event => setPropertyPrice(event.target.value)} placeholder="R2,950,000" helper="Shown on the calling card." />
+                    <Input label="Bedrooms" value={bedrooms} onChange={event => setBedrooms(event.target.value)} placeholder="3" helper="e.g. 3" />
+                    <Input label="Bathrooms" value={bathrooms} onChange={event => setBathrooms(event.target.value)} placeholder="2" helper="e.g. 2" />
+                  </div>
+                  <Input label="Headline" value={headline} onChange={event => setHeadline(event.target.value)} helper="Main text on the calling card." />
+                  <Input label="Call to action" value={cta} onChange={event => setCta(event.target.value)} helper="Encourages viewers to contact you." />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Calling card colour</label>
                     <div className="flex gap-2">
@@ -697,9 +728,16 @@ export function VideoMakeStudioWizard() {
                     </div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-sm font-medium text-slate-900">Using profile</p>
-                    <p className="mt-1 text-sm text-slate-500">{agentDisplayName}</p>
-                    {agentDetails && <p className="mt-1 text-sm text-slate-500">{agentDetails}</p>}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">Using profile</p>
+                        <p className="mt-1 text-sm text-slate-500">{agentDisplayName}</p>
+                        {agentDetails && <p className="mt-1 text-sm text-slate-500">{agentDetails}</p>}
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowProfileModal(true)}>
+                        Edit profile
+                      </Button>
+                    </div>
                   </div>
                 </>
               )}
@@ -735,6 +773,10 @@ export function VideoMakeStudioWizard() {
 
         {step === 'generate' && (
           <div className="space-y-5">
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-slate-900">Generating clips</p>
+              <InfoTip text="Clips are generated one at a time. Keep this tab open; ~30s per clip." />
+            </div>
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="mb-2 flex items-center justify-between text-sm">
                 <span className="font-medium text-blue-900">Generating clips</span>
@@ -772,6 +814,10 @@ export function VideoMakeStudioWizard() {
 
         {step === 'review' && (
           <div className="space-y-5">
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-slate-900">Review clips</p>
+              <InfoTip text="Review your clips. Failed clips can be retried below." />
+            </div>
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 p-4">
                 <p className="text-sm text-slate-500">Format</p>
@@ -818,9 +864,9 @@ export function VideoMakeStudioWizard() {
 
         {step === 'transition' && (
           <div className="space-y-5">
-            <div>
+            <div className="flex items-center gap-2">
               <p className="font-medium text-slate-900">Choose a transition</p>
-              <p className="text-sm text-slate-500">A simple fade is applied between every clip.</p>
+              <InfoTip text="A short fade is applied between every clip." />
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
@@ -851,6 +897,10 @@ export function VideoMakeStudioWizard() {
 
         {step === 'finish' && (
           <div className="space-y-5">
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-slate-900">Finish and export</p>
+              <InfoTip text="Stitching runs in your browser. Keep the tab open; it may take a minute for many clips." />
+            </div>
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 p-4">
                 <p className="text-sm text-slate-500">Format</p>
@@ -905,6 +955,13 @@ export function VideoMakeStudioWizard() {
           </Button>
         </div>
       </Card>
+      <AgentProfileSetupModal
+        isOpen={showProfileModal}
+        agentProfile={agentProfile}
+        onClose={() => setShowProfileModal(false)}
+        onSaved={handleProfileSaved}
+        accessToken={accessToken}
+      />
     </div>
   )
 }
