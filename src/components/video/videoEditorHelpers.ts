@@ -21,38 +21,19 @@ export interface MusicTrack {
   durationSeconds?: number
 }
 
-export const DEFAULT_MUSIC_TRACKS: MusicTrack[] = [
-  {
-    id: 'track-1',
-    name: 'Track 1',
-    url: 'https://[YOUR-PROJECT-REF].supabase.co/storage/v1/object/public/music/track-1.mp3',
-    durationSeconds: 0,
-  },
-  {
-    id: 'track-2',
-    name: 'Track 2',
-    url: 'https://[YOUR-PROJECT-REF].supabase.co/storage/v1/object/public/music/track-2.mp3',
-    durationSeconds: 0,
-  },
-  {
-    id: 'track-3',
-    name: 'Track 3',
-    url: 'https://[YOUR-PROJECT-REF].supabase.co/storage/v1/object/public/music/track-3.mp3',
-    durationSeconds: 0,
-  },
-  {
-    id: 'track-4',
-    name: 'Track 4',
-    url: 'https://[YOUR-PROJECT-REF].supabase.co/storage/v1/object/public/music/track-4.mp3',
-    durationSeconds: 0,
-  },
-  {
-    id: 'track-5',
-    name: 'Track 5',
-    url: 'https://[YOUR-PROJECT-REF].supabase.co/storage/v1/object/public/music/track-5.mp3',
-    durationSeconds: 0,
-  },
-]
+export const DEFAULT_MUSIC_TRACKS: MusicTrack[] = (() => {
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
+  if (!supabaseUrl) return []
+  return Array.from({ length: 5 }, (_, i) => {
+    const name = `track-${i + 1}`
+    return {
+      id: name,
+      name: `Track ${i + 1}`,
+      url: `${supabaseUrl}/storage/v1/object/public/music/${name}.mp3`,
+      durationSeconds: 0,
+    }
+  })
+})()
 
 export interface VideoClipItem {
   id: string
@@ -465,7 +446,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   let musicFileIndex = normalizedClips.length
-  if (musicTrackUrl) {
+  if (musicTrackUrl && musicTrackUrl.startsWith('http')) {
     try {
       const musicResponse = await fetch(musicTrackUrl)
       const musicBlob = await musicResponse.blob()

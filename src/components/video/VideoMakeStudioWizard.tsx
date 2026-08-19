@@ -137,10 +137,9 @@ export function VideoMakeStudioWizard() {
       try {
         const response = await fetch('/api/ai/video-make-studio/music')
         const data = await response.json()
-        if (!cancelled && data.tracks && data.tracks.length > 0) {
-          setMusicTracks(data.tracks)
-        } else if (!cancelled) {
-          setMusicTracks(DEFAULT_MUSIC_TRACKS)
+        if (!cancelled) {
+          const tracks = Array.isArray(data.tracks) ? data.tracks : []
+          setMusicTracks(tracks)
         }
       } catch {
         if (!cancelled) {
