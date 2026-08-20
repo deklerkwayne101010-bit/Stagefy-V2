@@ -26,10 +26,11 @@ export async function GET() {
       .filter(file => file.name.endsWith('.mp3') || file.name.endsWith('.wav') || file.name.endsWith('.m4a'))
       .map(file => {
         const proxyUrl = `/api/ai/video-make-studio/music/${encodeURIComponent(file.name)}`
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
 
         return {
-          id: file.name.replace(/\.[^/.]+$/, ''),
-          name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          id: nameWithoutExt.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase(),
+          name: nameWithoutExt,
           url: proxyUrl,
           durationSeconds: 0,
         }
