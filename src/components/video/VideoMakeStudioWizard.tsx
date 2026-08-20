@@ -70,6 +70,7 @@ export function VideoMakeStudioWizard() {
   const [musicPreviewError, setMusicPreviewError] = useState<string | null>(null)
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([])
   const [musicTracksLoading, setMusicTracksLoading] = useState(true)
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null)
   const [addEndFrame, setAddEndFrame] = useState(false)
   const [batches, setBatches] = useState<Array<{
     id: string
@@ -229,11 +230,15 @@ export function VideoMakeStudioWizard() {
 
     useEffect(() => {
      return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-      }
-    }
-  }, [])
+       if (pollIntervalRef.current) {
+         clearInterval(pollIntervalRef.current)
+       }
+       if (audioPreviewRef.current) {
+         audioPreviewRef.current.pause()
+         audioPreviewRef.current = null
+       }
+     }
+   }, [])
 
   async function loadAgentProfile() {
     try {
@@ -1240,12 +1245,19 @@ export function VideoMakeStudioWizard() {
                       <button
                         key={track.id}
                         type="button"
-                        onClick={() => {
-                          const audio = new Audio(track.url)
-                          audio.play().catch(() => {
-                            setMusicPreviewError(`Could not preview ${track.name}`)
-                          })
-                          setMusicPreviewError(null)
+                        onClick={async () => {
+                          if (audioPreviewRef.current) {
+                            audioPreviewRef.current.pause()
+                            audioPreviewRef.current = null
+                          }
+                          try {
+                            const audio = new Audio(track.url)
+                            audioPreviewRef.current = audio
+                            await audio.play()
+                            setMusicPreviewError(null)
+                          } catch (err: any) {
+                            setMusicPreviewError(`Could not preview ${track.name}: ${err?.message || 'Unknown error'}`)
+                          }
                         }}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700"
                       >
