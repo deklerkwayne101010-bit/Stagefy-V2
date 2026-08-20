@@ -382,10 +382,16 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     onLog?.(message)
   })
 
-  await ffmpeg.load({
-    coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
-    wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
-  })
+  onLog?.(`Starting stitch: ${clips.length} clips, format ${format.width}x${format.height}, transition ${transitionDuration}s, muteAudio=${muteAudio}, hasCallingCard=${!!callingCardBytes}, hasMusic=${!!musicTrackUrl}, hasEndFrame=${!!endFrameUrl}`)
+
+  try {
+    await ffmpeg.load({
+      coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
+      wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
+    })
+  } catch (loadError) {
+    throw new Error(`Failed to load FFmpeg: ${loadError instanceof Error ? loadError.message : 'Unknown error'}`)
+  }
 
   const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
 
@@ -426,24 +432,36 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     onProgress?.(Math.round(((index + 1) / clips.length) * 50))
   }
 
+  let hasCallingCard = false
+  let hasEndFrame = false
+  let hasMusic = false
+
   if (callingCardBytes) {
-    await ffmpeg.writeFile('calling-card.png', callingCardBytes)
+    try {
+      await ffmpeg.writeFile('calling-card.png', callingCardBytes)
+      hasCallingCard = true
+    } catch (callCardError) {
+      console.error('Failed to write calling card:', callCardError)
+    }
   }
 
-  let endFrameFileIndex = normalizedClips.length + (callingCardBytes ? 1 : 0) + (musicTrackUrl ? 1 : 0)
+  let endFrameFileIndex = normalizedClips.length + (hasCallingCard ? 1 : 0)
   if (endFrameUrl) {
     try {
       const endFrameResponse = await fetch(endFrameUrl)
-      const endFrameBlob = await endFrameResponse.blob()
-      const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
-      const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
-      await ffmpeg.writeFile('endframe.png', endFrameBytes)
+      if (endFrameResponse.ok) {
+        const endFrameBlob = await endFrameResponse.blob()
+        const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
+        const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
+        await ffmpeg.writeFile('endframe.png', endFrameBytes)
+        hasEndFrame = true
+      }
     } catch (endFrameError) {
       console.error('Failed to load end frame image:', endFrameError)
     }
   }
 
-  let musicFileIndex = normalizedClips.length + (callingCardBytes ? 1 : 0)
+  let musicFileIndex = normalizedClips.length + (hasCallingCard ? 1 : 0) + (hasEndFrame ? 1 : 0)
   if (musicTrackUrl) {
     try {
       const musicResponse = await fetch(musicTrackUrl)
@@ -452,6 +470,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
         const musicArrayBuffer = await musicBlob.arrayBuffer()
         const musicBytes = new Uint8Array(musicArrayBuffer)
         await ffmpeg.writeFile('music.mp3', musicBytes)
+        hasMusic = true
       }
     } catch (musicError) {
       console.error('Failed to load music track:', musicError)
@@ -489,7 +508,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   let finalAudioLabel = `[a${clips.length - 1}]`
   let finalVideoLabel = '[vout]'
 
-  if (musicTrackUrl) {
+  if (hasMusic) {
     const musicInputIndex = musicFileIndex
     musicLoopFilter = `[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`
     filterParts.push(musicLoopFilter)
@@ -505,10 +524,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     filterParts.push(...audioFilters)
   }
 
-  const musicInput = musicTrackUrl ? ['-i', 'music.mp3'] : []
-  const endFrameInput = endFrameUrl ? ['-i', 'endframe.png'] : []
+  const musicInput = hasMusic ? ['-i', 'music.mp3'] : []
+  const endFrameInput = hasEndFrame ? ['-i', 'endframe.png'] : []
 
-  if (endFrameUrl) {
+  if (hasEndFrame) {
     filterParts.push(`[${endFrameFileIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
     const offset = Math.max(0, currentDuration - 1)
     filterParts.push(`[vout][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
@@ -517,7 +536,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
 
   const args = [
     ...inputs,
-    ...(callingCardBytes ? ['-i', 'calling-card.png'] : []),
+    ...(hasCallingCard ? ['-i', 'calling-card.png'] : []),
     ...musicInput,
     ...endFrameInput,
     '-filter_complex', filterParts.join(';'),
@@ -532,7 +551,12 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
 
   const exportCode = await ffmpeg.exec(args)
   if (exportCode !== 0) {
-    throw new Error('Could not generate the final video.')
+    const missingAssets = []
+    if (!hasCallingCard && callingCardBytes) missingAssets.push('calling card')
+    if (!hasEndFrame && endFrameUrl) missingAssets.push('end frame')
+    if (!hasMusic && musicTrackUrl) missingAssets.push('music track')
+    const assetNote = missingAssets.length > 0 ? ` Missing assets: ${missingAssets.join(', ')}.` : ''
+    throw new Error(`FFmpeg export failed with code ${exportCode}.${assetNote} Check browser console for details.`)
   }
 
   const output = await ffmpeg.readFile('output.mp4')
