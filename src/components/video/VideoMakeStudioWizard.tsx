@@ -600,7 +600,9 @@ export function VideoMakeStudioWizard() {
         const { refundCredits } = await import('@/lib/credits')
         await refundCredits(user.id, 'video_editor_simple', creditReference, CREDIT_COST_STITCH)
       }
-      setError(err?.message || 'Failed to stitch video.')
+      const message = err?.message || 'Failed to stitch video.'
+      const logSnippet = logs.length > 0 ? ` Last logs: ${logs.slice(-3).join(' | ')}` : ''
+      setError(`${message}${logSnippet}`)
     } finally {
       sessionStorage.removeItem('vms-export-active')
       sessionStorage.removeItem('vms-export-progress')

@@ -430,7 +430,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     await ffmpeg.writeFile('calling-card.png', callingCardBytes)
   }
 
-  let endFrameFileIndex = normalizedClips.length + (musicTrackUrl ? 1 : 0)
+  let endFrameFileIndex = normalizedClips.length + (callingCardBytes ? 1 : 0) + (musicTrackUrl ? 1 : 0)
   if (endFrameUrl) {
     try {
       const endFrameResponse = await fetch(endFrameUrl)
@@ -443,7 +443,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     }
   }
 
-  let musicFileIndex = normalizedClips.length
+  let musicFileIndex = normalizedClips.length + (callingCardBytes ? 1 : 0)
   if (musicTrackUrl) {
     try {
       const musicResponse = await fetch(musicTrackUrl)
