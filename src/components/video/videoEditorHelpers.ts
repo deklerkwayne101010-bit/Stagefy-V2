@@ -381,10 +381,6 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   ffmpeg.on('log', ({ message }) => {
     onLog?.(message)
   })
-  ffmpeg.on('error', (err) => {
-    console.error('FFmpeg error event:', err)
-    onLog?.(`FFmpeg error: ${err.message}`)
-  })
 
   await ffmpeg.load({
     coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
