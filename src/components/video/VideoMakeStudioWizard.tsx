@@ -71,6 +71,7 @@ export function VideoMakeStudioWizard() {
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([])
   const [musicTracksLoading, setMusicTracksLoading] = useState(true)
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null)
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null)
   const [addEndFrame, setAddEndFrame] = useState(false)
   const [batches, setBatches] = useState<Array<{
     id: string
@@ -1265,36 +1266,57 @@ export function VideoMakeStudioWizard() {
                   <p className="mt-3 text-xs text-slate-500">Loading tracks...</p>
                 ) : (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {musicTracks.map((track) => (
-                      <button
-                        key={track.id}
-                        type="button"
-                        onClick={async () => {
-                          if (audioPreviewRef.current) {
-                            audioPreviewRef.current.pause()
-                            audioPreviewRef.current.src = ''
-                            audioPreviewRef.current = null
-                          }
-                          try {
-                            const absoluteUrl = new URL(track.url, window.location.origin).href
-                            const audio = new Audio(absoluteUrl)
-                            audioPreviewRef.current = audio
-                            await audio.play()
-                            setMusicPreviewError(null)
-                          } catch (err: any) {
-                            const message = err?.message || 'Unknown error'
-                            if (message.includes('no supported source') || message.includes('MediaError')) {
-                              setMusicPreviewError(`Could not preview ${track.name}: the audio format is not supported by your browser.`)
-                            } else {
-                              setMusicPreviewError(`Could not preview ${track.name}: ${message}`)
+                    {musicTracks.map((track) => {
+                      const isPlaying = playingTrackId === track.id
+                      return (
+                        <button
+                          key={track.id}
+                          type="button"
+                          onClick={async () => {
+                            if (isPlaying && audioPreviewRef.current) {
+                              audioPreviewRef.current.pause()
+                              setPlayingTrackId(null)
+                              return
                             }
-                          }
-                        }}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700"
-                      >
-                        Preview {track.name}
-                      </button>
-                    ))}
+
+                            if (audioPreviewRef.current) {
+                              audioPreviewRef.current.pause()
+                              audioPreviewRef.current.src = ''
+                              audioPreviewRef.current = null
+                            }
+
+                            try {
+                              const absoluteUrl = new URL(track.url, window.location.origin).href
+                              const audio = new Audio(absoluteUrl)
+                              audioPreviewRef.current = audio
+                              await audio.play()
+                              setPlayingTrackId(track.id)
+                              setMusicPreviewError(null)
+
+                              audio.addEventListener('ended', () => {
+                                setPlayingTrackId(null)
+                                audioPreviewRef.current = null
+                              })
+                            } catch (err: any) {
+                              setPlayingTrackId(null)
+                              const message = err?.message || 'Unknown error'
+                              if (message.includes('no supported source') || message.includes('MediaError')) {
+                                setMusicPreviewError(`Could not preview ${track.name}: the audio format is not supported by your browser.`)
+                              } else {
+                                setMusicPreviewError(`Could not preview ${track.name}: ${message}`)
+                              }
+                            }
+                          }}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                            isPlaying
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-slate-200 text-slate-700 hover:border-blue-300 hover:text-blue-700'
+                          }`}
+                        >
+                          {isPlaying ? 'Pause' : 'Preview'} {track.name}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
                 {musicPreviewError && (
