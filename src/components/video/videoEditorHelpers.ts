@@ -22,14 +22,12 @@ export interface MusicTrack {
 }
 
 export const DEFAULT_MUSIC_TRACKS: MusicTrack[] = (() => {
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '')
-  if (!supabaseUrl) return []
   return Array.from({ length: 5 }, (_, i) => {
     const name = `track-${i + 1}`
     return {
       id: name,
       name: `Track ${i + 1}`,
-      url: `${supabaseUrl}/storage/v1/object/public/music/${name}.mp3`,
+      url: `/api/ai/video-make-studio/music/${name}.mp3`,
       durationSeconds: 0,
     }
   })
