@@ -24,12 +24,17 @@ export async function GET(
       return NextResponse.json({ error: 'Track not found' }, { status: 404 })
     }
 
-    const ext = filename.split('.').pop()?.toLowerCase()
-    const contentType = ext === 'mp3' ? 'audio/mpeg' : ext === 'wav' ? 'audio/wav' : ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg'
-
     const bytes = await fileData.arrayBuffer()
     const buffer = Buffer.from(bytes)
     const uint8 = new Uint8Array(buffer)
+
+    if (uint8.length === 0) {
+      console.error('Music file is empty:', filename)
+      return NextResponse.json({ error: 'Track is empty' }, { status: 404 })
+    }
+
+    const ext = filename.split('.').pop()?.toLowerCase()
+    const contentType = ext === 'mp3' ? 'audio/mpeg' : ext === 'wav' ? 'audio/wav' : ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg'
 
     return new NextResponse(uint8, {
       status: 200,
