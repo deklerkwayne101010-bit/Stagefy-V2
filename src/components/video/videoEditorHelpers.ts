@@ -381,6 +381,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   ffmpeg.on('log', ({ message }) => {
     onLog?.(message)
   })
+  ffmpeg.on('error', (err) => {
+    console.error('FFmpeg error event:', err)
+    onLog?.(`FFmpeg error: ${err.message}`)
+  })
 
   await ffmpeg.load({
     coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
@@ -513,16 +517,6 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     const offset = Math.max(0, currentDuration - 1)
     filterParts.push(`[vout][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
     finalVideoLabel = '[vfinal]'
-
-    if (!muteAudio) {
-      if (musicTrackUrl) {
-        filterParts.push(`[${finalAudioLabel}][${endFrameFileIndex}:a]amix=inputs=2:duration=shortest:dropout_transition=1[outa]`)
-        finalAudioLabel = '[outa]'
-      } else {
-        filterParts.push(`[${finalAudioLabel}][${endFrameFileIndex}:a]acrossfade=d=1:c1=tri:c2=tri[outa]`)
-        finalAudioLabel = '[outa]'
-      }
-    }
   }
 
   const args = [

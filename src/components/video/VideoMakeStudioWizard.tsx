@@ -601,7 +601,8 @@ export function VideoMakeStudioWizard() {
         await refundCredits(user.id, 'video_editor_simple', creditReference, CREDIT_COST_STITCH)
       }
       const message = err?.message || 'Failed to stitch video.'
-      const logSnippet = logs.length > 0 ? ` Last logs: ${logs.slice(-3).join(' | ')}` : ''
+      const logSnippet = logs.length > 0 ? `\nLast logs: ${logs.slice(-5).join('\n')}` : ''
+      console.error('Video stitch failed:', err, logSnippet)
       setError(`${message}${logSnippet}`)
     } finally {
       sessionStorage.removeItem('vms-export-active')
