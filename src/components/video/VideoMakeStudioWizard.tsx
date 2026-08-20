@@ -141,7 +141,7 @@ export function VideoMakeStudioWizard() {
         const data = await response.json()
         if (!cancelled) {
           const tracks = Array.isArray(data.tracks) ? data.tracks : []
-          setMusicTracks(tracks)
+          setMusicTracks(tracks.length > 0 ? tracks : DEFAULT_MUSIC_TRACKS)
         }
       } catch {
         if (!cancelled) {

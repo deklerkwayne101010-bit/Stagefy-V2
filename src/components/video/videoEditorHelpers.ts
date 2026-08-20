@@ -492,6 +492,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   if (musicTrackUrl) {
     const musicInputIndex = musicFileIndex
     musicLoopFilter = `[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`
+    filterParts.push(musicLoopFilter)
     if (!muteAudio && audioFilters.length > 0) {
       const clipAudioLabel = `[a${clips.length - 1}]`
       filterParts.push(`${clipAudioLabel}[bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
