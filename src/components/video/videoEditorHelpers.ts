@@ -384,6 +384,8 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
 
   onLog?.(`Starting stitch: ${clips.length} clips, format ${format.width}x${format.height}, transition ${transitionDuration}s, muteAudio=${muteAudio}, hasCallingCard=${!!callingCardBytes}, hasMusic=${!!musicTrackUrl}, hasEndFrame=${!!endFrameUrl}`)
 
+  onLog?.('Loading FFmpeg core...')
+
   try {
     await ffmpeg.load({
       coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
@@ -393,7 +395,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     throw new Error(`Failed to load FFmpeg: ${loadError instanceof Error ? loadError.message : 'Unknown error'}`)
   }
 
+  onLog?.('FFmpeg loaded. Preparing clips...')
+
   const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
+  onLog?.('Normalizing clips...')
 
   for (let index = 0; index < clips.length; index += 1) {
     if (signal?.aborted) {
@@ -429,7 +434,8 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       throw new Error(`Could not prepare clip ${index + 1}.`)
     }
 
-    onProgress?.(Math.round(((index + 1) / clips.length) * 50))
+    onProgress?.(Math.round(((index + 1) / clips.length) * 30))
+    onLog?.(`Clip ${index + 1}/${clips.length} normalized`)
   }
 
   let hasCallingCard = false
@@ -549,7 +555,16 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     'output.mp4',
   ]
 
-  const exportCode = await ffmpeg.exec(args)
+  onProgress?.(70)
+  onLog?.('Stitching final video...')
+
+  const exportPromise = ffmpeg.exec(args)
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('FFmpeg export timed out after 10 minutes')), 10 * 60 * 1000)
+  })
+
+  const exportCode = await Promise.race([exportPromise, timeoutPromise]) as number
+  onProgress?.(95)
   if (exportCode !== 0) {
     const missingAssets = []
     if (!hasCallingCard && callingCardBytes) missingAssets.push('calling card')
