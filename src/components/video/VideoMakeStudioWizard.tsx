@@ -71,7 +71,6 @@ export function VideoMakeStudioWizard() {
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([])
   const [musicTracksLoading, setMusicTracksLoading] = useState(true)
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null)
-  const audioPreviewRef = useRef<HTMLAudioElement | null>(null)
   const [addEndFrame, setAddEndFrame] = useState(false)
   const [batches, setBatches] = useState<Array<{
     id: string
