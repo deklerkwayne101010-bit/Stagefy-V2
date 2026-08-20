@@ -139,7 +139,7 @@ export async function POST(request: Request) {
     const { data: batchProject, error: batchError } = await (adminClient.from as any)('projects')
       .insert({
         user_id: user.id,
-        name: 'Video Make Studio Batch',
+        name: 'Video Maker Studio Batch',
         type: 'video',
         status: 'processing',
         credit_cost: totalClipCost,
@@ -203,7 +203,7 @@ export async function POST(request: Request) {
     await createNotification({
       userId: user.id,
       type: 'job_completed',
-      title: 'Video Make Studio Batch Started',
+      title: 'Video Maker Studio Batch Started',
       message: `Processing ${images.length} clips for your batch video.`,
       data: { batchId },
     })
