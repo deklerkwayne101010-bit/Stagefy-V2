@@ -25,14 +25,12 @@ export async function GET() {
     const tracks = files
       .filter(file => file.name.endsWith('.mp3') || file.name.endsWith('.wav') || file.name.endsWith('.m4a'))
       .map(file => {
-        const { data: { publicUrl } } = adminClient.storage
-          .from(MUSIC_BUCKET)
-          .getPublicUrl(file.name)
+        const proxyUrl = `/api/ai/video-make-studio/music/${encodeURIComponent(file.name)}`
 
         return {
           id: file.name.replace(/\.[^/.]+$/, ''),
           name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-          url: publicUrl,
+          url: proxyUrl,
           durationSeconds: 0,
         }
       })

@@ -446,13 +446,15 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   let musicFileIndex = normalizedClips.length
-  if (musicTrackUrl && musicTrackUrl.startsWith('http')) {
+  if (musicTrackUrl) {
     try {
       const musicResponse = await fetch(musicTrackUrl)
-      const musicBlob = await musicResponse.blob()
-      const musicArrayBuffer = await musicBlob.arrayBuffer()
-      const musicBytes = new Uint8Array(musicArrayBuffer)
-      await ffmpeg.writeFile('music.mp3', musicBytes)
+      if (musicResponse.ok) {
+        const musicBlob = await musicResponse.blob()
+        const musicArrayBuffer = await musicBlob.arrayBuffer()
+        const musicBytes = new Uint8Array(musicArrayBuffer)
+        await ffmpeg.writeFile('music.mp3', musicBytes)
+      }
     } catch (musicError) {
       console.error('Failed to load music track:', musicError)
     }
