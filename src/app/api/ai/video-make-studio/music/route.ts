@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase'
 
-const MUSIC_BUCKET = 'music'
+const MUSIC_BUCKET = 'Music'
 
 export async function GET() {
   try {
