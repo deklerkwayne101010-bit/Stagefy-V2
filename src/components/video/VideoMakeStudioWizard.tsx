@@ -1247,77 +1247,86 @@ export function VideoMakeStudioWizard() {
               <div>
                 <p className="font-medium text-slate-900 mb-2">Background music</p>
                 <p className="text-sm text-slate-500 mb-3">Pick a track to play under your clips.</p>
-                <select
-                  value={selectedMusicTrack ?? ''}
-                  onChange={(e) => {
-                    setSelectedMusicTrack(e.target.value || null)
-                    setMusicPreviewError(null)
-                  }}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">No music</option>
-                  {musicTracks.map((track) => (
-                    <option key={track.id} value={track.id}>
-                      {track.name}
-                    </option>
-                  ))}
-                </select>
-                {musicTracksLoading ? (
-                  <p className="mt-3 text-xs text-slate-500">Loading tracks...</p>
-                ) : (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {musicTracks.map((track) => {
-                      const isPlaying = playingTrackId === track.id
-                      return (
-                        <button
-                          key={track.id}
-                          type="button"
-                          onClick={async () => {
-                            if (isPlaying && audioPreviewRef.current) {
-                              audioPreviewRef.current.pause()
-                              setPlayingTrackId(null)
-                              return
-                            }
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedMusicTrack ?? ''}
+                    onChange={(e) => {
+                      setSelectedMusicTrack(e.target.value || null)
+                      setMusicPreviewError(null)
+                    }}
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No music</option>
+                    {musicTracks.map((track) => (
+                      <option key={track.id} value={track.id}>
+                        {track.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!selectedMusicTrack) return
+                      const track = musicTracks.find(t => t.id === selectedMusicTrack)
+                      if (!track) return
 
-                            if (audioPreviewRef.current) {
-                              audioPreviewRef.current.pause()
-                              audioPreviewRef.current.src = ''
-                              audioPreviewRef.current = null
-                            }
+                      if (playingTrackId === selectedMusicTrack && audioPreviewRef.current) {
+                        audioPreviewRef.current.pause()
+                        setPlayingTrackId(null)
+                        return
+                      }
 
-                            try {
-                              const absoluteUrl = new URL(track.url, window.location.origin).href
-                              const audio = new Audio(absoluteUrl)
-                              audioPreviewRef.current = audio
-                              await audio.play()
-                              setPlayingTrackId(track.id)
-                              setMusicPreviewError(null)
+                      if (audioPreviewRef.current) {
+                        audioPreviewRef.current.pause()
+                        audioPreviewRef.current.src = ''
+                        audioPreviewRef.current = null
+                      }
 
-                              audio.addEventListener('ended', () => {
-                                setPlayingTrackId(null)
-                                audioPreviewRef.current = null
-                              })
-                            } catch (err: any) {
-                              setPlayingTrackId(null)
-                              const message = err?.message || 'Unknown error'
-                              if (message.includes('no supported source') || message.includes('MediaError')) {
-                                setMusicPreviewError(`Could not preview ${track.name}: the audio format is not supported by your browser.`)
-                              } else {
-                                setMusicPreviewError(`Could not preview ${track.name}: ${message}`)
-                              }
-                            }
-                          }}
-                          className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                            isPlaying
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-slate-200 text-slate-700 hover:border-blue-300 hover:text-blue-700'
-                          }`}
-                        >
-                          {isPlaying ? 'Pause' : 'Preview'} {track.name}
-                        </button>
-                      )
-                    })}
-                  </div>
+                      try {
+                        const absoluteUrl = new URL(track.url, window.location.origin).href
+                        const audio = new Audio(absoluteUrl)
+                        audioPreviewRef.current = audio
+                        await audio.play()
+                        setPlayingTrackId(track.id)
+                        setMusicPreviewError(null)
+
+                        audio.addEventListener('ended', () => {
+                          setPlayingTrackId(null)
+                          audioPreviewRef.current = null
+                        })
+                      } catch (err: any) {
+                        setPlayingTrackId(null)
+                        const message = err?.message || 'Unknown error'
+                        if (message.includes('no supported source') || message.includes('MediaError')) {
+                          setMusicPreviewError(`Could not preview ${track.name}: the audio format is not supported by your browser.`)
+                        } else {
+                          setMusicPreviewError(`Could not preview ${track.name}: ${message}`)
+                        }
+                      }
+                    }}
+                    disabled={!selectedMusicTrack}
+                    className={`inline-flex h-[38px] w-[38px] items-center justify-center rounded-lg border text-sm transition-colors ${
+                      playingTrackId === selectedMusicTrack
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 text-slate-700 hover:border-blue-300 hover:text-blue-700'
+                    } ${!selectedMusicTrack ? 'cursor-not-allowed opacity-50' : ''}`}
+                    title={playingTrackId === selectedMusicTrack ? 'Pause' : 'Play preview'}
+                  >
+                    {playingTrackId === selectedMusicTrack ? (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {playingTrackId && (
+                  <p className="mt-2 text-xs text-blue-600">
+                    Now previewing: {musicTracks.find(t => t.id === playingTrackId)?.name}
+                  </p>
                 )}
                 {musicPreviewError && (
                   <p className="mt-2 text-xs text-red-600">{musicPreviewError}</p>
