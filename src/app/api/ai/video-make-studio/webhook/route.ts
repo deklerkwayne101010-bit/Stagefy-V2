@@ -31,10 +31,38 @@ export async function POST(request: Request) {
     const input = clipProject.input_data || {}
 
     if (prediction.status === 'succeeded' && prediction.output) {
+      const outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
+      
+      // Persist the video to Supabase storage so it doesn't expire
+      let persistedUrl = outputUrl
+      try {
+        const videoResponse = await fetch(outputUrl)
+        if (videoResponse.ok) {
+          const videoBuffer = Buffer.from(await videoResponse.arrayBuffer())
+          const fileName = `video-clips/${clipProject.user_id}/${clipProject.id}-${Date.now()}.mp4`
+          const { error: uploadError } = await adminClient.storage
+            .from('ai-outputs')
+            .upload(fileName, videoBuffer, {
+              contentType: 'video/mp4',
+              upsert: true,
+            })
+          
+          if (!uploadError) {
+            const { data: { publicUrl } } = adminClient.storage
+              .from('ai-outputs')
+              .getPublicUrl(fileName)
+            persistedUrl = publicUrl
+          }
+        }
+      } catch (persistError) {
+        console.error('Failed to persist clip to storage:', persistError)
+        // Continue with original URL if persistence fails
+      }
+      
       await (adminClient.from as any)('projects')
         .update({
           status: 'completed',
-          output_data: { output_url: prediction.output },
+          output_data: { output_url: persistedUrl },
           completed_at: new Date().toISOString(),
         })
         .eq('id', clipProject.id)

@@ -501,8 +501,29 @@ export function VideoMakeStudioWizard() {
 
       const sortedClips = orderedSuccessfulClips
       const clipFiles: File[] = []
+      
+      // Validate clip URLs before downloading
+      const missingClips: number[] = []
+      for (const clip of sortedClips) {
+        try {
+          const headResponse = await fetch(clip.outputUrl!, { method: 'HEAD' })
+          if (!headResponse.ok) {
+            missingClips.push(clip.imageIndex + 1)
+          }
+        } catch {
+          missingClips.push(clip.imageIndex + 1)
+        }
+      }
+      
+      if (missingClips.length > 0) {
+        throw new Error(`Clip${missingClips.length > 1 ? 's' : ''} ${missingClips.join(', ')} ${missingClips.length > 1 ? 'are' : 'is'} no longer available. Please retry ${missingClips.length > 1 ? 'them' : 'it'} before exporting.`)
+      }
+      
       for (const clip of sortedClips) {
         const response = await fetch(clip.outputUrl!)
+        if (!response.ok) {
+          throw new Error(`Clip ${clip.imageIndex + 1} is no longer available (${response.status}). Please regenerate.`)
+        }
         const blob = await response.blob()
         clipFiles.push(new File([blob], `clip-${clip.imageIndex}.mp4`, { type: 'video/mp4' }))
       }

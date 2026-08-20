@@ -61,8 +61,18 @@ export async function POST(
       return NextResponse.json({ error: 'Clip does not belong to this batch' }, { status: 400 })
     }
 
-    if (clipProject.status !== 'failed') {
-      return NextResponse.json({ error: 'Only failed clips can be retried' }, { status: 400 })
+    if (clipProject.status !== 'failed' && clipProject.status !== 'completed') {
+      return NextResponse.json({ error: 'Only failed or completed clips with missing outputs can be retried' }, { status: 400 })
+    }
+    
+    // Check if completed clip has a valid output URL
+    if (clipProject.status === 'completed') {
+      const outputUrl = clipProject.output_data?.output_url
+      if (!outputUrl) {
+        // Allow retry if there's no output URL
+      } else {
+        return NextResponse.json({ error: 'Clip already has a valid output. Delete and re-create if needed.' }, { status: 400 })
+      }
     }
 
     const clipCost = calculateClipCredits(input.duration || 5, input.tier || 'pro')
