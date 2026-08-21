@@ -398,44 +398,16 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   onLog?.('FFmpeg loaded. Preparing clips...')
 
   const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
-  onLog?.('Normalizing clips...')
 
   for (let index = 0; index < clips.length; index += 1) {
     if (signal?.aborted) {
       throw new Error('Export cancelled')
     }
-
     const clip = clips[index]
     const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
     await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
-
-    const videoFilter = [
-      `trim=start=0:duration=${clip.trimmedDuration}`,
-      'setpts=PTS-STARTPTS',
-      `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase`,
-      `crop=${format.width}:${format.height}`,
-      'setsar=1',
-      'fps=30',
-      'format=yuv420p',
-    ].join(',')
-
-    const normalizeArgs = [
-      '-i', inputName,
-      '-vf', videoFilter,
-      ...(muteAudio ? ['-an'] : ['-af', 'aresample=async=1:first_pts=0', '-c:a', 'aac', '-b:a', '128k']),
-      '-c:v', 'libx264',
-      '-preset', 'veryfast',
-      '-shortest',
-      normalizedClips[index],
-    ]
-
-    const normalizeCode = await ffmpeg.exec(normalizeArgs)
-    if (normalizeCode !== 0) {
-      throw new Error(`Could not prepare clip ${index + 1}.`)
-    }
-
-    onProgress?.(Math.round(((index + 1) / clips.length) * 30))
-    onLog?.(`Clip ${index + 1}/${clips.length} normalized`)
+    onProgress?.(Math.round(((index + 1) / clips.length) * 15))
+    onLog?.(`Clip ${index + 1}/${clips.length} loaded`)
   }
 
   let hasCallingCard = false
@@ -451,7 +423,6 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     }
   }
 
-  let endFrameFileIndex = normalizedClips.length + (hasCallingCard ? 1 : 0)
   if (endFrameUrl) {
     try {
       const endFrameResponse = await fetch(endFrameUrl)
@@ -467,7 +438,6 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     }
   }
 
-  let musicFileIndex = normalizedClips.length + (hasCallingCard ? 1 : 0) + (hasEndFrame ? 1 : 0)
   if (musicTrackUrl) {
     try {
       const musicResponse = await fetch(musicTrackUrl)
@@ -487,6 +457,54 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     throw new Error('Export cancelled')
   }
 
+  onProgress?.(20)
+  onLog?.('Normalizing clips in batch...')
+
+  const normalizeFilterParts: string[] = []
+  const normalizedInputs: string[] = []
+  for (let index = 0; index < clips.length; index += 1) {
+    const clip = clips[index]
+    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
+    const videoFilter = [
+      `trim=start=0:duration=${clip.trimmedDuration}`,
+      'setpts=PTS-STARTPTS',
+      `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase`,
+      `crop=${format.width}:${format.height}`,
+      'setsar=1',
+      'fps=30',
+      'format=yuv420p',
+    ].join(',')
+
+    const audioFilter = muteAudio
+      ? 'anull'
+      : 'aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS'
+
+    normalizeFilterParts.push(
+      `[${index}:v]${videoFilter}[v${index}]`,
+      `[${index}:a]${audioFilter}[a${index}]`
+    )
+    normalizedInputs.push('-i', inputName)
+  }
+
+  const normalizeOutputArgs: string[] = []
+  for (let index = 0; index < clips.length; index++) {
+    normalizeOutputArgs.push('-map', `[v${index}]`, '-map', `[a${index}]`, '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac', '-b:a', '128k', '-shortest', normalizedClips[index])
+  }
+
+  const normalizeArgs = [
+    ...normalizedInputs,
+    '-filter_complex', normalizeFilterParts.join(';'),
+    ...normalizeOutputArgs,
+  ]
+
+  const normalizeCode = await ffmpeg.exec(normalizeArgs)
+  if (normalizeCode !== 0) {
+    throw new Error(`Could not normalize clips. FFmpeg code: ${normalizeCode}`)
+  }
+
+  onProgress?.(45)
+  onLog?.('All clips normalized. Applying transitions and finalizing...')
+
   const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
   const videoFilters: string[] = []
   const audioFilters: string[] = []
@@ -505,7 +523,11 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     currentDuration += clips[index].trimmedDuration - transitionDuration
   }
 
-  const overlayFilter = callingCardBytes
+  const callingCardInputIndex = clips.length
+  const musicInputIndex = clips.length + (hasCallingCard ? 1 : 0)
+  const endFrameInputIndex = clips.length + (hasCallingCard ? 1 : 0) + (hasMusic ? 1 : 0)
+
+  const overlayFilter = hasCallingCard
     ? `[${currentVideo}]overlay=x=0:y=H-h-24,format=yuv420p[vout]`
     : `[${currentVideo}]format=yuv420p[vout]`
   const filterParts = [...videoFilters, overlayFilter]
@@ -515,7 +537,6 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   let finalVideoLabel = '[vout]'
 
   if (hasMusic) {
-    const musicInputIndex = musicFileIndex
     musicLoopFilter = `[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`
     filterParts.push(musicLoopFilter)
     if (!muteAudio && audioFilters.length > 0) {
@@ -534,7 +555,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   const endFrameInput = hasEndFrame ? ['-i', 'endframe.png'] : []
 
   if (hasEndFrame) {
-    filterParts.push(`[${endFrameFileIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
+    filterParts.push(`[${endFrameInputIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
     const offset = Math.max(0, currentDuration - 1)
     filterParts.push(`[vout][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
     finalVideoLabel = '[vfinal]'
