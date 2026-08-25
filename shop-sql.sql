@@ -40,9 +40,9 @@ CREATE POLICY "shop_orders_user_update" ON shop_orders
 
 -- Insert sample products
 INSERT INTO shop_products (name, description, price, category, status, credits_included, is_featured, sort_order) VALUES
-('50 Credits', 'Add 50 credits to your account', 499, 'credits', 'active', 50, true, 1),
-('100 Credits', 'Add 100 credits to your account', 899, 'credits', 'active', 100, true, 2),
-('200 Credits', 'Add 200 credits - Save R99!', 1599, 'credits', 'active', 200, false, 3),
-('500 Credits', 'Add 500 credits - Best value!', 3499, 'credits', 'active', 500, true, 4);
+('50 Credits', 'Add 50 credits to your account', 90, 'credits', 'active', 50, true, 1),
+('100 Credits', 'Add 100 credits to your account', 140, 'credits', 'active', 100, true, 2),
+('250 Credits', 'Add 250 credits - Save R99!', 275, 'credits', 'active', 250, false, 3),
+('500 Credits', 'Add 500 credits - Best value!', 450, 'credits', 'active', 500, true, 4);
 
 SELECT 'Shop setup complete!' as status;

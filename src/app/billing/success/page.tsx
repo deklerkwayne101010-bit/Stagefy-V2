@@ -32,10 +32,10 @@ function SuccessContent() {
 
   const getPackageDisplay = () => {
     const packages: Record<string, { name: string; credits: number }> = {
-      '50-credits': { name: '50 Credits', credits: 50 },
-      '100-credits': { name: '100 Credits', credits: 100 },
-      '250-credits': { name: '250 Credits', credits: 250 },
-      '500-credits': { name: '500 Credits', credits: 500 },
+      '50_credits': { name: '50 Credits', credits: 50 },
+      '100_credits': { name: '100 Credits', credits: 100 },
+      '250_credits': { name: '250 Credits', credits: 250 },
+      '500_credits': { name: '500 Credits', credits: 500 },
     }
     return packages[packageName] || { name: 'Credit Package', credits: 0 }
   }
