@@ -458,13 +458,16 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   onProgress?.(20)
-  onLog?.('Normalizing clips in batch...')
+  onLog?.('Normalizing clips...')
 
-  const normalizeFilterParts: string[] = []
-  const normalizedInputs: string[] = []
   for (let index = 0; index < clips.length; index += 1) {
+    if (signal?.aborted) {
+      throw new Error('Export cancelled')
+    }
     const clip = clips[index]
     const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
+    const outputName = normalizedClips[index]
+
     const videoFilter = [
       `trim=start=0:duration=${clip.trimmedDuration}`,
       'setpts=PTS-STARTPTS',
@@ -475,35 +478,24 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       'format=yuv420p',
     ].join(',')
 
-    const audioFilter = muteAudio
-      ? 'anull'
-      : 'aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS'
+    const normalizeArgs = [
+      '-i', inputName,
+      '-vf', videoFilter,
+      ...(muteAudio ? ['-an'] : ['-af', 'aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS', '-c:a', 'aac', '-b:a', '128k']),
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-shortest',
+      outputName,
+    ]
 
-    normalizeFilterParts.push(
-      `[${index}:v]${videoFilter}[v${index}]`,
-      `[${index}:a]${audioFilter}[a${index}]`
-    )
-    normalizedInputs.push('-i', inputName)
+    const normalizeCode = await ffmpeg.exec(normalizeArgs)
+    if (normalizeCode !== 0) {
+      throw new Error(`Could not prepare clip ${index + 1}.`)
+    }
+
+    onProgress?.(Math.round(20 + ((index + 1) / clips.length) * 25))
+    onLog?.(`Clip ${index + 1}/${clips.length} normalized`)
   }
-
-  const normalizeOutputArgs: string[] = []
-  for (let index = 0; index < clips.length; index++) {
-    normalizeOutputArgs.push('-map', `[v${index}]`, '-map', `[a${index}]`, '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac', '-b:a', '128k', '-shortest', normalizedClips[index])
-  }
-
-  const normalizeArgs = [
-    ...normalizedInputs,
-    '-filter_complex', normalizeFilterParts.join(';'),
-    ...normalizeOutputArgs,
-  ]
-
-  const normalizeCode = await ffmpeg.exec(normalizeArgs)
-  if (normalizeCode !== 0) {
-    throw new Error(`Could not normalize clips. FFmpeg code: ${normalizeCode}`)
-  }
-
-  onProgress?.(45)
-  onLog?.('All clips normalized. Applying transitions and finalizing...')
 
   const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
   const videoFilters: string[] = []
