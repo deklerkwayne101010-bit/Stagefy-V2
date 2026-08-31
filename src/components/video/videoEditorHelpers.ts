@@ -484,6 +484,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-crf', '23',
+      '-threads', '0',
       '-shortest',
       outputName,
     ]
@@ -564,6 +565,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     '-c:v', 'libx264',
     '-preset', 'ultrafast',
     '-crf', '23',
+    '-threads', '0',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
     'output.mp4',
