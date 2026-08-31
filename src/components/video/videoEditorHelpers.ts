@@ -458,7 +458,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   onProgress?.(20)
-  onLog?.('Normalizing clips...')
+  onLog?.('Preparing clips...')
 
   for (let index = 0; index < clips.length; index += 1) {
     if (signal?.aborted) {
@@ -467,7 +467,17 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     const clip = clips[index]
     const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
     const outputName = normalizedClips[index]
+    await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
+    onProgress?.(Math.round(20 + ((index + 1) / clips.length) * 25))
+    onLog?.(`Clip ${index + 1}/${clips.length} loaded`)
+  }
 
+  const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
+  const filterParts: string[] = []
+  const audioFilters: string[] = []
+
+  for (let index = 0; index < clips.length; index += 1) {
+    const clip = clips[index]
     const videoFilter = [
       `trim=start=0:duration=${clip.trimmedDuration}`,
       'setpts=PTS-STARTPTS',
@@ -477,82 +487,62 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       'format=yuv420p',
     ].join(',')
 
-    const normalizeArgs = [
-      '-i', inputName,
-      '-vf', videoFilter,
-      ...(muteAudio ? ['-an'] : ['-c:a', 'aac', '-b:a', '128k']),
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-crf', '23',
-      '-threads', '0',
-      '-shortest',
-      outputName,
-    ]
+    const audioFilter = muteAudio
+      ? 'anull'
+      : 'aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS'
 
-    const normalizeCode = await ffmpeg.exec(normalizeArgs)
-    if (normalizeCode !== 0) {
-      throw new Error(`Could not prepare clip ${index + 1}.`)
-    }
-
-    onProgress?.(Math.round(20 + ((index + 1) / clips.length) * 25))
-    onLog?.(`Clip ${index + 1}/${clips.length} normalized`)
+    filterParts.push(`[${index}:v]${videoFilter}[v${index}]`)
+    filterParts.push(`[${index}:a]${audioFilter}[a${index}]`)
   }
 
-  const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
-  const videoFilters: string[] = []
-  const audioFilters: string[] = []
-  let currentVideo = '0:v'
-  let currentAudio = '0:a'
+  let currentVideo = 'v0'
+  let currentAudio = 'a0'
   let currentDuration = clips[0].trimmedDuration
 
   for (let index = 1; index < clips.length; index += 1) {
     const offset = Math.max(0, currentDuration - transitionDuration)
-    videoFilters.push(`[${currentVideo}][${index}:v]xfade=transition=fade:duration=${transitionDuration}:offset=${offset}[v${index}]`)
+    filterParts.push(`[${currentVideo}][v${index}]xfade=transition=fade:duration=${transitionDuration}:offset=${offset}[vxfade${index}]`)
     if (!muteAudio) {
-      audioFilters.push(`[${currentAudio}][${index}:a]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[a${index}]`)
+      filterParts.push(`[${currentAudio}][a${index}]acrossfade=d=${transitionDuration}:c1=tri:c2=tri[axfade${index}]`)
+      currentAudio = `axfade${index}`
     }
-    currentVideo = `v${index}`
-    currentAudio = `a${index}`
+    currentVideo = `vxfade${index}`
     currentDuration += clips[index].trimmedDuration - transitionDuration
   }
 
-  const callingCardInputIndex = clips.length
-  const musicInputIndex = clips.length + (hasCallingCard ? 1 : 0)
-  const endFrameInputIndex = clips.length + (hasCallingCard ? 1 : 0) + (hasMusic ? 1 : 0)
+  const finalVideoBeforeOverlay = currentVideo
+  const finalAudioBeforeOverlay = currentAudio
 
-  const overlayFilter = hasCallingCard
-    ? `[${currentVideo}]overlay=x=0:y=H-h-24,format=yuv420p[vout]`
-    : `[${currentVideo}]format=yuv420p[vout]`
-  const filterParts = [...videoFilters, overlayFilter]
-
-  let musicLoopFilter = ''
-  let finalAudioLabel = `[a${clips.length - 1}]`
-  let finalVideoLabel = '[vout]'
+  if (hasCallingCard) {
+    filterParts.push(`[${finalVideoBeforeOverlay}]overlay=x=0:y=H-h-24,format=yuv420p[vout]`)
+  } else {
+    filterParts.push(`[${finalVideoBeforeOverlay}]format=yuv420p[vout]`)
+  }
 
   if (hasMusic) {
-    musicLoopFilter = `[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`
-    filterParts.push(musicLoopFilter)
-    if (!muteAudio && audioFilters.length > 0) {
-      const clipAudioLabel = `[a${clips.length - 1}]`
-      filterParts.push(`${clipAudioLabel}[bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
-      finalAudioLabel = '[outa]'
+    const musicInputIndex = clips.length + (hasCallingCard ? 1 : 0)
+    filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
+    if (!muteAudio && finalAudioBeforeOverlay !== 'a0') {
+      filterParts.push(`[${finalAudioBeforeOverlay}][bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
     } else {
       filterParts.push(`[bg]volume=0.8[bgv]`)
-      finalAudioLabel = '[bgv]'
     }
-  } else if (!muteAudio && audioFilters.length > 0) {
-    filterParts.push(...audioFilters)
+  } else if (!muteAudio && finalAudioBeforeOverlay !== 'a0') {
+    filterParts.push(`[${finalAudioBeforeOverlay}]asetpts=PTS-STARTPTS[outa]`)
   }
+
+  if (hasEndFrame) {
+    const endFrameInputIndex = clips.length + (hasCallingCard ? 1 : 0) + (hasMusic ? 1 : 0)
+    const offset = Math.max(0, currentDuration - 1)
+    filterParts.push(`[${endFrameInputIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
+    filterParts.push(`[vout][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
+  }
+
+  const finalVideoLabel = hasEndFrame ? '[vfinal]' : '[vout]'
+  const finalAudioLabel = hasMusic ? '[outa]' : (!muteAudio && finalAudioBeforeOverlay !== 'a0' ? '[outa]' : '-an')
 
   const musicInput = hasMusic ? ['-i', 'music.mp3'] : []
   const endFrameInput = hasEndFrame ? ['-i', 'endframe.png'] : []
-
-  if (hasEndFrame) {
-    filterParts.push(`[${endFrameInputIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
-    const offset = Math.max(0, currentDuration - 1)
-    filterParts.push(`[vout][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
-    finalVideoLabel = '[vfinal]'
-  }
 
   const args = [
     ...inputs,
