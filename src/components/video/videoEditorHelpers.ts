@@ -474,16 +474,16 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase`,
       `crop=${format.width}:${format.height}`,
       'setsar=1',
-      'fps=30',
       'format=yuv420p',
     ].join(',')
 
     const normalizeArgs = [
       '-i', inputName,
       '-vf', videoFilter,
-      ...(muteAudio ? ['-an'] : ['-af', 'aresample=async=1:first_pts=0,asetpts=PTS-STARTPTS', '-c:a', 'aac', '-b:a', '128k']),
+      ...(muteAudio ? ['-an'] : ['-c:a', 'aac', '-b:a', '128k']),
       '-c:v', 'libx264',
-      '-preset', 'veryfast',
+      '-preset', 'ultrafast',
+      '-crf', '23',
       '-shortest',
       outputName,
     ]
@@ -562,7 +562,8 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     '-map', finalVideoLabel,
     ...(finalAudioLabel !== '-an' ? ['-map', finalAudioLabel] : ['-an']),
     '-c:v', 'libx264',
-    '-preset', 'veryfast',
+    '-preset', 'ultrafast',
+    '-crf', '23',
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
     'output.mp4',
