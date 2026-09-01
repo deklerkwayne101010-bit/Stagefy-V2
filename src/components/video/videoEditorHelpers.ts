@@ -400,7 +400,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
 
   onLog?.('FFmpeg loaded. Preparing clips...')
 
-  const normalizedClips = clips.map((_, index) => `clip-${index}.mp4`)
+  const inputNames: string[] = []
 
   for (let index = 0; index < clips.length; index += 1) {
     if (signal?.aborted) {
@@ -408,8 +408,9 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     }
     const clip = clips[index]
     const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
+    inputNames.push(inputName)
     await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
-    onProgress?.(Math.round(((index + 1) / clips.length) * 15))
+    onProgress?.(Math.round(((index + 1) / clips.length) * 20))
     onLog?.(`Clip ${index + 1}/${clips.length} loaded`)
   }
 
@@ -460,22 +461,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     throw new Error('Export cancelled')
   }
 
-  onProgress?.(20)
-  onLog?.('Preparing clips...')
+  onProgress?.(25)
+  onLog?.('Building filter graph...')
 
-  for (let index = 0; index < clips.length; index += 1) {
-    if (signal?.aborted) {
-      throw new Error('Export cancelled')
-    }
-    const clip = clips[index]
-    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
-    const outputName = normalizedClips[index]
-    await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
-    onProgress?.(Math.round(20 + ((index + 1) / clips.length) * 25))
-    onLog?.(`Clip ${index + 1}/${clips.length} loaded`)
-  }
-
-  const inputs = normalizedClips.flatMap(fileName => ['-i', fileName])
+  const inputs = inputNames.flatMap(fileName => ['-i', fileName])
   const filterParts: string[] = []
   const audioFilters: string[] = []
 
@@ -706,12 +695,10 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
 
   let finalAudioLabel = '-an'
   if (hasMusic) {
-    filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
     if (!muteAudio) {
+      filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
       filterParts.push(`[0:a][bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
       finalAudioLabel = '[outa]'
-    } else {
-      filterParts.push(`[bg]volume=0.8[bgv]`)
     }
   } else if (!muteAudio) {
     finalAudioLabel = '[0:a]'
