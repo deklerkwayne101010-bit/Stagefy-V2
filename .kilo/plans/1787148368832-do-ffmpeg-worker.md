@@ -233,3 +233,25 @@ Before implementation starts, share these values:
 3. **SSH into the droplet** — I'll provide a setup script to run once you're connected
 
 That's it. I'll handle writing all the code, Dockerfile, and deployment commands.
+
+## CORS Fix (Required for HTTPS)
+
+The worker must allow cross-origin requests from Vercel. Update `worker/src/index.ts`:
+
+```typescript
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-api-key'],
+}))
+app.options('*', cors())
+```
+
+Then rebuild and restart the container:
+```bash
+cd /opt/vms-worker/worker
+docker build -t vms-worker .
+docker stop vms-worker
+docker rm vms-worker
+docker run -d --name vms-worker --env-file .env -p 8080:8080 --restart unless-stopped vms-worker
+```
