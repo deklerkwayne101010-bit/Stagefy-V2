@@ -370,6 +370,8 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
 
+  const ffmpegLogs: string[] = []
+
   if (signal?.aborted) {
     throw new Error('Export cancelled')
   }
@@ -379,6 +381,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     onProgress?.(Math.round(value * 100))
   })
   ffmpeg.on('log', ({ message }) => {
+    ffmpegLogs.push(message)
     onLog?.(message)
   })
 
@@ -577,7 +580,8 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     if (!hasEndFrame && endFrameUrl) missingAssets.push('end frame')
     if (!hasMusic && musicTrackUrl) missingAssets.push('music track')
     const assetNote = missingAssets.length > 0 ? ` Missing assets: ${missingAssets.join(', ')}.` : ''
-    throw new Error(`FFmpeg export failed with code ${exportCode}.${assetNote} Check browser console for details.`)
+    const logSnippet = ffmpegLogs.slice(-10).join(' | ')
+    throw new Error(`FFmpeg export failed with code ${exportCode}.${assetNote} Logs: ${logSnippet}`)
   }
 
   const output = await ffmpeg.readFile('output.mp4')
@@ -590,6 +594,8 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
   const { FFmpeg } = await import('@ffmpeg/ffmpeg')
   const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
 
+  const ffmpegLogs: string[] = []
+
   if (signal?.aborted) {
     throw new Error('Export cancelled')
   }
@@ -599,6 +605,7 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
     onProgress?.(Math.round(value * 100))
   })
   ffmpeg.on('log', ({ message }) => {
+    ffmpegLogs.push(message)
     onLog?.(message)
   })
 
@@ -678,7 +685,8 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
 
   const concatCode = await ffmpeg.exec(concatArgs)
   if (concatCode !== 0) {
-    throw new Error(`Concat failed with code ${concatCode}`)
+    const logSnippet = ffmpegLogs.slice(-10).join(' | ')
+    throw new Error(`Concat failed with code ${concatCode}. Logs: ${logSnippet}`)
   }
 
   onProgress?.(70)
@@ -728,7 +736,8 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
   const exportCode = await ffmpeg.exec(finalArgs)
   onProgress?.(95)
   if (exportCode !== 0) {
-    throw new Error(`Export failed with code ${exportCode}`)
+    const logSnippet = ffmpegLogs.slice(-10).join(' | ')
+    throw new Error(`Export failed with code ${exportCode}. Logs: ${logSnippet}`)
   }
 
   const output = await ffmpeg.readFile('output.mp4')
