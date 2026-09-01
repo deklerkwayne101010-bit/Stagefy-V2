@@ -324,3 +324,27 @@ pkill -f ngrok
 ./ngrok http 8080
 ```
 Update Vercel env var with new ngrok URL if it changes.
+
+## Persistent CORS Issues
+
+If CORS headers show correctly via curl but browser still blocks:
+
+**1. ngrok may be stripping headers.** Test directly:
+```bash
+curl -I -X OPTIONS https://senator-undecided-unvaried.ngrok-free.dev/stitch \
+  -H "Origin: https://stagefy.co.za" \
+  -H "Access-Control-Request-Method: POST"
+```
+
+**2. If ngrok strips headers, try Cloudflare Tunnel instead:**
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+
+**3. Browser cache.** Hard refresh the Vercel app (Ctrl+Shift+R) or test in incognito mode.
+
+**4. Verify Vercel env vars are set correctly:**
+- `NEXT_PUBLIC_WORKER_URL` = full ngrok HTTPS URL
+- `NEXT_PUBLIC_WORKER_API_KEY` = same key as in worker .env
+
+**5. Redeploy Vercel after any env var change.**
