@@ -19,8 +19,11 @@ export async function GET() {
       })
 
     if (error || !files || files.length === 0) {
+      console.log('Music bucket list result:', { error, fileCount: files?.length })
       return NextResponse.json({ tracks: [] })
     }
+
+    console.log('Music files in bucket:', files.map(f => f.name))
 
     const tracks = files
       .filter(file => file.name.endsWith('.mp3') || file.name.endsWith('.wav') || file.name.endsWith('.m4a'))

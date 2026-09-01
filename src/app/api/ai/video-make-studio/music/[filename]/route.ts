@@ -10,23 +10,28 @@ export async function GET(
 ) {
   try {
     const { filename } = await params
+    console.log('Music proxy request:', filename)
+
     const adminClient = getAdminClient()
     if (!adminClient) {
       return NextResponse.json({ error: 'Storage not configured' }, { status: 500 })
     }
 
+    console.log('Attempting to download from Music bucket:', filename)
     const { data: fileData, error: downloadError } = await adminClient.storage
       .from(MUSIC_BUCKET)
       .download(filename)
 
     if (downloadError || !fileData) {
       console.error('Music download error:', downloadError)
-      return NextResponse.json({ error: 'Track not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Track not found', details: downloadError?.message }, { status: 404 })
     }
 
     const bytes = await fileData.arrayBuffer()
     const buffer = Buffer.from(bytes)
     const uint8 = new Uint8Array(buffer)
+
+    console.log('Music file downloaded:', filename, 'size:', uint8.length, 'bytes')
 
     if (uint8.length === 0) {
       console.error('Music file is empty:', filename)
