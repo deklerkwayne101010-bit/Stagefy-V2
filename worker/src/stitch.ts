@@ -149,11 +149,13 @@ function resolveUrl(url: string, appUrl?: string): string {
 
 async function downloadFile(url: string, dest: string, appUrl?: string): Promise<void> {
   const absoluteUrl = resolveUrl(url, appUrl)
+  console.log(`Downloading: ${absoluteUrl}`)
   const response = await fetch(absoluteUrl)
   if (!response.ok) {
     throw new Error(`Failed to download ${absoluteUrl}: ${response.status}`)
   }
   const buffer = Buffer.from(await response.arrayBuffer())
+  console.log(`Downloaded ${buffer.length} bytes to ${dest}`)
   await writeFile(dest, buffer)
 }
 
