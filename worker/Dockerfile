@@ -1,9 +1,6 @@
-FROM jrottenberg/ffmpeg:6.1-alpine AS ffmpeg
-
 FROM node:20-alpine
 
-COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
-COPY --from=ffmpeg /usr/local/bin/ffprobe /usr/local/bin/ffprobe
+RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 
