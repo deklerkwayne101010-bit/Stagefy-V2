@@ -20,7 +20,7 @@ import {
   videoEditorFormats,
   DEFAULT_MUSIC_TRACKS,
 } from './videoEditorHelpers'
-import { isWorkerEnabled, stitchOnWorker } from '@/lib/video-make-studio/worker'
+import { stitchOnWorker } from '@/lib/video-make-studio/worker'
 import { AgentProfileSetupModal } from './AgentProfileSetupModal'
 
 type VideoMakeStudioStep = 'landing' | 'format' | 'images' | 'calling_card' | 'generate' | 'review' | 'transition' | 'finish'
@@ -596,40 +596,38 @@ export function VideoMakeStudioWizard() {
       let blob: Blob | null = null
       let resultFromWorker = false
 
-      if (isWorkerEnabled()) {
-        try {
-          setLogs(prev => [...prev, 'Using server-side FFmpeg worker...'])
+      try {
+        setLogs(prev => [...prev, 'Using server-side FFmpeg worker...'])
 
-          const callingCardDataUrl = callingCardBytes
-            ? `data:image/png;base64,${Buffer.from(callingCardBytes).toString('base64')}`
-            : undefined
+        const callingCardDataUrl = callingCardBytes
+          ? `data:image/png;base64,${Buffer.from(callingCardBytes).toString('base64')}`
+          : undefined
 
-          const workerOutputUrl = await stitchOnWorker({
-            format: { width: format.width, height: format.height },
-            clips: sortedClips.map(clip => ({
-              url: clip.outputUrl!,
-              trimmedDuration: 5,
-            })),
-            transitionDuration,
-            muteAudio,
-            callingCardUrl: callingCardDataUrl,
-            musicUrl: selectedTrack?.url || undefined,
-            endFrameUrl: endFrameUrl || undefined,
-            userId: user?.id || '',
-            appUrl: window.location.origin,
-          })
+        const workerOutputUrl = await stitchOnWorker({
+          format: { width: format.width, height: format.height },
+          clips: sortedClips.map(clip => ({
+            url: clip.outputUrl!,
+            trimmedDuration: 5,
+          })),
+          transitionDuration,
+          muteAudio,
+          callingCardUrl: callingCardDataUrl,
+          musicUrl: selectedTrack?.url || undefined,
+          endFrameUrl: endFrameUrl || undefined,
+          userId: user?.id || '',
+          appUrl: window.location.origin,
+        })
 
-          const videoResponse = await fetch(workerOutputUrl)
-          if (!videoResponse.ok) {
-            throw new Error(`Failed to download worker output: ${videoResponse.status}`)
-          }
-          blob = await videoResponse.blob()
-          resultFromWorker = true
-          setProgress(100)
-        } catch (workerError: any) {
-          console.warn('Worker stitch failed, falling back to WASM:', workerError)
-          setLogs(prev => [...prev, `Worker failed: ${workerError?.message || 'Unknown error'}. Falling back to browser...`])
+        const videoResponse = await fetch(workerOutputUrl)
+        if (!videoResponse.ok) {
+          throw new Error(`Failed to download worker output: ${videoResponse.status}`)
         }
+        blob = await videoResponse.blob()
+        resultFromWorker = true
+        setProgress(100)
+      } catch (workerError: any) {
+        console.warn('Worker stitch failed, falling back to WASM:', workerError)
+        setLogs(prev => [...prev, `Worker failed: ${workerError?.message || 'Unknown error'}. Falling back to browser...`])
       }
 
       if (!blob) {
