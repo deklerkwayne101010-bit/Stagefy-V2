@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     const data = await workerResponse.json()
 
     if (!workerResponse.ok) {
+      console.error('Worker error:', data)
       return NextResponse.json(data, { status: workerResponse.status })
     }
 
