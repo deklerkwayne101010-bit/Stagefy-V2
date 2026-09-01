@@ -628,10 +628,12 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
 
   let hasCallingCard = false
   let hasMusic = false
+  let hasEndFrame = false
 
   console.log('Fast stitch inputs:', {
     callingCardBytes: callingCardBytes ? `${callingCardBytes.length} bytes` : null,
     musicTrackUrl,
+    endFrameUrl,
     format: `${format.width}x${format.height}`,
   })
 
@@ -664,7 +666,26 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
     }
   }
 
-  console.log('Fast stitch state:', { hasCallingCard, hasMusic })
+  if (endFrameUrl) {
+    try {
+      console.log('Fetching end frame from:', endFrameUrl)
+      const endFrameResponse = await fetch(endFrameUrl)
+      if (endFrameResponse.ok) {
+        const endFrameBlob = await endFrameResponse.blob()
+        const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
+        const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
+        await ffmpeg.writeFile('endframe.png', endFrameBytes)
+        hasEndFrame = true
+        console.log('End frame written successfully:', endFrameBytes.length, 'bytes')
+      } else {
+        console.error('End frame fetch failed:', endFrameResponse.status)
+      }
+    } catch (endFrameError) {
+      console.error('Failed to load end frame:', endFrameError)
+    }
+  }
+
+  console.log('Fast stitch state:', { hasCallingCard, hasMusic, hasEndFrame })
 
   if (signal?.aborted) {
     throw new Error('Export cancelled')
@@ -720,12 +741,24 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
     finalAudioLabel = '[0:a]'
   }
 
+  if (hasEndFrame) {
+    const endFrameInputIndex = 1 + (hasCallingCard ? 1 : 0) + (hasMusic ? 1 : 0)
+    const totalDuration = clips.reduce((sum, clip) => sum + clip.trimmedDuration, 0) - (clips.length - 1) * 0
+    const offset = Math.max(0, totalDuration - 1)
+    filterParts.push(`[${endFrameInputIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
+    filterParts.push(`[${currentInput}][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
+    currentInput = '[vfinal]'
+  }
+
+  const finalVideoLabel = currentInput
+
   const finalArgs = [
     '-i', 'concatenated.mp4',
     ...(hasCallingCard ? ['-i', 'calling-card.png'] : []),
     ...(hasMusic ? ['-i', 'music.mp3'] : []),
+    ...(hasEndFrame ? ['-i', 'endframe.png'] : []),
     '-filter_complex', filterParts.join(';'),
-    '-map', '[vout]',
+    '-map', finalVideoLabel,
     ...(finalAudioLabel !== '-an' ? ['-map', finalAudioLabel] : ['-an']),
     '-c:v', 'libx264',
     '-preset', 'ultrafast',
