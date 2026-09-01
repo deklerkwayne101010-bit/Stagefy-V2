@@ -16,7 +16,7 @@ import {
   type VideoEditorFormat,
   formatBytes,
   generateCallingCardPng,
-  stitchVideoWithFFmpeg,
+  stitchVideoWithFFmpegFast,
   videoEditorFormats,
   DEFAULT_MUSIC_TRACKS,
 } from './videoEditorHelpers'
@@ -592,7 +592,7 @@ export function VideoMakeStudioWizard() {
 
       const selectedTrack = musicTracks.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
 
-      const blob = await stitchVideoWithFFmpeg({
+      const blob = await stitchVideoWithFFmpegFast({
         format,
         clips: clipFiles.map((file, index) => ({
           file,

@@ -404,7 +404,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       throw new Error('Export cancelled')
     }
     const clip = clips[index]
-    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
+    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}'
     await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
     onProgress?.(Math.round(((index + 1) / clips.length) * 15))
     onLog?.(`Clip ${index + 1}/${clips.length} loaded`)
@@ -465,7 +465,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       throw new Error('Export cancelled')
     }
     const clip = clips[index]
-    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
+    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}'
     const outputName = normalizedClips[index]
     await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
     onProgress?.(Math.round(20 + ((index + 1) / clips.length) * 25))
@@ -578,6 +578,155 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
     if (!hasMusic && musicTrackUrl) missingAssets.push('music track')
     const assetNote = missingAssets.length > 0 ? ` Missing assets: ${missingAssets.join(', ')}.` : ''
     throw new Error(`FFmpeg export failed with code ${exportCode}.${assetNote} Check browser console for details.`)
+  }
+
+  const output = await ffmpeg.readFile('output.mp4')
+  const bytes = output instanceof Uint8Array ? output : new TextEncoder().encode(String(output))
+  return new Blob([bytes as unknown as BlobPart], { type: 'video/mp4' })
+}
+
+export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise<Blob> {
+  const { format, clips, muteAudio, callingCardBytes, musicTrackUrl, endFrameUrl, signal, onProgress, onLog } = options
+  const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+  const { fetchFile, toBlobURL } = await import('@ffmpeg/util')
+
+  if (signal?.aborted) {
+    throw new Error('Export cancelled')
+  }
+
+  const ffmpeg = new FFmpeg()
+  ffmpeg.on('progress', ({ progress: value }) => {
+    onProgress?.(Math.round(value * 100))
+  })
+  ffmpeg.on('log', ({ message }) => {
+    onLog?.(message)
+  })
+
+  onLog?.(`Starting FAST stitch: ${clips.length} clips, format ${format.width}x${format.height}, muteAudio=${muteAudio}`)
+
+  onLog?.('Loading FFmpeg core...')
+
+  try {
+    await ffmpeg.load({
+      coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
+      wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
+    })
+  } catch (loadError) {
+    throw new Error(`Failed to load FFmpeg: ${loadError instanceof Error ? loadError.message : 'Unknown error'}`)
+  }
+
+  onLog?.('FFmpeg loaded. Writing clips...')
+
+  const clipNames: string[] = []
+  for (let index = 0; index < clips.length; index += 1) {
+    if (signal?.aborted) {
+      throw new Error('Export cancelled')
+    }
+    const clip = clips[index]
+    const fileName = `clip-${index}.mp4`
+    clipNames.push(fileName)
+    await ffmpeg.writeFile(fileName, await fetchFile(clip.file))
+    onProgress?.(Math.round(((index + 1) / clips.length) * 40))
+    onLog?.(`Clip ${index + 1}/${clips.length} written`)
+  }
+
+  let hasCallingCard = false
+  let hasMusic = false
+
+  if (callingCardBytes) {
+    try {
+      await ffmpeg.writeFile('calling-card.png', callingCardBytes)
+      hasCallingCard = true
+    } catch (callCardError) {
+      console.error('Failed to write calling card:', callCardError)
+    }
+  }
+
+  if (musicTrackUrl) {
+    try {
+      const musicResponse = await fetch(musicTrackUrl)
+      if (musicResponse.ok) {
+        const musicBlob = await musicResponse.blob()
+        const musicArrayBuffer = await musicBlob.arrayBuffer()
+        const musicBytes = new Uint8Array(musicArrayBuffer)
+        await ffmpeg.writeFile('music.mp3', musicBytes)
+        hasMusic = true
+      }
+    } catch (musicError) {
+      console.error('Failed to load music track:', musicError)
+    }
+  }
+
+  if (signal?.aborted) {
+    throw new Error('Export cancelled')
+  }
+
+  onProgress?.(50)
+  onLog?.('Concatenating clips...')
+
+  const concatList = clipNames.map(name => `file '${name}'`).join('\n')
+  await ffmpeg.writeFile('concat-list.txt', concatList)
+
+  const concatArgs = [
+    '-f', 'concat',
+    '-safe', '0',
+    '-i', 'concat-list.txt',
+    '-c', 'copy',
+    '-y',
+    'concatenated.mp4',
+  ]
+
+  const concatCode = await ffmpeg.exec(concatArgs)
+  if (concatCode !== 0) {
+    throw new Error(`Concat failed with code ${concatCode}`)
+  }
+
+  onProgress?.(70)
+  onLog?.('Applying overlays...')
+
+  const filterParts: string[] = []
+  let currentInput = '[0:v]'
+
+  if (hasCallingCard) {
+    filterParts.push(`${currentInput}[1:v]overlay=x=0:y=H-h-24,format=yuv420p[vout]`)
+    currentInput = '[vout]'
+  } else {
+    filterParts.push(`${currentInput}format=yuv420p[vout]`)
+  }
+
+  let finalAudioLabel = '-an'
+  if (hasMusic) {
+    filterParts.push(`[2:a]aloop=loop=-1:size=2e9[bg]`)
+    if (!muteAudio) {
+      filterParts.push(`[0:a][bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
+      finalAudioLabel = '[outa]'
+    } else {
+      filterParts.push(`[bg]volume=0.8[bgv]`)
+    }
+  } else if (!muteAudio) {
+    finalAudioLabel = '[0:a]'
+  }
+
+  const finalArgs = [
+    '-i', 'concatenated.mp4',
+    ...(hasCallingCard ? ['-i', 'calling-card.png'] : []),
+    ...(hasMusic ? ['-i', 'music.mp3'] : []),
+    '-filter_complex', filterParts.join(';'),
+    '-map', '[vout]',
+    '-map', finalAudioLabel,
+    '-c:v', 'libx264',
+    '-preset', 'ultrafast',
+    '-crf', '23',
+    '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
+    '-y',
+    'output.mp4',
+  ]
+
+  const exportCode = await ffmpeg.exec(finalArgs)
+  onProgress?.(95)
+  if (exportCode !== 0) {
+    throw new Error(`Export failed with code ${exportCode}`)
   }
 
   const output = await ffmpeg.readFile('output.mp4')
