@@ -323,19 +323,53 @@ docker run -d --name vms-worker --env-file .env -p 8080:8080 --restart unless-st
 - Worker deployed and running on droplet `46.101.215.87`
 - Docker container `vms-worker` is up and healthy
 - CORS headers configured correctly (verified via curl)
-- ngrok tunnel active: `https://senator-undecided-unvaried.ngrok-free.dev`
 - Vercel env vars set: `NEXT_PUBLIC_WORKER_URL`, `NEXT_PUBLIC_WORKER_API_KEY`
 
-## Remaining Issue
+## Switch to Cloudflare Tunnel
 
-Browser still reports CORS error when calling ngrok URL. ngrok free tier may strip CORS headers.
+ngrok free tier strips CORS headers. Switch to Cloudflare Tunnel (free, reliable CORS).
 
-## Next Steps
+### Step 1: Install Cloudflare Tunnel on Droplet
 
-1. **Update Vercel env var** with current ngrok URL (if changed)
-2. **Redeploy Vercel** after env var change
-3. **Test export** in Video Maker Studio
-4. **If CORS persists:** Switch to Cloudflare Tunnel (more reliable for CORS)
+```bash
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+dpkg -i cloudflared.deb
+```
+
+### Step 2: Start Tunnel
+
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+
+This outputs a permanent HTTPS URL like:
+```
+https://random-name.trycloudflare.com
+```
+
+### Step 3: Update Vercel
+
+| Name | Value |
+|------|-------|
+| `NEXT_PUBLIC_WORKER_URL` | `https://random-name.trycloudflare.com` |
+
+### Step 4: Redeploy Vercel
+
+### Step 5: Test Export
+
+Cloudflare Tunnel preserves CORS headers. The browser should now accept the worker response.
+
+## Failure Modes
+
+| Scenario | Handling |
+|----------|----------|
+| Worker unreachable | Fall back to WASM FFmpeg in browser |
+| FFmpeg crashes | Return 500 with stderr lines; refund credits in Next.js |
+| Clip download fails | Return 400 with which clips failed |
+| Upload to Supabase fails | Retry once, then return 500 |
+| Timeout (10 min) | Kill process, clean up temp files, return 504 |
+| Invalid API key | Return 401 immediately |
+| Cloudflare Tunnel down | Restart `cloudflared tunnel --url http://localhost:8080` |
 
 ## Persistent CORS Issues
 
