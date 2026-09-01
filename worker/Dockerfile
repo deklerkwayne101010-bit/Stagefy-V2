@@ -5,11 +5,11 @@ RUN apk add --no-cache ffmpeg
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --omit=dev
-
+RUN npm install
 COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build
+RUN npm prune --omit=dev
 
 EXPOSE 8080
 
