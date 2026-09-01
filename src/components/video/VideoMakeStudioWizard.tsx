@@ -616,6 +616,7 @@ export function VideoMakeStudioWizard() {
             musicUrl: selectedTrack?.url || undefined,
             endFrameUrl: endFrameUrl || undefined,
             userId: user?.id || '',
+            appUrl: window.location.origin,
           })
 
           const videoResponse = await fetch(workerOutputUrl)

@@ -7,6 +7,7 @@ export interface WorkerStitchJob {
   musicUrl?: string
   endFrameUrl?: string
   userId: string
+  appUrl?: string
 }
 
 export interface WorkerStitchResult {

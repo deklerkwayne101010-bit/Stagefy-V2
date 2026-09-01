@@ -14,6 +14,7 @@ export interface StitchJob {
   musicUrl?: string
   endFrameUrl?: string
   userId: string
+  appUrl?: string
 }
 
 export function buildFilterGraph(job: StitchJob): string {
@@ -136,10 +137,21 @@ function getTempDir(): string {
   return process.env.TEMP_DIR || '/tmp'
 }
 
-async function downloadFile(url: string, dest: string): Promise<void> {
-  const response = await fetch(url)
+function resolveUrl(url: string, appUrl?: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  if (appUrl) {
+    return `${appUrl.replace(/\/$/, '')}${url}`
+  }
+  return url
+}
+
+async function downloadFile(url: string, dest: string, appUrl?: string): Promise<void> {
+  const absoluteUrl = resolveUrl(url, appUrl)
+  const response = await fetch(absoluteUrl)
   if (!response.ok) {
-    throw new Error(`Failed to download ${url}: ${response.status}`)
+    throw new Error(`Failed to download ${absoluteUrl}: ${response.status}`)
   }
   const buffer = Buffer.from(await response.arrayBuffer())
   await writeFile(dest, buffer)
@@ -179,17 +191,17 @@ export async function stitchHandler(req: Request, res: Response): Promise<void> 
 
   try {
     for (let i = 0; i < job.clips.length; i += 1) {
-      await downloadFile(job.clips[i].url, join(workDir, `clip-${i}.mp4`))
+      await downloadFile(job.clips[i].url, join(workDir, `clip-${i}.mp4`), job.appUrl)
     }
 
     if (job.callingCardUrl) {
-      await downloadFile(job.callingCardUrl, join(workDir, 'calling-card.png'))
+      await downloadFile(job.callingCardUrl, join(workDir, 'calling-card.png'), job.appUrl)
     }
     if (job.musicUrl) {
-      await downloadFile(job.musicUrl, join(workDir, 'music.mp3'))
+      await downloadFile(job.musicUrl, join(workDir, 'music.mp3'), job.appUrl)
     }
     if (job.endFrameUrl) {
-      await downloadFile(job.endFrameUrl, join(workDir, 'endframe.png'))
+      await downloadFile(job.endFrameUrl, join(workDir, 'endframe.png'), job.appUrl)
     }
 
     const filterGraph = buildFilterGraph(job)
