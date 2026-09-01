@@ -208,10 +208,14 @@ export async function stitchHandler(req: Request, res: Response): Promise<void> 
     const args = buildFFmpegArgs(job, filterGraph)
 
     const timeoutMs = parseInt(process.env.FFMPEG_TIMEOUT_MS || '600000', 10)
+    const ffmpegLogs: string[] = []
     await runFFmpeg({
       args,
       timeoutMs,
-      onLog: (msg: string) => console.log(`[ffmpeg] ${msg}`),
+      onLog: (msg: string) => {
+        ffmpegLogs.push(msg)
+        console.log(`[ffmpeg] ${msg}`)
+      },
     })
 
     const outputPath = join(workDir, 'output.mp4')
@@ -224,7 +228,8 @@ export async function stitchHandler(req: Request, res: Response): Promise<void> 
     res.json({ outputUrl: publicUrl })
   } catch (err: any) {
     console.error('Stitch failed:', err)
-    res.status(500).json({ error: err.message || 'Stitching failed' })
+    console.error('FFmpeg logs:', ffmpegLogs.slice(-10).join('\n'))
+    res.status(500).json({ error: err.message || 'Stitching failed', logs: ffmpegLogs.slice(-10) })
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
   }
