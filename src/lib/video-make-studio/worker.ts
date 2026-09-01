@@ -14,12 +14,12 @@ export interface WorkerStitchResult {
 }
 
 export function isWorkerEnabled(): boolean {
-  return !!process.env.WORKER_URL && !!process.env.WORKER_API_KEY
+  return !!process.env.NEXT_PUBLIC_WORKER_URL && !!process.env.NEXT_PUBLIC_WORKER_API_KEY
 }
 
 export async function stitchOnWorker(job: WorkerStitchJob): Promise<string> {
-  const workerUrl = process.env.WORKER_URL
-  const apiKey = process.env.WORKER_API_KEY
+  const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL
+  const apiKey = process.env.NEXT_PUBLIC_WORKER_API_KEY
 
   if (!workerUrl || !apiKey) {
     throw new Error('Worker not configured')
@@ -44,8 +44,8 @@ export async function stitchOnWorker(job: WorkerStitchJob): Promise<string> {
 }
 
 export async function checkWorkerHealth(): Promise<boolean> {
-  const workerUrl = process.env.WORKER_URL
-  const apiKey = process.env.WORKER_API_KEY
+  const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL
+  const apiKey = process.env.NEXT_PUBLIC_WORKER_API_KEY
 
   if (!workerUrl || !apiKey) {
     return false
