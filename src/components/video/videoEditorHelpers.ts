@@ -404,7 +404,7 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       throw new Error('Export cancelled')
     }
     const clip = clips[index]
-    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}'
+    const inputName = `input-${index}${clip.file.name.slice(clip.file.name.lastIndexOf('.')) || '.mp4'}`
     await ffmpeg.writeFile(inputName, await fetchFile(clip.file))
     onProgress?.(Math.round(((index + 1) / clips.length) * 15))
     onLog?.(`Clip ${index + 1}/${clips.length} loaded`)
