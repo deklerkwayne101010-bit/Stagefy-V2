@@ -15,22 +15,14 @@ export interface WorkerStitchResult {
 }
 
 export function isWorkerEnabled(): boolean {
-  return !!process.env.NEXT_PUBLIC_WORKER_URL && !!process.env.NEXT_PUBLIC_WORKER_API_KEY
+  return !!process.env.WORKER_URL && !!process.env.WORKER_API_KEY
 }
 
 export async function stitchOnWorker(job: WorkerStitchJob): Promise<string> {
-  const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL
-  const apiKey = process.env.NEXT_PUBLIC_WORKER_API_KEY
-
-  if (!workerUrl || !apiKey) {
-    throw new Error('Worker not configured')
-  }
-
-  const response = await fetch(`${workerUrl}/stitch`, {
+  const response = await fetch('/api/ai/video-make-studio/worker-proxy', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
     },
     body: JSON.stringify(job),
   })
@@ -45,16 +37,13 @@ export async function stitchOnWorker(job: WorkerStitchJob): Promise<string> {
 }
 
 export async function checkWorkerHealth(): Promise<boolean> {
-  const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL
-  const apiKey = process.env.NEXT_PUBLIC_WORKER_API_KEY
-
-  if (!workerUrl || !apiKey) {
+  if (!process.env.WORKER_URL || !process.env.WORKER_API_KEY) {
     return false
   }
 
   try {
-    const response = await fetch(`${workerUrl}/health`, {
-      headers: { 'x-api-key': apiKey },
+    const response = await fetch(`${process.env.WORKER_URL}/health`, {
+      headers: { 'x-api-key': process.env.WORKER_API_KEY },
     })
     if (!response.ok) return false
     const data = await response.json()
