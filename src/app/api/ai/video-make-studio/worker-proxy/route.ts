@@ -11,6 +11,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
+    console.log('Worker proxy request:', {
+      clipCount: body.clips?.length,
+      hasFormat: !!body.format,
+      hasUserId: !!body.userId,
+      hasAppUrl: !!body.appUrl,
+      hasMusic: !!body.musicUrl,
+      hasCallingCard: !!body.callingCardUrl,
+      hasEndFrame: !!body.endFrameUrl,
+    })
+
     const workerResponse = await fetch(`${WORKER_URL}/stitch`, {
       method: 'POST',
       headers: {
@@ -23,7 +33,7 @@ export async function POST(request: NextRequest) {
     const data = await workerResponse.json()
 
     if (!workerResponse.ok) {
-      console.error('Worker error:', data)
+      console.error('Worker error response:', { status: workerResponse.status, data })
       return NextResponse.json(data, { status: workerResponse.status })
     }
 
