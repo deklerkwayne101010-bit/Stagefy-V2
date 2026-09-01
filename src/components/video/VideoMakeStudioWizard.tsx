@@ -598,6 +598,11 @@ export function VideoMakeStudioWizard() {
         trimmedDuration: 5,
       }))
 
+      const getCallingCardBytes = () => {
+        if (!callingCardBytes) return null
+        return new Uint8Array(callingCardBytes)
+      }
+
       let blob: Blob
       try {
         blob = await stitchVideoWithFFmpegFast({
@@ -605,7 +610,7 @@ export function VideoMakeStudioWizard() {
           clips: clipInputs,
           transitionDuration,
           muteAudio,
-          callingCardBytes,
+          callingCardBytes: getCallingCardBytes(),
           musicTrackUrl: selectedTrack?.url || null,
           endFrameUrl,
           signal: controller.signal,
@@ -625,7 +630,7 @@ export function VideoMakeStudioWizard() {
           clips: clipInputs,
           transitionDuration,
           muteAudio,
-          callingCardBytes,
+          callingCardBytes: getCallingCardBytes(),
           musicTrackUrl: selectedTrack?.url || null,
           endFrameUrl,
           signal: controller.signal,
