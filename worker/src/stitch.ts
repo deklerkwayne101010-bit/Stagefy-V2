@@ -189,6 +189,8 @@ export async function stitchHandler(req: Request, res: Response): Promise<void> 
 
   await mkdir(workDir, { recursive: true })
 
+  const ffmpegLogs: string[] = []
+
   try {
     for (let i = 0; i < job.clips.length; i += 1) {
       await downloadFile(job.clips[i].url, join(workDir, `clip-${i}.mp4`), job.appUrl)
@@ -208,7 +210,6 @@ export async function stitchHandler(req: Request, res: Response): Promise<void> 
     const args = buildFFmpegArgs(job, filterGraph)
 
     const timeoutMs = parseInt(process.env.FFMPEG_TIMEOUT_MS || '600000', 10)
-    const ffmpegLogs: string[] = []
     await runFFmpeg({
       args,
       timeoutMs,
