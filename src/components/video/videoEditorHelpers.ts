@@ -629,10 +629,17 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
   let hasCallingCard = false
   let hasMusic = false
 
+  console.log('Fast stitch inputs:', {
+    callingCardBytes: callingCardBytes ? `${callingCardBytes.length} bytes` : null,
+    musicTrackUrl,
+    format: `${format.width}x${format.height}`,
+  })
+
   if (callingCardBytes) {
     try {
       await ffmpeg.writeFile('calling-card.png', callingCardBytes)
       hasCallingCard = true
+      console.log('Calling card written successfully')
     } catch (callCardError) {
       console.error('Failed to write calling card:', callCardError)
     }
@@ -640,6 +647,7 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
 
   if (musicTrackUrl) {
     try {
+      console.log('Fetching music from:', musicTrackUrl)
       const musicResponse = await fetch(musicTrackUrl)
       if (musicResponse.ok) {
         const musicBlob = await musicResponse.blob()
@@ -647,11 +655,16 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
         const musicBytes = new Uint8Array(musicArrayBuffer)
         await ffmpeg.writeFile('music.mp3', musicBytes)
         hasMusic = true
+        console.log('Music written successfully:', musicBytes.length, 'bytes')
+      } else {
+        console.error('Music fetch failed:', musicResponse.status)
       }
     } catch (musicError) {
       console.error('Failed to load music track:', musicError)
     }
   }
+
+  console.log('Fast stitch state:', { hasCallingCard, hasMusic })
 
   if (signal?.aborted) {
     throw new Error('Export cancelled')
@@ -685,6 +698,9 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
 
   const filterParts: string[] = []
   let currentInput = '[0:v]'
+
+  filterParts.push(`${currentInput}scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[vscaled]`)
+  currentInput = '[vscaled]'
 
   if (hasCallingCard) {
     filterParts.push(`${currentInput}[1:v]overlay=x=0:y=H-h-24,format=yuv420p[vout]`)

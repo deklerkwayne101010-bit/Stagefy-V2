@@ -593,6 +593,16 @@ export function VideoMakeStudioWizard() {
 
       const selectedTrack = musicTracks.find((track: MusicTrack) => track.id === selectedMusicTrack) || null
 
+      console.log('Export debug:', {
+        format: `${format.width}x${format.height}`,
+        callingCardEnabled,
+        callingCardBytes: callingCardBytes ? `${callingCardBytes.length} bytes` : null,
+        selectedMusicTrack,
+        musicTrackUrl: selectedTrack?.url || null,
+        endFrameUrl,
+        clipCount: clipFiles.length,
+      })
+
       const clipInputs = clipFiles.map((file, index) => ({
         file,
         trimmedDuration: 5,
