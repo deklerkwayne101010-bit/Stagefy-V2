@@ -318,12 +318,24 @@ docker rm vms-worker
 docker run -d --name vms-worker --env-file .env -p 8080:8080 --restart unless-stopped vms-worker
 ```
 
-**5. Restart ngrok (in case it's caching):**
-```bash
-pkill -f ngrok
-./ngrok http 8080
-```
-Update Vercel env var with new ngrok URL if it changes.
+## Current Status
+
+- Worker deployed and running on droplet `46.101.215.87`
+- Docker container `vms-worker` is up and healthy
+- CORS headers configured correctly (verified via curl)
+- ngrok tunnel active: `https://senator-undecided-unvaried.ngrok-free.dev`
+- Vercel env vars set: `NEXT_PUBLIC_WORKER_URL`, `NEXT_PUBLIC_WORKER_API_KEY`
+
+## Remaining Issue
+
+Browser still reports CORS error when calling ngrok URL. ngrok free tier may strip CORS headers.
+
+## Next Steps
+
+1. **Update Vercel env var** with current ngrok URL (if changed)
+2. **Redeploy Vercel** after env var change
+3. **Test export** in Video Maker Studio
+4. **If CORS persists:** Switch to Cloudflare Tunnel (more reliable for CORS)
 
 ## Persistent CORS Issues
 
