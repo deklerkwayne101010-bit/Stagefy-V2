@@ -684,6 +684,8 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
   onProgress?.(70)
   onLog?.('Applying overlays...')
 
+  const musicInputIndex = hasCallingCard ? 2 : 1
+
   const filterParts: string[] = []
   let currentInput = '[0:v]'
 
@@ -696,7 +698,7 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
 
   let finalAudioLabel = '-an'
   if (hasMusic) {
-    filterParts.push(`[2:a]aloop=loop=-1:size=2e9[bg]`)
+    filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
     if (!muteAudio) {
       filterParts.push(`[0:a][bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
       finalAudioLabel = '[outa]'
@@ -713,7 +715,7 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
     ...(hasMusic ? ['-i', 'music.mp3'] : []),
     '-filter_complex', filterParts.join(';'),
     '-map', '[vout]',
-    '-map', finalAudioLabel,
+    ...(finalAudioLabel !== '-an' ? ['-map', finalAudioLabel] : ['-an']),
     '-c:v', 'libx264',
     '-preset', 'ultrafast',
     '-crf', '23',
