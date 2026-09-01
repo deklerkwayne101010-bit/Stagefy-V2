@@ -236,22 +236,52 @@ That's it. I'll handle writing all the code, Dockerfile, and deployment commands
 
 ## CORS Fix (Required for HTTPS)
 
-The worker must allow cross-origin requests from Vercel. Update `worker/src/index.ts`:
+The worker must allow cross-origin requests from Vercel. **Run this exact command on your droplet:**
 
-```typescript
+```bash
+cd /opt/vms-worker/worker && cat > src/index.ts << 'EOF'
+import express from 'express'
+import cors from 'cors'
+import dotenv from 'dotenv'
+import { stitchHandler } from './stitch'
+import { checkFFmpeg } from './ffmpeg'
+
+dotenv.config()
+
+const app = express()
+const PORT = parseInt(process.env.PORT || '8080', 10)
+
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-api-key'],
 }))
 app.options('*', cors())
+app.use(express.json({ limit: '50mb' }))
+
+app.get('/health', async (_req, res) => {
+  const ffmpegOk = await checkFFmpeg()
+  res.json({ status: 'ok', ffmpeg: ffmpegOk })
+})
+
+app.post('/stitch', stitchHandler)
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`VMS FFmpeg Worker listening on port ${PORT}`)
+})
+EOF
 ```
 
-Then rebuild and restart the container:
+**Then rebuild and restart:**
 ```bash
-cd /opt/vms-worker/worker
 docker build -t vms-worker .
 docker stop vms-worker
 docker rm vms-worker
 docker run -d --name vms-worker --env-file .env -p 8080:8080 --restart unless-stopped vms-worker
+```
+
+**Verify it's running:**
+```bash
+docker ps
+curl http://localhost:8080/health
 ```
