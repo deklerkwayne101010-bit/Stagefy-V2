@@ -9,7 +9,12 @@ dotenv.config()
 const app = express()
 const PORT = parseInt(process.env.PORT || '8080', 10)
 
-app.use(cors())
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-api-key'],
+}))
+app.options('*', cors())
 app.use(express.json({ limit: '50mb' }))
 
 app.get('/health', async (_req, res) => {
