@@ -285,3 +285,42 @@ docker run -d --name vms-worker --env-file .env -p 8080:8080 --restart unless-st
 docker ps
 curl http://localhost:8080/health
 ```
+
+## Troubleshooting CORS Issues
+
+If CORS errors persist after the fix:
+
+**1. Verify the file was updated:**
+```bash
+cat /opt/vms-worker/worker/src/index.ts
+```
+Check that it contains `origin: '*'`.
+
+**2. Check container logs:**
+```bash
+docker logs vms-worker
+```
+
+**3. Test CORS headers directly:**
+```bash
+curl -I -X OPTIONS http://localhost:8080/stitch \
+  -H "Origin: https://stagefy.co.za" \
+  -H "Access-Control-Request-Method: POST"
+```
+Look for `Access-Control-Allow-Origin: *` in the response.
+
+**4. If headers are missing, rebuild completely:**
+```bash
+cd /opt/vms-worker/worker
+docker build --no-cache -t vms-worker .
+docker stop vms-worker
+docker rm vms-worker
+docker run -d --name vms-worker --env-file .env -p 8080:8080 --restart unless-stopped vms-worker
+```
+
+**5. Restart ngrok (in case it's caching):**
+```bash
+pkill -f ngrok
+./ngrok http 8080
+```
+Update Vercel env var with new ngrok URL if it changes.
