@@ -29,7 +29,7 @@ function validateSignature(data: Record<string, string>): boolean {
     .join('&')
 
   const sigWithPassphrase = PAYFAST_PASSPHRASE
-    ? `${sigString}&passphrase=${encodeURIComponent(PAYFAST_PASSPHRASE)}`
+    ? `${PAYFAST_PASSPHRASE}&${sigString}`
     : sigString
 
   const generatedSig = crypto
