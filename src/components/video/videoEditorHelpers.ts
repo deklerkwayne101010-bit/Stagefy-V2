@@ -441,7 +441,10 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
           console.error('End frame file is empty (0 bytes), skipping end frame')
         }
       }
+    } catch (endFrameError) {
+      console.error('Failed to load end frame image:', endFrameError)
     }
+  }
 
   if (musicTrackUrl) {
     try {
