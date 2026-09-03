@@ -1,5 +1,12 @@
 import Link from 'next/link'
-import { ChevronLeft } from 'lucide-react'
+
+function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  )
+}
 
 const helpSections = [
   {
@@ -85,7 +92,7 @@ export default function HelpPage() {
     <div className="min-h-screen bg-slate-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <Link href="/" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-8">
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeftIcon className="w-4 h-4" />
           Back to Home
         </Link>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Help Center</h1>

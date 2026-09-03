@@ -80,7 +80,7 @@ export default function FAQPage() {
     <div className="min-h-screen bg-slate-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <Link href="/" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-8">
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeftIcon className="w-4 h-4" />
           Back to Home
         </Link>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Frequently Asked Questions</h1>
