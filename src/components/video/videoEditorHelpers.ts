@@ -521,12 +521,14 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   let finalAudioLabel = '-an'
   if (hasMusic) {
     const musicInputIndex = clips.length + (hasCallingCard ? 1 : 0)
-    filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
+    const totalDuration = clips.reduce((sum, clip) => sum + clip.trimmedDuration, 0)
     if (!muteAudio) {
-      filterParts.push(`[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[outa]`)
+      filterParts.push(`[${musicInputIndex}:a]atrim=start=0:end=${totalDuration},asetpts=PTS-STARTPTS[bg]`)
+      filterParts.push(`[0:a]asetpts=PTS-STARTPTS[vaudio]`)
+      filterParts.push(`[vaudio][bg]amix=inputs=2:duration=first:dropout_transition=0[outa]`)
       finalAudioLabel = '[outa]'
     } else {
-      filterParts.push(`[bg]anull[bga]`)
+      filterParts.push(`[${musicInputIndex}:a]atrim=start=0:end=${totalDuration},anull[bga]`)
       finalAudioLabel = '[bga]'
     }
   } else if (!muteAudio) {
