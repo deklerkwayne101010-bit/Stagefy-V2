@@ -119,7 +119,7 @@ export default function TermsPage() {
 
         <h2>11. Contact Information</h2>
         <p>
-          For questions about these Terms, contact us at: legal@stagefy.co.za
+          For questions about these Terms, contact us at: admin@stagefy.co.za
         </p>
       </div>
     </div>

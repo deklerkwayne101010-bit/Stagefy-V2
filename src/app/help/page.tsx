@@ -81,7 +81,7 @@ const helpSections = [
       },
       {
         q: "Can I get help from support?",
-        a: "Yes, email support@stagefy.com for assistance with technical issues, billing questions, or account problems. Include details about your browser, the feature you're using, and any error messages."
+a: "Yes, email admin@stagefy.co.za for assistance with technical issues, billing questions, or account problems. Include details about your browser, the feature you're using, and any error messages."
       }
     ]
   }
@@ -120,7 +120,7 @@ export default function HelpPage() {
         <div className="bg-blue-50 rounded-xl p-6 mt-12">
           <h2 className="font-semibold text-slate-900 mb-2">Still need help?</h2>
           <p className="text-slate-600 text-sm mb-3">
-            Email us at support@stagefy.com with your questions, concerns, or technical issues.
+            Email us at admin@stagefy.co.za with your questions, concerns, or technical issues.
           </p>
         </div>
       </div>

@@ -419,10 +419,10 @@ export default function BillingPage() {
                   Have questions about credits or your account? Our team is here to help.
                 </p>
                 <a
-                  href="mailto:support@stagefy.com"
+                  href="mailto:admin@stagefy.co.za"
                   className="inline-flex items-center gap-2 text-blue-600 font-medium hover:text-blue-700"
                 >
-                  support@stagefy.com
+                  admin@stagefy.co.za
                 </a>
               </div>
             </Card>

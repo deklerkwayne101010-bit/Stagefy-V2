@@ -15,10 +15,12 @@ export default function LandingPage() {
               <Logo size="sm" />
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#benefits" className="text-slate-600 hover:text-slate-900 transition-colors">Benefits</a>
-              <a href="#how-it-works" className="text-slate-600 hover:text-slate-900 transition-colors">How It Works</a>
-              <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">Features</a>
-              <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
+                <a href="#benefits" className="text-slate-600 hover:text-slate-900 transition-colors">Benefits</a>
+                <a href="#how-it-works" className="text-slate-600 hover:text-slate-900 transition-colors">How It Works</a>
+                <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">Features</a>
+                <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
+                <Link href="/faq" className="text-slate-600 hover:text-slate-900 transition-colors">FAQ</Link>
+                <Link href="/help" className="text-slate-600 hover:text-slate-900 transition-colors">Help</Link>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login" className="text-slate-600 hover:text-slate-900 font-medium transition-colors">
