@@ -738,6 +738,7 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
   onLog?.('Applying overlays...')
 
   const musicInputIndex = hasCallingCard ? 2 : 1
+  const totalDuration = clips.reduce((sum, clip) => sum + clip.trimmedDuration, 0)
 
   const filterParts: string[] = []
   let currentInput = '[0:v]'
@@ -755,12 +756,12 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
   let finalAudioLabel = '-an'
   if (hasMusic) {
     if (!muteAudio) {
-      filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
-      filterParts.push(`[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[outa]`)
+      filterParts.push(`[${musicInputIndex}:a]atrim=start=0:end=${totalDuration},asetpts=PTS-STARTPTS[bg]`)
+      filterParts.push(`[0:a]asetpts=PTS-STARTPTS[vaudio]`)
+      filterParts.push(`[vaudio][bg]amix=inputs=2:duration=first:dropout_transition=0[outa]`)
       finalAudioLabel = '[outa]'
     } else {
-      filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
-      filterParts.push(`[bg]anull[bga]`)
+      filterParts.push(`[${musicInputIndex}:a]atrim=start=0:end=${totalDuration},anull[bga]`)
       finalAudioLabel = '[bga]'
     }
   } else if (!muteAudio) {
@@ -770,7 +771,6 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
 
   if (hasEndFrame) {
     const endFrameInputIndex = 1 + (hasCallingCard ? 1 : 0) + (hasMusic ? 1 : 0)
-    const totalDuration = clips.reduce((sum, clip) => sum + clip.trimmedDuration, 0) - (clips.length - 1) * 0
     const offset = Math.max(0, totalDuration - 1)
     filterParts.push(`[${endFrameInputIndex}:v]scale=${format.width}:${format.height}:force_original_aspect_ratio=increase,crop=${format.width}:${format.height},setsar=1[endframecrop]`)
     filterParts.push(`[${currentInput}][endframecrop]xfade=transition=fade:duration=1:offset=${offset}[vfinal]`)
