@@ -432,25 +432,30 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
       const endFrameResponse = await fetch(endFrameUrl)
       if (endFrameResponse.ok) {
         const endFrameBlob = await endFrameResponse.blob()
-        const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
-        const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
-        await ffmpeg.writeFile('endframe.png', endFrameBytes)
-        hasEndFrame = true
+        if (endFrameBlob.size > 0) {
+          const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
+          const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
+          await ffmpeg.writeFile('endframe.png', endFrameBytes)
+          hasEndFrame = true
+        } else {
+          console.error('End frame file is empty (0 bytes), skipping end frame')
+        }
       }
-    } catch (endFrameError) {
-      console.error('Failed to load end frame image:', endFrameError)
     }
-  }
 
   if (musicTrackUrl) {
     try {
       const musicResponse = await fetch(musicTrackUrl)
       if (musicResponse.ok) {
         const musicBlob = await musicResponse.blob()
-        const musicArrayBuffer = await musicBlob.arrayBuffer()
-        const musicBytes = new Uint8Array(musicArrayBuffer)
-        await ffmpeg.writeFile('music.mp3', musicBytes)
-        hasMusic = true
+        if (musicBlob.size > 0) {
+          const musicArrayBuffer = await musicBlob.arrayBuffer()
+          const musicBytes = new Uint8Array(musicArrayBuffer)
+          await ffmpeg.writeFile('music.mp3', musicBytes)
+          hasMusic = true
+        } else {
+          console.error('Music file is empty (0 bytes), skipping music')
+        }
       }
     } catch (musicError) {
       console.error('Failed to load music track:', musicError)
@@ -659,11 +664,15 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
       const musicResponse = await fetch(musicTrackUrl)
       if (musicResponse.ok) {
         const musicBlob = await musicResponse.blob()
-        const musicArrayBuffer = await musicBlob.arrayBuffer()
-        const musicBytes = new Uint8Array(musicArrayBuffer)
-        await ffmpeg.writeFile('music.mp3', musicBytes)
-        hasMusic = true
-        console.log('Music written successfully:', musicBytes.length, 'bytes')
+        if (musicBlob.size === 0) {
+          console.error('Music file is empty (0 bytes), skipping music')
+        } else {
+          const musicArrayBuffer = await musicBlob.arrayBuffer()
+          const musicBytes = new Uint8Array(musicArrayBuffer)
+          await ffmpeg.writeFile('music.mp3', musicBytes)
+          hasMusic = true
+          console.log('Music written successfully:', musicBytes.length, 'bytes')
+        }
       } else {
         console.error('Music fetch failed:', musicResponse.status)
       }
@@ -678,11 +687,15 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
       const endFrameResponse = await fetch(endFrameUrl)
       if (endFrameResponse.ok) {
         const endFrameBlob = await endFrameResponse.blob()
-        const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
-        const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
-        await ffmpeg.writeFile('endframe.png', endFrameBytes)
-        hasEndFrame = true
-        console.log('End frame written successfully:', endFrameBytes.length, 'bytes')
+        if (endFrameBlob.size === 0) {
+          console.error('End frame file is empty (0 bytes), skipping')
+        } else {
+          const endFrameArrayBuffer = await endFrameBlob.arrayBuffer()
+          const endFrameBytes = new Uint8Array(endFrameArrayBuffer)
+          await ffmpeg.writeFile('endframe.png', endFrameBytes)
+          hasEndFrame = true
+          console.log('End frame written successfully:', endFrameBytes.length, 'bytes')
+        }
       } else {
         console.error('End frame fetch failed:', endFrameResponse.status)
       }
