@@ -503,24 +503,27 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   const finalVideoBeforeOverlay = currentVideo
-  const finalAudioBeforeOverlay = currentAudio
+
+  filterParts.push(`[${finalVideoBeforeOverlay}]format=yuv420p[vout]`)
 
   if (hasCallingCard) {
-    filterParts.push(`[${finalVideoBeforeOverlay}]overlay=x=0:y=H-h-24,format=yuv420p[vout]`)
-  } else {
-    filterParts.push(`[${finalVideoBeforeOverlay}]format=yuv420p[vout]`)
+    filterParts.push(`[vout][${clips.length}:v]overlay=x=0:y=H-h-24,format=yuv420p[vout]`)
   }
 
+  let finalAudioLabel = '-an'
   if (hasMusic) {
     const musicInputIndex = clips.length + (hasCallingCard ? 1 : 0)
     filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
-    if (!muteAudio && finalAudioBeforeOverlay !== 'a0') {
-      filterParts.push(`[${finalAudioBeforeOverlay}][bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
+    if (!muteAudio) {
+      filterParts.push(`[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[outa]`)
+      finalAudioLabel = '[outa]'
     } else {
-      filterParts.push(`[bg]volume=0.8[bgv]`)
+      filterParts.push(`[bg]anull[bga]`)
+      finalAudioLabel = '[bga]'
     }
-  } else if (!muteAudio && finalAudioBeforeOverlay !== 'a0') {
-    filterParts.push(`[${finalAudioBeforeOverlay}]asetpts=PTS-STARTPTS[outa]`)
+  } else if (!muteAudio) {
+    filterParts.push(`[0:a]asetpts=PTS-STARTPTS[outa]`)
+    finalAudioLabel = '[outa]'
   }
 
   if (hasEndFrame) {
@@ -531,7 +534,6 @@ export async function stitchVideoWithFFmpeg(options: StitchOptions): Promise<Blo
   }
 
   const finalVideoLabel = hasEndFrame ? '[vfinal]' : '[vout]'
-  const finalAudioLabel = hasMusic ? '[outa]' : (!muteAudio && finalAudioBeforeOverlay !== 'a0' ? '[outa]' : '-an')
 
   const musicInput = hasMusic ? ['-i', 'music.mp3'] : []
   const endFrameInput = hasEndFrame ? ['-i', 'endframe.png'] : []
@@ -734,13 +736,14 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
     filterParts.push(`${currentInput}format=yuv420p[vout]`)
   }
 
-let finalAudioLabel = '-an'
+  let finalAudioLabel = '-an'
   if (hasMusic) {
-    filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
     if (!muteAudio) {
-      filterParts.push(`[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[outa]`)
+      filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
+      filterParts.push(`[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[outa]`)
       finalAudioLabel = '[outa]'
     } else {
+      filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
       filterParts.push(`[bg]anull[bga]`)
       finalAudioLabel = '[bga]'
     }
