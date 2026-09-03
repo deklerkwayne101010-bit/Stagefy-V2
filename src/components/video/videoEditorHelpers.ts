@@ -621,7 +621,11 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
     const clip = clips[index]
     const fileName = `clip-${index}.mp4`
     clipNames.push(fileName)
-    await ffmpeg.writeFile(fileName, await fetchFile(clip.file))
+    try {
+      await ffmpeg.writeFile(fileName, await fetchFile(clip.file))
+    } catch (writeErr) {
+      throw new Error(`Failed to write clip ${index + 1}: ${writeErr instanceof Error ? writeErr.message : 'Unknown error'}`)
+    }
     onProgress?.(Math.round(((index + 1) / clips.length) * 40))
     onLog?.(`Clip ${index + 1}/${clips.length} written`)
   }

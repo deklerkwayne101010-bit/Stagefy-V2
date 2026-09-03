@@ -527,6 +527,9 @@ export function VideoMakeStudioWizard() {
           throw new Error(`Clip ${clip.imageIndex + 1} is no longer available (${response.status}). Please regenerate.`)
         }
         const blob = await response.blob()
+        if (blob.size < 1000) {
+          throw new Error(`Clip ${clip.imageIndex + 1} is incomplete (${blob.size} bytes). Please regenerate.`)
+        }
         clipFiles.push(new File([blob], `clip-${clip.imageIndex}.mp4`, { type: 'video/mp4' }))
       }
 
