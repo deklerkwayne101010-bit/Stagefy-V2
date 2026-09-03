@@ -730,15 +730,19 @@ export async function stitchVideoWithFFmpegFast(options: StitchOptions): Promise
     filterParts.push(`${currentInput}format=yuv420p[vout]`)
   }
 
-  let finalAudioLabel = '-an'
+let finalAudioLabel = '-an'
   if (hasMusic) {
+    filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
     if (!muteAudio) {
-      filterParts.push(`[${musicInputIndex}:a]aloop=loop=-1:size=2e9[bg]`)
-      filterParts.push(`[0:a][bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]`)
+      filterParts.push(`[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[outa]`)
       finalAudioLabel = '[outa]'
+    } else {
+      filterParts.push(`[bg]anull[bga]`)
+      finalAudioLabel = '[bga]'
     }
   } else if (!muteAudio) {
-    finalAudioLabel = '[0:a]'
+    filterParts.push(`[0:a]asetpts=PTS-STARTPTS[outa]`)
+    finalAudioLabel = '[outa]'
   }
 
   if (hasEndFrame) {
